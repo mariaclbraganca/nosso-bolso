@@ -1,0 +1,6 @@
+﻿*
+!.gitignore
+!envelope-api/
+!envelope-api/**
+!envelope-flutter/
+!envelope-flutter/**
