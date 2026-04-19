@@ -93,7 +93,7 @@ class EnvelopeCreate(BaseModel):
     nome_envelope: str
     valor_planejado: float
     emoji: str = '📦'
-    cor: str
+    cor: Optional[str] = None
     familia_id: UUID
     is_reserva: bool = False
     valor_objetivo: Optional[float] = None
