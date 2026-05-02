@@ -76,21 +76,29 @@ def atualizar_fixo(fixo_id: str, payload: GastoFixoUpdate):
     if not update_data:
         raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
 
-    # 2. Se mudou o status de 'pago', ajustar saldo_geral diretamente
+    # 2. Se mudou o status de 'pago', ajustar saldo_geral com validação prévia
     if "pago" in update_data and update_data["pago"] != fixo_atual["pago"]:
-        valor = update_data.get("valor", fixo_atual["valor"])
+        valor = float(update_data.get("valor", fixo_atual["valor"]))
         familia_id = fixo_atual["familia_id"]
 
         # Buscar saldo atual
         saldo_row = db.table("saldo_geral").select("valor_total_disponivel") \
             .eq("familia_id", familia_id).single().execute()
-        saldo_atual = saldo_row.data["valor_total_disponivel"]
+        saldo_atual = float(saldo_row.data["valor_total_disponivel"])
 
         if update_data["pago"]:
-            # Marcar como pago = debitar do saldo geral
+            # Validar antes para retornar 400 limpo em vez de 500 da constraint
+            if saldo_atual < valor:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Saldo geral insuficiente para pagar este fixo. "
+                        f"Disponível: R$ {saldo_atual:.2f} | Necessário: R$ {valor:.2f}. "
+                        f"Remaneje dinheiro de algum envelope para o saldo geral antes."
+                    ),
+                )
             novo_saldo = saldo_atual - valor
         else:
-            # Desmarcar pago = creditar de volta
             novo_saldo = saldo_atual + valor
 
         db.table("saldo_geral").update({"valor_total_disponivel": novo_saldo}) \
