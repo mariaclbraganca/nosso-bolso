@@ -45,7 +45,8 @@ def extrato(familia_id: str, usuario_id: str = None, tipo: str = None,
     query = (db.table("transacoes")
              .select("*, usuarios(nome), envelopes(nome_envelope, emoji)")
              .order("data", desc=True)
-             .eq("familia_id", familia_id))
+             .eq("familia_id", familia_id)
+             .is_("deleted_at", "null"))
     
     # Filtros Básicos
     if usuario_id:   query = query.eq("usuario_id", usuario_id)
@@ -149,7 +150,7 @@ def exportar_extrato(familia_id: str, formato: str = "pdf", q: str = None, valor
         return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=extrato_{familia_id}.pdf"})
 
 @router.put("/{transacao_id}")
-def editar_transacao(transacao_id: str, payload: TransacaoUpdate):
+def editar_transacao(transacao_id: str, familia_id: str, payload: TransacaoUpdate):
     db = get_supabase()
     # Criar dict apenas com campos não-nulos
     update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -160,10 +161,13 @@ def editar_transacao(transacao_id: str, payload: TransacaoUpdate):
     if 'envelope_id' in update_data:
         update_data['envelope_id'] = str(update_data['envelope_id']) if update_data['envelope_id'] else None
 
-    result = db.table("transacoes").update(update_data).eq("id", transacao_id).execute()
+    # BOLA Fix: Sempre incluir familia_id em operações de escrita
+    result = db.table("transacoes").update(update_data) \
+        .eq("id", transacao_id) \
+        .eq("familia_id", familia_id).execute()
     
     if not result.data:
-        raise HTTPException(status_code=404, detail="Transação não encontrada")
+        raise HTTPException(status_code=404, detail="Transação não encontrada ou acesso negado")
         
     return result.data[0]
 

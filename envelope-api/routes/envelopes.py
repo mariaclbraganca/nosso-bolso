@@ -31,15 +31,18 @@ def criar_envelope(payload: EnvelopeCreate):
     return result.data[0]
 
 @router.put("/{envelope_id}")
-def editar_envelope(envelope_id: str, payload: EnvelopeUpdate):
+def editar_envelope(envelope_id: str, familia_id: str, payload: EnvelopeUpdate):
     db = get_supabase()
     update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
 
-    result = db.table("envelopes").update(update_data).eq("id", envelope_id).execute()
+    # BOLA Fix: Sempre incluir familia_id em operações de escrita
+    result = db.table("envelopes").update(update_data) \
+        .eq("id", envelope_id) \
+        .eq("familia_id", familia_id).execute()
     if not result.data:
-        raise HTTPException(status_code=404, detail="Envelope não encontrado")
+        raise HTTPException(status_code=404, detail="Envelope não encontrado ou acesso negado")
     return result.data[0]
 
 @router.delete("/{envelope_id}")

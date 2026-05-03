@@ -7,7 +7,7 @@ usuario_id: 8ef33e82-1c59-42f5-9ab6-dcadf0cd66dd
 import requests
 import sys
 
-BASE = "http://127.0.0.1:8002"
+BASE = "https://envelope-api.onrender.com"
 FAM = "a1b2c3d4-0000-4000-a000-000000000001"
 USR = "8ef33e82-1c59-42f5-9ab6-dcadf0cd66dd"
 ENV_ALIM = "e0000001-0000-4000-a000-000000000001"
@@ -93,7 +93,7 @@ if r and r.status_code == 200:
 # Editar envelope
 if test_env_id:
     test("Editar envelope", "PUT", f"/envelopes/{test_env_id}", 200,
-         body={"nome_envelope": "TESTE_EDITADO", "valor_planejado": 200.0})
+         body={"nome_envelope": "TESTE_EDITADO", "valor_planejado": 200.0, "familia_id": FAM})
 
 # Deletar envelope teste
 if test_env_id:
@@ -146,7 +146,7 @@ test("Valor negativo (deve falhar)", "POST", "/transacoes/", 422,
 # Editar transacao
 if despesa_id:
     test("Editar transacao", "PUT", f"/transacoes/{despesa_id}", 200,
-         body={"valor": 15.0, "descricao": "Teste E2E editado"})
+         body={"valor": 15.0, "descricao": "Teste E2E editado", "familia_id": FAM})
 
 # Soft delete (lixeira)
 if despesa_id:
@@ -159,7 +159,8 @@ test("Listar lixeira", "GET", "/transacoes/lixeira", 200,
 
 # Restaurar
 if despesa_id:
-    test("Restaurar da lixeira", "POST", f"/transacoes/{despesa_id}/restaurar?familia_id={FAM}", 200)
+    test("Restaurar da lixeira", "POST", f"/transacoes/{despesa_id}/restaurar", 200,
+         params={"familia_id": FAM})
 
 # Deletar transacao de teste (limpar)
 if despesa_id:
