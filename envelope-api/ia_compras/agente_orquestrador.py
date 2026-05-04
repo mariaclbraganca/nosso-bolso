@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 _client: genai.Client | None = None
 
 
@@ -24,11 +24,33 @@ def gerar_lista_inteligente(
     prompt = _montar_prompt(dias, saldo, estoque, perfil)
     try:
         resp = _get_client().models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        raw = json.loads(resp.text)
+        raw = _extrair_json(resp.text)
         return _parse_lista(familia_id, dias, saldo, raw)
     except Exception as e:
         logger.error(f"Gemini orquestrador falhou: {e}")
         return _fallback_lista(familia_id, dias, saldo, estoque, perfil)
+
+
+def _extrair_json(text: str) -> dict:
+    """Tolerante a ```json ... ``` e texto extra."""
+    if not text:
+        return {}
+    s = text.strip()
+    if s.startswith("```"):
+        # remove cerca markdown
+        s = s.split("```", 2)[1] if s.count("```") >= 2 else s
+        if s.startswith("json"):
+            s = s[4:].lstrip()
+        if s.endswith("```"):
+            s = s[:-3]
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        start = s.find("{")
+        end = s.rfind("}") + 1
+        if start >= 0 and end > start:
+            return json.loads(s[start:end])
+        raise
 
 
 def _montar_prompt(dias: int, saldo: float, estoque: dict, perfil: dict) -> str:
