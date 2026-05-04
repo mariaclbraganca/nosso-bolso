@@ -15,6 +15,9 @@ class AbastecerSheet extends ConsumerStatefulWidget {
   ConsumerState<AbastecerSheet> createState() => _AbastecerSheetState();
 }
 
+// Margem de meio centavo para neutralizar erros de IEEE 754 ao comparar totais
+const double _kToleranciaCentavo = 0.005;
+
 class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
   final Map<String, TextEditingController> _controllers = {};
   bool _isSaving = false;
@@ -35,6 +38,28 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     return total;
   }
 
+  void _usarRestante(String envelopeId) {
+    double outrosTotal = 0;
+    _controllers.forEach((id, c) {
+      if (id != envelopeId) {
+        outrosTotal += double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+      }
+    });
+    final saldoGeral = ref.read(saldoGeralProvider).value ?? 0.0;
+    final reservado = ref.read(totalReservadoProvider);
+    final livre = saldoGeral - reservado;
+    final disponivel = livre - outrosTotal;
+    if (disponivel <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Sem saldo livre para distribuir.'),
+        backgroundColor: AppColors.org,
+      ));
+      return;
+    }
+    _controllers[envelopeId]?.text = disponivel.toStringAsFixed(2).replaceAll('.', ',');
+    setState(() {});
+  }
+
   void _confirmar() async {
     final saldoGeral = ref.read(saldoGeralProvider).value ?? 0.0;
     final reservado = ref.read(totalReservadoProvider);
@@ -44,7 +69,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     final perfil = ref.read(perfilUsuarioLogadoProvider).value;
     if (perfil == null || perfil['familia_id'] == null) throw 'Usuário sem família';
 
-    if (total > livre) {
+    if (total > livre + _kToleranciaCentavo) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Excede o saldo livre para envelopes.'), backgroundColor: AppColors.red));
       return;
     }
@@ -83,7 +108,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     final reservado = ref.watch(totalReservadoProvider);
     final livre = saldoGeral - reservado;
     final total = _calcularTotal();
-    final isExceeded = total > livre;
+    final isExceeded = total > livre + _kToleranciaCentavo;
     final fmt = NumberFormat.simpleCurrency(locale: 'pt_BR');
 
     return Container(
@@ -131,7 +156,12 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
                 final e = envelopes[i];
                 final id = e['id'];
                 if (!_controllers.containsKey(id)) _controllers[id] = TextEditingController();
-                return AbastecerItem(envelope: e, controller: _controllers[id]!, onChanged: () => setState(() {}));
+                return AbastecerItem(
+                  envelope: e,
+                  controller: _controllers[id]!,
+                  onChanged: () => setState(() {}),
+                  onUsarRestante: () => _usarRestante(id),
+                );
               },
             ),
           ),

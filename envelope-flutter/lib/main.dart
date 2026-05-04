@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:envelope_flutter/theme/app_theme.dart';
 import 'package:envelope_flutter/screens/main_navigation_screen.dart';
 import 'package:envelope_flutter/screens/login_screen.dart';
@@ -11,14 +11,19 @@ import 'package:envelope_flutter/providers/auth_provider.dart';
 import 'package:envelope_flutter/providers/usuarios_provider.dart';
 
 void main() async {
-  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
-  await Supabase.initialize(
-    url: 'https://enqltolmazmrkdghitae.supabase.co',
-    anonKey: 'sb_publishable_2Msl4wQ-mqg_6TQwjqjqhA_cfF-_FyY',
-    realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
-  );
+
+  try {
+    await Supabase.initialize(
+      url: 'https://enqltolmazmrkdghitae.supabase.co',
+      anonKey: 'sb_publishable_2Msl4wQ-mqg_6TQwjqjqhA_cfF-_FyY',
+      realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
+    );
+  } catch (e) {
+    debugPrint('Erro ao inicializar Supabase: $e');
+  }
+
   runApp(const ProviderScope(child: NossoBolsoApp()));
 }
 
@@ -37,14 +42,12 @@ class NossoBolsoApp extends ConsumerWidget {
         data: (state) {
           if (state.session != null) {
             final perfilAsync = ref.watch(perfilUsuarioLogadoProvider);
-            
+
             return perfilAsync.when(
               data: (perfil) {
-                // Se o perfil existe e tem família, Dashboard. Caso contrário, Onboarding.
                 if (perfil != null && perfil['familia_id'] != null) {
                   return const MainNavigationScreen();
                 }
-                // Se chegamos aqui com dados carregados e nada de família, Onboarding.
                 return const OnboardingScreen();
               },
               loading: () => const Scaffold(

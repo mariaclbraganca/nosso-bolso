@@ -3,6 +3,7 @@ import 'dashboard_screen.dart';
 import 'extrato_screen.dart';
 import 'relatorios_screen.dart';
 import 'fixos_screen.dart';
+import 'compras_pendentes_screen.dart';
 import 'form_gasto_sheet.dart';
 import 'form_receita_screen.dart';
 import 'form_envelope_sheet.dart';
@@ -24,6 +25,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const RelatoriosScreen(),
     const ExtratoScreen(),
     const FixosScreen(),
+    const ComprasPendentesScreen(),
   ];
 
   void _openSheet(Widget sheet) {
@@ -52,6 +54,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             _navItem(Icons.bar_chart_rounded, 'Relatórios', 1),
             _navItem(Icons.description_rounded, 'Extrato', 2),
             _navItem(Icons.calendar_today_rounded, 'Fixos', 3),
+            _navItem(Icons.shopping_cart_rounded, 'Compras', 4),
           ],
         ),
       ),

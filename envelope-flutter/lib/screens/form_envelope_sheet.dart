@@ -38,10 +38,32 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
     final nome = _nomeController.text.trim();
     final valorPlanejado = double.tryParse(_valorController.text.replaceAll(',', '.')) ?? 0.0;
     final valorObjetivo = double.tryParse(_objetivoController.text.replaceAll(',', '.')) ?? 0.0;
-    
+
     final perfil = ref.read(perfilUsuarioLogadoProvider).value;
-    if (perfil == null || perfil['familia_id'] == null) return;
-    if (nome.isEmpty || valorPlanejado <= 0) return;
+    if (perfil == null || perfil['familia_id'] == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: perfil não carregado. Faça login novamente.'), backgroundColor: AppColors.red),
+        );
+      }
+      return;
+    }
+    if (nome.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Preencha o nome do envelope'), backgroundColor: AppColors.red),
+        );
+      }
+      return;
+    }
+    if (valorPlanejado <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Preencha a meta mensal com um valor maior que zero'), backgroundColor: AppColors.red),
+        );
+      }
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {

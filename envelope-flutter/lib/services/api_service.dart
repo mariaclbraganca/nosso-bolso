@@ -1,12 +1,24 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 
 class ApiService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_URL',
-    defaultValue: 'http://localhost:8000',
-  );
+  static const String _envUrl = String.fromEnvironment('API_URL');
+  static const String _prodUrl = 'https://nosso-bolso-api.onrender.com';
+
+  static String get baseUrl {
+    if (_envUrl.isNotEmpty) return _envUrl;
+    // Release build (qualquer plataforma) sempre usa produção
+    if (kReleaseMode) return _prodUrl;
+    // Debug em mobile não enxerga localhost — também aponta pra produção
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+         defaultTargetPlatform == TargetPlatform.iOS)) {
+      return _prodUrl;
+    }
+    return 'http://localhost:8000';
+  }
 
   /// GET genérico com familia_id
   static Future<List<dynamic>> get(String endpoint, String familiaId, {Map<String, String>? params}) async {

@@ -6,12 +6,14 @@ class AbastecerItem extends StatelessWidget {
   final Map<String, dynamic> envelope;
   final TextEditingController controller;
   final VoidCallback onChanged;
+  final VoidCallback onUsarRestante;
 
   const AbastecerItem({
     super.key,
     required this.envelope,
     required this.controller,
     required this.onChanged,
+    required this.onUsarRestante,
   });
 
   @override
@@ -51,7 +53,32 @@ class AbastecerItem extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: () {
+              onUsarRestante();
+              onChanged();
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.acc.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.acc.withOpacity(0.35)),
+              ),
+              child: const Text(
+                'MÁX',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.acc,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           SizedBox(
             width: 90,
             height: 40,
