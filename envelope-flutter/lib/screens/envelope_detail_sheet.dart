@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../constants.dart';
+import '../services/api_service.dart';
+import '../providers/usuarios_provider.dart';
 import '../providers/envelopes_provider.dart';
 import 'form_gasto_sheet.dart';
 import 'form_envelope_sheet.dart';
@@ -254,7 +256,7 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
             return Dismissible(
               key: Key(t['id']),
               direction: DismissDirection.endToStart,
-              onDismissed: (_) => supabase.from('transacoes').delete().eq('id', t['id']),
+              confirmDismiss: (_) => _confirmarExclusao(t),
               background: Container(color: AppColors.red.withOpacity(0.1), alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20), child: const Icon(Icons.delete_outline, color: AppColors.red)),
               child: _buildSimpleTransacaoItem(t),
             );
@@ -262,6 +264,53 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
         );
       },
     );
+  }
+
+  Future<bool> _confirmarExclusao(Map<String, dynamic> t) async {
+    final valor = (t['valor'] as num).toDouble();
+    final desc = t['descricao'] ?? 'Transação';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Excluir transação?', style: TextStyle(color: AppColors.tx)),
+        content: Text(
+          '$desc\nR\$ ${valor.toStringAsFixed(2)}\n\nO saldo será restaurado automaticamente.',
+          style: const TextStyle(color: AppColors.mu, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.mu)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir', style: TextStyle(color: AppColors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    try {
+      final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+      await ApiService.delete('/transacoes/${t['id']}', familiaId: perfil?['familia_id']);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Transação excluída'),
+          backgroundColor: AppColors.grn,
+        ));
+      }
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro ao excluir: $e'),
+          backgroundColor: AppColors.red,
+        ));
+      }
+      return false;
+    }
   }
 
   Widget _buildSimpleTransacaoItem(Map<String, dynamic> t) {
