@@ -31,6 +31,7 @@ class StatusIntegracao(str, Enum):
     PENDENTE = "pendente"
     CONFIRMADO = "confirmado"
     CANCELADO = "cancelado"
+    FALHOU = "falhou"
 
 
 # --- Requests ---

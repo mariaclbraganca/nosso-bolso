@@ -45,6 +45,25 @@ def _validar_grounding(extraido: dict, texto_fonte: str) -> dict:
         return extraido
 
 
+def _parse_data(valor) -> Optional[datetime]:
+    """Aceita 'YYYY-MM-DD', 'YYYY-MM-DDTHH:MM:SS', 'DD/MM/YYYY', etc."""
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor
+    s = str(valor).strip()
+    for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S",
+                "%d/%m/%Y", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 async def processar_nota(qr_code_url: str, familia_id: str) -> dict:
     html = raspar_nfce(qr_code_url)
     texto = extrair_texto_nota(html)
@@ -52,7 +71,7 @@ async def processar_nota(qr_code_url: str, familia_id: str) -> dict:
     raw = _validar_grounding(raw, texto)
 
     itens_validados = []
-    data_compra = datetime.now()
+    data_compra = _parse_data(raw.get("data_compra")) or datetime.now()
     for item_raw in raw.get("itens", []):
         try:
             cat = CategoriaItem(item_raw["categoria"])

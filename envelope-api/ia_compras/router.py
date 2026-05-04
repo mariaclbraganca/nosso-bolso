@@ -20,11 +20,26 @@ async def ingestao_nota(payload: IngestaoRequest, bg: BackgroundTasks):
 
 
 def _processar_background(qr_url: str, familia_id: str):
+    import asyncio
     try:
-        import asyncio
         asyncio.run(processar_nota(qr_url, familia_id))
     except Exception as e:
-        logger.error(f"Erro ao processar nota: {e}")
+        logger.error(f"Erro ao processar nota: {e}", exc_info=True)
+        # registra a falha no Mongo para que o usuário veja em /falhas
+        try:
+            from uuid import uuid4
+            from datetime import datetime
+            get_compras_collection().insert_one({
+                "compra_id": str(uuid4()),
+                "familia_id": familia_id,
+                "qr_code_url": qr_url,
+                "status_integracao": "falhou",
+                "erro": str(e),
+                "created_at": datetime.now().isoformat(),
+                "itens": [],
+            })
+        except Exception as inner:
+            logger.error(f"Falha ao registrar erro no Mongo: {inner}")
 
 
 @router.get("/pendentes", response_model=list[CompraExtraida])
@@ -35,6 +50,20 @@ def listar_pendentes(familia_id: str):
         return [_doc_to_compra(d) for d in docs]
     except Exception as e:
         logger.warning(f"MongoDB indisponivel em /pendentes: {e}")
+        return []
+
+
+@router.get("/falhas")
+def listar_falhas(familia_id: str):
+    try:
+        col = get_compras_collection()
+        docs = list(col.find(
+            {"familia_id": familia_id, "status_integracao": "falhou"},
+            {"compra_id": 1, "qr_code_url": 1, "erro": 1, "created_at": 1, "_id": 0},
+        ))
+        return docs
+    except Exception as e:
+        logger.warning(f"MongoDB indisponivel em /falhas: {e}")
         return []
 
 
