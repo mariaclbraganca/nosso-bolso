@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import 'feedback_compras_screen.dart';
 import 'lista_compras_screen.dart';
 import 'configuracao_ia_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class ComprasPendentesScreen extends ConsumerStatefulWidget {
   const ComprasPendentesScreen({super.key});
@@ -55,33 +56,34 @@ class _ComprasPendentesScreenState
           ),
         ],
       ),
-      body: comprasAsync.when(
-        data: (compras) => compras.isEmpty
-            ? _emptyState()
-            : RefreshIndicator(
-                color: AppColors.acc,
-                onRefresh: () => ref.refresh(comprasPendentesProvider.future),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(14),
-                  itemCount: compras.length,
-                  itemBuilder: (ctx, i) => _CompraCard(compra: compras[i]),
-                ),
-              ),
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.acc)),
-        error: (e, _) => Center(
-          child: Text('Erro: $e', style: const TextStyle(color: AppColors.red)),
+      body: Column(children: [
+        _ScanCta(
+          onScan: () => _abrirCamera(context),
+          onPaste: () => _mostrarDialogColarUrl(context),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.acc,
-        icon: const Icon(Icons.qr_code_scanner, color: Colors.black),
-        label: const Text(
-          'Escanear NFC-e',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        Expanded(
+          child: comprasAsync.when(
+            data: (compras) => compras.isEmpty
+                ? _emptyState()
+                : RefreshIndicator(
+                    color: AppColors.acc,
+                    onRefresh: () =>
+                        ref.refresh(comprasPendentesProvider.future),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 90),
+                      itemCount: compras.length,
+                      itemBuilder: (ctx, i) => _CompraCard(compra: compras[i]),
+                    ),
+                  ),
+            loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.acc)),
+            error: (e, _) => Center(
+              child: Text('Erro: $e',
+                  style: const TextStyle(color: AppColors.red)),
+            ),
+          ),
         ),
-        onPressed: () => _mostrarDialogScan(context),
-      ),
+      ]),
     );
   }
 
@@ -93,13 +95,26 @@ class _ComprasPendentesScreenState
         const Text('Nenhuma compra pendente',
             style: TextStyle(color: AppColors.mu, fontSize: 16)),
         const SizedBox(height: 6),
-        const Text('Escaneie um QR code de NFC-e para começar',
+        const Text('Toque em "Escanear NFC-e" acima para começar',
             style: TextStyle(color: AppColors.mu, fontSize: 12)),
       ]),
     );
   }
 
-  Future<void> _mostrarDialogScan(BuildContext context) async {
+  Future<void> _abrirCamera(BuildContext context) async {
+    final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
+    if (perfil == null) return;
+    final familiaId = perfil['familia_id'] as String? ?? '';
+    final url = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (url != null && url.isNotEmpty) {
+      await _enviarIngestao(familiaId, url);
+    }
+  }
+
+  Future<void> _mostrarDialogColarUrl(BuildContext context) async {
     final controller = TextEditingController();
     final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
     if (perfil == null) return;
@@ -110,13 +125,13 @@ class _ComprasPendentesScreenState
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Escanear NFC-e',
+        title: const Text('Colar URL da NFC-e',
             style: TextStyle(color: AppColors.tx)),
         content: TextField(
           controller: controller,
           style: const TextStyle(color: AppColors.tx),
           decoration: const InputDecoration(
-            hintText: 'Cole a URL do QR code da NFC-e',
+            hintText: 'https://nfce...',
             hintStyle: TextStyle(color: AppColors.mu),
             enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: AppColors.bord)),
@@ -127,8 +142,8 @@ class _ComprasPendentesScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar',
-                style: TextStyle(color: AppColors.mu)),
+            child:
+                const Text('Cancelar', style: TextStyle(color: AppColors.mu)),
           ),
           TextButton(
             onPressed: () async {
@@ -137,8 +152,7 @@ class _ComprasPendentesScreenState
               Navigator.pop(ctx);
               await _enviarIngestao(familiaId, url);
             },
-            child:
-                const Text('Enviar', style: TextStyle(color: AppColors.acc)),
+            child: const Text('Enviar', style: TextStyle(color: AppColors.acc)),
           ),
         ],
       ),
@@ -170,6 +184,55 @@ class _ComprasPendentesScreenState
         );
       }
     }
+  }
+}
+
+class _ScanCta extends StatelessWidget {
+  final VoidCallback onScan;
+  final VoidCallback onPaste;
+  const _ScanCta({required this.onScan, required this.onPaste});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      child: Row(children: [
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.qr_code_scanner, color: Colors.black),
+              label: const Text(
+                'Escanear NFC-e',
+                style: TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.acc,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: onScan,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          height: 48,
+          width: 48,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              side: const BorderSide(color: AppColors.bord),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: onPaste,
+            child: const Icon(Icons.link, color: AppColors.mu, size: 20),
+          ),
+        ),
+      ]),
+    );
   }
 }
 

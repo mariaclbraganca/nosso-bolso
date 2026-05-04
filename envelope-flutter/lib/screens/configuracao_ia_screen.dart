@@ -1,18 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../providers/envelopes_provider.dart';
+import '../providers/usuarios_provider.dart';
 
-class ConfiguracaoIAScreen extends StatefulWidget {
+class ConfiguracaoIAScreen extends ConsumerStatefulWidget {
   const ConfiguracaoIAScreen({super.key});
 
   @override
-  State<ConfiguracaoIAScreen> createState() => _ConfiguracaoIAScreenState();
+  ConsumerState<ConfiguracaoIAScreen> createState() =>
+      _ConfiguracaoIAScreenState();
 }
 
-class _ConfiguracaoIAScreenState extends State<ConfiguracaoIAScreen> {
+class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
   final _geminiCtrl = TextEditingController();
   final _mongoCtrl = TextEditingController();
   bool _geminiObscuro = true;
@@ -20,6 +24,8 @@ class _ConfiguracaoIAScreenState extends State<ConfiguracaoIAScreen> {
   bool _salvando = false;
   bool? _geminiOk;
   bool? _mongoOk;
+  String? _envelopeMercadoId;
+  bool _salvandoEnvelope = false;
 
   static const _kGemini = 'ia_gemini_api_key';
   static const _kMongo = 'ia_mongo_uri';
@@ -28,6 +34,58 @@ class _ConfiguracaoIAScreenState extends State<ConfiguracaoIAScreen> {
   void initState() {
     super.initState();
     _carregarSalvos();
+    _carregarPerfilIA();
+  }
+
+  Future<void> _carregarPerfilIA() async {
+    final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
+    final familiaId = perfil?['familia_id'] as String?;
+    if (familiaId == null) return;
+    try {
+      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil')
+          .replace(queryParameters: {'familia_id': familiaId});
+      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200 && mounted) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        setState(() {
+          _envelopeMercadoId = data['envelope_supermercado_id'] as String?;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _salvarEnvelopeMercado(String? envelopeId) async {
+    final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
+    final familiaId = perfil?['familia_id'] as String?;
+    if (familiaId == null || envelopeId == null) return;
+    setState(() => _salvandoEnvelope = true);
+    try {
+      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil');
+      final resp = await http.patch(uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'familia_id': familiaId,
+            'envelope_supermercado_id': envelopeId,
+          }));
+      if (resp.statusCode == 200 && mounted) {
+        setState(() => _envelopeMercadoId = envelopeId);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Envelope de compras atualizado'),
+          backgroundColor: AppColors.grn,
+        ));
+      } else {
+        throw Exception(resp.body);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro: $e'),
+          backgroundColor: AppColors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _salvandoEnvelope = false);
+    }
   }
 
   Future<void> _carregarSalvos() async {
@@ -145,6 +203,26 @@ class _ConfiguracaoIAScreenState extends State<ConfiguracaoIAScreen> {
             hint: 'AIza...',
             obscuro: _geminiObscuro,
             onToggle: () => setState(() => _geminiObscuro = !_geminiObscuro),
+          ),
+
+          const SizedBox(height: 32),
+
+          // ── Envelope de Compras (alvo do agente de planejamento) ────
+          _SectionTitle(
+            icon: Icons.shopping_basket_outlined,
+            label: 'Envelope de Compras',
+            ok: _envelopeMercadoId != null ? true : null,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'O agente de IA usa o saldo deste envelope para sugerir compras.',
+            style: TextStyle(color: AppColors.mu, fontSize: 11),
+          ),
+          const SizedBox(height: 10),
+          _DropdownEnvelope(
+            envelopeId: _envelopeMercadoId,
+            salvando: _salvandoEnvelope,
+            onChanged: _salvarEnvelopeMercado,
           ),
 
           const SizedBox(height: 32),
@@ -358,6 +436,77 @@ class _CampoChave extends StatelessWidget {
             onPressed: onToggle,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DropdownEnvelope extends ConsumerWidget {
+  final String? envelopeId;
+  final bool salvando;
+  final ValueChanged<String?> onChanged;
+  const _DropdownEnvelope({
+    required this.envelopeId,
+    required this.salvando,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final envelopesAsync = ref.watch(envelopesProvider);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.bord),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: envelopesAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.all(12),
+          child: Text('Carregando envelopes…',
+              style: TextStyle(color: AppColors.mu, fontSize: 12)),
+        ),
+        error: (e, _) => Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text('Erro: $e',
+              style: const TextStyle(color: AppColors.red, fontSize: 12)),
+        ),
+        data: (envelopes) {
+          final ids = envelopes.map((e) => e['id'] as String).toSet();
+          final value = (envelopeId != null && ids.contains(envelopeId))
+              ? envelopeId
+              : null;
+          return DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              dropdownColor: AppColors.surf,
+              value: value,
+              hint: const Text('Selecionar envelope-alvo',
+                  style: TextStyle(color: AppColors.mu, fontSize: 13)),
+              icon: salvando
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.acc),
+                    )
+                  : const Icon(Icons.arrow_drop_down, color: AppColors.mu),
+              items: envelopes
+                  .map((e) => DropdownMenuItem<String>(
+                        value: e['id'] as String,
+                        child: Text(
+                          '${e['nome_envelope']}  '
+                          '(R\$ ${(e['saldo_atual'] as num).toStringAsFixed(2)})',
+                          style: const TextStyle(
+                              color: AppColors.tx, fontSize: 13),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: salvando ? null : onChanged,
+            ),
+          );
+        },
       ),
     );
   }

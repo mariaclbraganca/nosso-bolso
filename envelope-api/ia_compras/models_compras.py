@@ -78,6 +78,15 @@ class MergeProdutoRequest(BaseModel):
     produto_remover_id: str
 
 
+class AtualizarPerfilRequest(BaseModel):
+    familia_id: UUID
+    envelope_supermercado_id: Optional[UUID] = None
+    nome_familia: Optional[str] = None
+    num_membros: Optional[int] = None
+    cesta_basica_inegociavel: Optional[list[str]] = None
+    restricoes_alimentares: Optional[list[str]] = None
+
+
 # --- Responses ---
 
 class ItemExtraido(BaseModel):

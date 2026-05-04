@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from ia_compras.models_compras import (
     IngestaoRequest, CompraExtraida, FeedbackItemRequest,
     ConfirmarCompraRequest, MergeProdutoRequest, ListaComprasGerada, ItemExtraido,
+    AtualizarPerfilRequest,
 )
 from ia_compras.agente_extrator import processar_nota
 from ia_compras.mongo_client import get_compras_collection, get_dicionario_collection, get_perfis_collection
@@ -165,6 +166,53 @@ def planejar_compras(familia_id: str, dias: int = 15):
     saldo = consultar_saldo_envelope(familia_id)
     perfil = get_perfis_collection().find_one({"familia_id": familia_id}) or {}
     return gerar_lista_inteligente(familia_id, dias, saldo, estoque, perfil)
+
+
+@router.get("/perfil")
+def obter_perfil(familia_id: str):
+    """Retorna o perfil_familia (Mongo) usado pelos agentes de IA.
+
+    Se não existir ainda, retorna 200 com defaults — assim a UI pode
+    montar o formulário de configuração inicial sem 404."""
+    try:
+        doc = get_perfis_collection().find_one({"familia_id": familia_id})
+    except Exception as e:
+        logger.warning(f"MongoDB indisponivel em /perfil: {e}")
+        doc = None
+    if not doc:
+        return {
+            "familia_id": familia_id,
+            "envelope_supermercado_id": None,
+            "nome_familia": None,
+            "num_membros": None,
+            "cesta_basica_inegociavel": [],
+            "restricoes_alimentares": [],
+        }
+    doc.pop("_id", None)
+    return doc
+
+
+@router.patch("/perfil")
+def atualizar_perfil(payload: AtualizarPerfilRequest):
+    """Cria/atualiza o perfil_familia. Só os campos não-nulos são gravados,
+    então a UI pode patchear apenas o envelope_supermercado_id sem mexer
+    no resto."""
+    set_fields = {
+        k: (str(v) if k.endswith("_id") and v is not None else v)
+        for k, v in payload.model_dump(exclude_none=True).items()
+        if k != "familia_id"
+    }
+    if not set_fields:
+        raise HTTPException(400, "Nenhum campo para atualizar")
+    col = get_perfis_collection()
+    col.update_one(
+        {"familia_id": str(payload.familia_id)},
+        {"$set": set_fields, "$setOnInsert": {"familia_id": str(payload.familia_id)}},
+        upsert=True,
+    )
+    doc = col.find_one({"familia_id": str(payload.familia_id)}) or {}
+    doc.pop("_id", None)
+    return doc
 
 
 @router.post("/produtos/merge")

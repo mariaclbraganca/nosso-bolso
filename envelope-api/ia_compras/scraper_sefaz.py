@@ -49,17 +49,35 @@ def _extrair_chave_acesso(qr_code_url: str) -> Optional[str]:
 
 
 def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
-    """Cria sessão e visita a URL inicial para obter cookies (jsessionid etc.)."""
+    """Cria sessão e visita a URL inicial para obter cookies (jsessionid etc.).
+
+    Com retry porque os portais SEFAZ ficam intermitentes (5xx esporádicos)."""
+    import time
     sess = requests.Session()
     sess.headers.update({
         "User-Agent": _UA,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     })
-    resp = sess.get(qr_code_url, timeout=_DEFAULT_TIMEOUT, allow_redirects=True)
-    resp.raise_for_status()
-    resp.encoding = resp.encoding or "ISO-8859-1"
-    return sess, resp.text
+    last_err: Exception | None = None
+    for tentativa in range(3):
+        try:
+            resp = sess.get(
+                qr_code_url, timeout=_DEFAULT_TIMEOUT, allow_redirects=True
+            )
+            if resp.status_code in (500, 502, 503, 504):
+                last_err = requests.HTTPError(
+                    f"{resp.status_code} {resp.reason}", response=resp
+                )
+                time.sleep(2 ** tentativa)
+                continue
+            resp.raise_for_status()
+            resp.encoding = resp.encoding or "ISO-8859-1"
+            return sess, resp.text
+        except requests.RequestException as e:
+            last_err = e
+            time.sleep(2 ** tentativa)
+    raise last_err or RuntimeError("Falha ao acessar URL da NFC-e")
 
 
 def _scrape_sefaz_go(sess: requests.Session, chave: str) -> Optional[str]:

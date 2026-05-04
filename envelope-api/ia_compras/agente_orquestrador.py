@@ -1,21 +1,30 @@
 import os
 import json
-from datetime import datetime
-from google import genai
-from ia_compras.models_compras import ListaComprasGerada, ItemLista, CategoriaItem
 import logging
+from datetime import datetime
+import httpx
+from ia_compras.models_compras import ListaComprasGerada, ItemLista, CategoriaItem
 
 logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-_client: genai.Client | None = None
 
 
-def _get_client() -> genai.Client:
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=GEMINI_API_KEY)
-    return _client
+def _chamar_gemini(prompt: str) -> str:
+    """Chamada síncrona ao Gemini via REST (sem o SDK google-genai, que não é
+    dependência obrigatória)."""
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY não configurada")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    with httpx.Client(timeout=45.0) as client:
+        resp = client.post(
+            url,
+            params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def gerar_lista_inteligente(
@@ -23,11 +32,11 @@ def gerar_lista_inteligente(
 ) -> ListaComprasGerada:
     prompt = _montar_prompt(dias, saldo, estoque, perfil)
     try:
-        resp = _get_client().models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        raw = _extrair_json(resp.text)
+        text = _chamar_gemini(prompt)
+        raw = _extrair_json(text)
         return _parse_lista(familia_id, dias, saldo, raw)
     except Exception as e:
-        logger.error(f"Gemini orquestrador falhou: {e}")
+        logger.error(f"Gemini orquestrador falhou: {e}", exc_info=True)
         return _fallback_lista(familia_id, dias, saldo, estoque, perfil)
 
 
