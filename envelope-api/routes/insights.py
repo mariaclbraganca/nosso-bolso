@@ -64,7 +64,10 @@ def gerar_insights(familia_id: str, mes_atual: str):
                 })
 
     # Insight de saldo geral
-    saldo = db.table("saldo_geral").select("valor_total_disponivel").eq("familia_id", familia_id).single().execute().data
+    try:
+        saldo = db.table("saldo_geral").select("valor_total_disponivel").eq("familia_id", familia_id).single().execute().data
+    except Exception:
+        saldo = None
     if saldo and float(saldo["valor_total_disponivel"]) > 1000:
         insights.append({
             "emoji": "💰", "titulo": "Aporte Sugerido",

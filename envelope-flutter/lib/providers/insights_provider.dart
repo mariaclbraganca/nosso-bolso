@@ -6,6 +6,10 @@ final insightsProvider = FutureProvider.family<List<dynamic>, String>((ref, mes)
   final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
   if (perfil == null || perfil['familia_id'] == null) return [];
 
-  final res = await ApiService.get('/dashboard/insights', perfil['familia_id'], params: {'mes_atual': mes});
-  return res as List<dynamic>;
+  try {
+    final res = await ApiService.get('/insights/insights', perfil['familia_id'], params: {'mes_atual': mes});
+    return res as List<dynamic>;
+  } catch (_) {
+    return [];
+  }
 });
