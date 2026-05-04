@@ -45,3 +45,19 @@ final listaComprasProvider = FutureProvider.autoDispose
   }
   return {};
 });
+
+final comprasFalhasProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
+  if (perfil == null) return [];
+  final familiaId = perfil['familia_id'] as String? ?? '';
+  try {
+    final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/falhas')
+        .replace(queryParameters: {'familia_id': familiaId});
+    final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+    if (resp.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(resp.body));
+    }
+  } catch (_) {}
+  return [];
+});

@@ -23,7 +23,21 @@ async def ingestao_nota(payload: IngestaoRequest, bg: BackgroundTasks):
 def _processar_background(qr_url: str, familia_id: str):
     import asyncio
     try:
-        asyncio.run(processar_nota(qr_url, familia_id))
+        # Em contexto de BackgroundTasks do FastAPI, pode ou não haver
+        # um event loop ativo. Tentamos ambas as abordagens.
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Já há um loop ativo — criar um novo loop em thread separada
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                pool.submit(asyncio.run, processar_nota(qr_url, familia_id)).result()
+        else:
+            asyncio.run(processar_nota(qr_url, familia_id))
+        logger.info(f"Nota processada com sucesso: familia={familia_id}")
     except Exception as e:
         logger.error(f"Erro ao processar nota: {e}", exc_info=True)
         # registra a falha no Mongo para que o usuário veja em /falhas

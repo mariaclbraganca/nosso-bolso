@@ -70,6 +70,8 @@ class _ComprasPendentesScreenState
           onScan: () => _abrirCamera(context),
           onPaste: () => _mostrarDialogColarUrl(context),
         ),
+        // Mostrar falhas de processamento
+        _buildFalhasSection(),
         Expanded(
           child: comprasAsync.when(
             data: (compras) => compras.isEmpty
@@ -93,6 +95,42 @@ class _ComprasPendentesScreenState
           ),
         ),
       ]),
+    );
+  }
+
+  Widget _buildFalhasSection() {
+    final falhasAsync = ref.watch(comprasFalhasProvider);
+    return falhasAsync.when(
+      data: (falhas) {
+        if (falhas.isEmpty) return const SizedBox.shrink();
+        return Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.red.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.red.withOpacity(0.3)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Icon(Icons.error_outline, color: AppColors.red, size: 18),
+              const SizedBox(width: 8),
+              Text('${falhas.length} nota(s) falharam',
+                  style: const TextStyle(color: AppColors.red, fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              (falhas.first['erro'] as String?)?.substring(0, (falhas.first['erro'] as String?)!.length.clamp(0, 80)) ?? 'Erro desconhecido',
+              style: const TextStyle(color: AppColors.mu, fontSize: 11),
+            ),
+            const SizedBox(height: 4),
+            const Text('Verifique as chaves na Configuração de IA.',
+                style: TextStyle(color: AppColors.mu, fontSize: 11)),
+          ]),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -177,11 +215,33 @@ class _ComprasPendentesScreenState
       if (resp.statusCode == 202) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('NFC-e enviada! Aguarde o processamento.'),
+            content: Text('NFC-e enviada! Processando... aguarde.'),
             backgroundColor: AppColors.grn,
+            duration: Duration(seconds: 5),
           ));
-          await Future.delayed(const Duration(seconds: 3));
-          ref.refresh(comprasPendentesProvider);
+          // Polling: tenta 6x com 5s de intervalo (30s total)
+          for (int i = 0; i < 6; i++) {
+            await Future.delayed(const Duration(seconds: 5));
+            if (!mounted) return;
+            ref.invalidate(comprasPendentesProvider);
+            ref.invalidate(comprasFalhasProvider);
+            final pendentes = await ref.read(comprasPendentesProvider.future);
+            if (pendentes.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('✅ Compra processada! Escolha o envelope.'),
+                backgroundColor: AppColors.acc,
+              ));
+              return;
+            }
+          }
+          // Se não apareceu após polling, avisar
+          if (mounted) {
+            ref.invalidate(comprasFalhasProvider);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Processamento demorou. Verifique falhas ou tente novamente.'),
+              backgroundColor: AppColors.org,
+            ));
+          }
         }
       } else {
         throw Exception(resp.body);

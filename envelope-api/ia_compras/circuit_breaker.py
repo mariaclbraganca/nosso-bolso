@@ -4,8 +4,11 @@ from enum import Enum
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_TIMEOUT = 5.0
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+
+def _get_gemini_key() -> str:
+    return os.environ.get("GEMINI_API_KEY", "")
 
 
 class LLMProvider(str, Enum):
@@ -62,7 +65,8 @@ def _parse_response(raw: dict) -> dict:
 async def _chamar_gemini_flash(html_bruto: str, schema: dict) -> dict:
     import json
     import asyncio
-    if not GEMINI_API_KEY:
+    api_key = _get_gemini_key()
+    if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada")
     prompt = _montar_prompt_extracao(html_bruto, schema)
     # tenta o modelo principal e cai para gemini-flash-latest se a quota/zona estiver fora
@@ -75,7 +79,7 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict) -> dict:
         for tentativa in range(3):
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
-                    resp = await client.post(url, params={"key": GEMINI_API_KEY}, json={
+                    resp = await client.post(url, params={"key": api_key}, json={
                         "contents": [{"parts": [{"text": prompt}]}],
                     })
                     if resp.status_code in (429, 500, 502, 503, 504):
