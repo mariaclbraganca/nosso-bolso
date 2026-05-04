@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import 'feedback_compras_screen.dart';
 import 'lista_compras_screen.dart';
 import 'configuracao_ia_screen.dart';
+import 'perfil_familia_screen.dart';
 import 'qr_scanner_screen.dart';
 
 class ComprasPendentesScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,14 @@ class _ComprasPendentesScreenState
       appBar: AppBar(
         title: const Text('Compras IA'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'Perfil da Família',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PerfilFamiliaScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.feedback_outlined),
             tooltip: 'Feedback pendente',

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import '../providers/envelopes_provider.dart';
+import 'perfil_familia_screen.dart';
 import '../providers/usuarios_provider.dart';
 
 class ConfiguracaoIAScreen extends ConsumerStatefulWidget {
@@ -293,6 +294,28 @@ class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
               label: const Text('Verificar Status',
                   style: TextStyle(color: AppColors.mu)),
               onPressed: _verificarStatus,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Perfil da Família ────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.acc),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.people_outline, color: AppColors.acc, size: 20),
+              label: const Text('Configurar Perfil da Família',
+                  style: TextStyle(color: AppColors.acc, fontWeight: FontWeight.w600)),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PerfilFamiliaScreen()),
+              ),
             ),
           ),
 
