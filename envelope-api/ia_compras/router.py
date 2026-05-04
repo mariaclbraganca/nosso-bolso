@@ -29,9 +29,13 @@ def _processar_background(qr_url: str, familia_id: str):
 
 @router.get("/pendentes", response_model=list[CompraExtraida])
 def listar_pendentes(familia_id: str):
-    col = get_compras_collection()
-    docs = list(col.find({"familia_id": familia_id, "status_integracao": "pendente"}))
-    return [_doc_to_compra(d) for d in docs]
+    try:
+        col = get_compras_collection()
+        docs = list(col.find({"familia_id": familia_id, "status_integracao": "pendente"}))
+        return [_doc_to_compra(d) for d in docs]
+    except Exception as e:
+        logger.warning(f"MongoDB indisponivel em /pendentes: {e}")
+        return []
 
 
 @router.post("/confirmar")
@@ -94,28 +98,32 @@ def registrar_feedback(payload: FeedbackItemRequest):
 
 @router.get("/feedback-pendente")
 def feedback_pendente(familia_id: str):
-    col = get_compras_collection()
-    now = datetime.now().isoformat()
-    docs = list(col.find({
-        "familia_id": familia_id,
-        "status_integracao": "confirmado",
-        "itens": {"$elemMatch": {
-            "data_feedback_estimada": {"$lte": now},
-            "status_consumo": "ativo"
-        }}
-    }))
-    pendentes = []
-    for doc in docs:
-        for item in doc["itens"]:
-            if item["data_feedback_estimada"] <= now and item["status_consumo"] == "ativo":
-                pendentes.append({
-                    "compra_id": doc["compra_id"],
-                    "nome_padronizado": item["nome_padronizado"],
-                    "categoria": item["categoria"],
-                    "data_compra": doc["data_compra"][:10],
-                    "data_feedback_estimada": item["data_feedback_estimada"][:10],
-                })
-    return pendentes
+    try:
+        col = get_compras_collection()
+        now = datetime.now().isoformat()
+        docs = list(col.find({
+            "familia_id": familia_id,
+            "status_integracao": "confirmado",
+            "itens": {"$elemMatch": {
+                "data_feedback_estimada": {"$lte": now},
+                "status_consumo": "ativo"
+            }}
+        }))
+        pendentes = []
+        for doc in docs:
+            for item in doc["itens"]:
+                if item["data_feedback_estimada"] <= now and item["status_consumo"] == "ativo":
+                    pendentes.append({
+                        "compra_id": doc["compra_id"],
+                        "nome_padronizado": item["nome_padronizado"],
+                        "categoria": item["categoria"],
+                        "data_compra": doc["data_compra"][:10],
+                        "data_feedback_estimada": item["data_feedback_estimada"][:10],
+                    })
+        return pendentes
+    except Exception as e:
+        logger.warning(f"MongoDB indisponivel em /feedback-pendente: {e}")
+        return []
 
 
 @router.get("/planejar", response_model=ListaComprasGerada)
