@@ -44,12 +44,22 @@ def _processar_background(qr_url: str, familia_id: str):
         try:
             from uuid import uuid4
             from datetime import datetime
+            from ia_compras.scraper_sefaz import SefazIndisponivelError
+            # categoria pra UI mostrar dica útil
+            err_str = str(e)
+            if isinstance(e, SefazIndisponivelError):
+                categoria = "sefaz"
+            elif "GEMINI_API_KEY" in err_str or "Gemini" in err_str or "429" in err_str:
+                categoria = "ia"
+            else:
+                categoria = "outro"
             get_compras_collection().insert_one({
                 "compra_id": str(uuid4()),
                 "familia_id": familia_id,
                 "qr_code_url": qr_url,
                 "status_integracao": "falhou",
-                "erro": str(e),
+                "erro": err_str[:300],
+                "erro_categoria": categoria,
                 "created_at": datetime.now().isoformat(),
                 "itens": [],
             })
@@ -80,6 +90,20 @@ def listar_falhas(familia_id: str):
     except Exception as e:
         logger.warning(f"MongoDB indisponivel em /falhas: {e}")
         return []
+
+
+@router.delete("/falhas")
+def dispensar_falhas(familia_id: str):
+    """Remove todas as falhas da família — usado pelo botão Dispensar na UI
+    quando o usuário viu o erro e quer limpar o banner."""
+    try:
+        result = get_compras_collection().delete_many(
+            {"familia_id": familia_id, "status_integracao": "falhou"}
+        )
+        return {"removidas": result.deleted_count}
+    except Exception as e:
+        logger.warning(f"MongoDB indisponivel em DELETE /falhas: {e}")
+        raise HTTPException(503, "MongoDB indisponivel")
 
 
 @router.post("/confirmar")

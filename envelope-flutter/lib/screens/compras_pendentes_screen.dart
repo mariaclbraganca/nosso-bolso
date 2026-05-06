@@ -103,6 +103,28 @@ class _ComprasPendentesScreenState
     return falhasAsync.when(
       data: (falhas) {
         if (falhas.isEmpty) return const SizedBox.shrink();
+        final primeira = falhas.first;
+        final erro = (primeira['erro'] as String?) ?? 'Erro desconhecido';
+        final categoria = (primeira['erro_categoria'] as String?) ?? 'outro';
+
+        // Sugestão contextual baseada na origem do erro
+        String dica;
+        switch (categoria) {
+          case 'sefaz':
+            dica =
+                'O portal da SEFAZ está instável. Tente novamente em alguns minutos.';
+            break;
+          case 'ia':
+            dica =
+                'Erro no Gemini (cota ou chave). Verifique em Configurações de IA.';
+            break;
+          default:
+            dica = 'Tente novamente. Se persistir, verifique sua conexão.';
+        }
+
+        final erroResumo =
+            erro.length > 120 ? '${erro.substring(0, 120)}…' : erro;
+
         return Container(
           margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
           padding: const EdgeInsets.all(12),
@@ -111,27 +133,61 @@ class _ComprasPendentesScreenState
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.red.withOpacity(0.3)),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               const Icon(Icons.error_outline, color: AppColors.red, size: 18),
               const SizedBox(width: 8),
-              Text('${falhas.length} nota(s) falharam',
-                  style: const TextStyle(color: AppColors.red, fontSize: 13, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text('${falhas.length} nota(s) falharam',
+                    style: const TextStyle(
+                        color: AppColors.red,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+              InkWell(
+                onTap: _dispensarFalhas,
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text('Dispensar',
+                      style: TextStyle(
+                          color: AppColors.mu,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
             ]),
-            const SizedBox(height: 4),
-            Text(
-              (falhas.first['erro'] as String?)?.substring(0, (falhas.first['erro'] as String?)!.length.clamp(0, 80)) ?? 'Erro desconhecido',
-              style: const TextStyle(color: AppColors.mu, fontSize: 11),
-            ),
-            const SizedBox(height: 4),
-            const Text('Verifique as chaves na Configuração de IA.',
-                style: TextStyle(color: AppColors.mu, fontSize: 11)),
+            const SizedBox(height: 6),
+            Text(erroResumo,
+                style: const TextStyle(color: AppColors.mu, fontSize: 11)),
+            const SizedBox(height: 6),
+            Text(dica,
+                style: const TextStyle(
+                    color: AppColors.mu,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic)),
           ]),
         );
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
     );
+  }
+
+  Future<void> _dispensarFalhas() async {
+    final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
+    final familiaId = perfil?['familia_id'] as String?;
+    if (familiaId == null) return;
+    try {
+      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/falhas')
+          .replace(queryParameters: {'familia_id': familiaId});
+      await http.delete(uri).timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      ref.invalidate(comprasFalhasProvider);
+    } catch (_) {
+      // silencioso — se o usuário tentar de novo, vai ter outra falha
+    }
   }
 
   Widget _emptyState() {

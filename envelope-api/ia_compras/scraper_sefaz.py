@@ -48,10 +48,17 @@ def _extrair_chave_acesso(qr_code_url: str) -> Optional[str]:
     return None
 
 
+class SefazIndisponivelError(RuntimeError):
+    """Erro específico quando o portal SEFAZ está respondendo 5xx — usado pra
+    diferenciar de outros erros (rede, LLM, etc) na UI."""
+
+
 def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
     """Cria sessão e visita a URL inicial para obter cookies (jsessionid etc.).
 
-    Com retry porque os portais SEFAZ ficam intermitentes (5xx esporádicos)."""
+    Retry agressivo (5 tentativas, backoff 1→2→4→8→16s = ~31s total) porque
+    os portais SEFAZ são notoriamente instáveis. Se mesmo assim falhar com
+    5xx, lança SefazIndisponivelError para a UI mostrar mensagem útil."""
     import time
     sess = requests.Session()
     sess.headers.update({
@@ -59,15 +66,20 @@ def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     })
+    last_status: int | None = None
     last_err: Exception | None = None
-    for tentativa in range(3):
+    for tentativa in range(5):
         try:
             resp = sess.get(
                 qr_code_url, timeout=_DEFAULT_TIMEOUT, allow_redirects=True
             )
             if resp.status_code in (500, 502, 503, 504):
+                last_status = resp.status_code
                 last_err = requests.HTTPError(
                     f"{resp.status_code} {resp.reason}", response=resp
+                )
+                logger.warning(
+                    "SEFAZ retornou %s na tentativa %d/5", resp.status_code, tentativa + 1
                 )
                 time.sleep(2 ** tentativa)
                 continue
@@ -77,6 +89,12 @@ def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
         except requests.RequestException as e:
             last_err = e
             time.sleep(2 ** tentativa)
+
+    if last_status and 500 <= last_status < 600:
+        raise SefazIndisponivelError(
+            f"Portal SEFAZ indisponível (HTTP {last_status} após 5 tentativas). "
+            f"Tente novamente em alguns minutos."
+        ) from last_err
     raise last_err or RuntimeError("Falha ao acessar URL da NFC-e")
 
 
