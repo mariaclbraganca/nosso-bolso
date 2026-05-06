@@ -56,9 +56,10 @@ class SefazIndisponivelError(RuntimeError):
 def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
     """Cria sessão e visita a URL inicial para obter cookies (jsessionid etc.).
 
-    Retry agressivo (5 tentativas, backoff 1→2→4→8→16s = ~31s total) porque
-    os portais SEFAZ são notoriamente instáveis. Se mesmo assim falhar com
-    5xx, lança SefazIndisponivelError para a UI mostrar mensagem útil."""
+    Retry comedido (2 tentativas com 10s entre elas) — o WAF da SEFAZ-GO
+    bloqueia IPs que martelam, então retry agressivo PIORA: prolonga o
+    bloqueio. Se cair com 4xx/5xx, lança SefazIndisponivelError com
+    mensagem útil pra UI sugerir aguardar."""
     import time
     sess = requests.Session()
     sess.headers.update({
@@ -68,33 +69,41 @@ def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
     })
     last_status: int | None = None
     last_err: Exception | None = None
-    for tentativa in range(5):
+    for tentativa in range(2):
         try:
             resp = sess.get(
                 qr_code_url, timeout=_DEFAULT_TIMEOUT, allow_redirects=True
             )
-            if resp.status_code in (500, 502, 503, 504):
+            if resp.status_code in (403, 429, 500, 502, 503, 504):
                 last_status = resp.status_code
                 last_err = requests.HTTPError(
                     f"{resp.status_code} {resp.reason}", response=resp
                 )
                 logger.warning(
-                    "SEFAZ retornou %s na tentativa %d/5", resp.status_code, tentativa + 1
+                    "SEFAZ retornou %s na tentativa %d/2", resp.status_code, tentativa + 1
                 )
-                time.sleep(2 ** tentativa)
+                if tentativa == 0:
+                    time.sleep(10)
                 continue
             resp.raise_for_status()
             resp.encoding = resp.encoding or "ISO-8859-1"
             return sess, resp.text
         except requests.RequestException as e:
             last_err = e
-            time.sleep(2 ** tentativa)
+            if tentativa == 0:
+                time.sleep(10)
 
-    if last_status and 500 <= last_status < 600:
-        raise SefazIndisponivelError(
-            f"Portal SEFAZ indisponível (HTTP {last_status} após 5 tentativas). "
-            f"Tente novamente em alguns minutos."
-        ) from last_err
+    if last_status:
+        if last_status in (403, 429):
+            raise SefazIndisponivelError(
+                "Portal SEFAZ está bloqueando temporariamente nossas requisições "
+                "(rate limit). Aguarde 5-10 minutos e tente novamente."
+            ) from last_err
+        if 500 <= last_status < 600:
+            raise SefazIndisponivelError(
+                f"Portal SEFAZ indisponível (HTTP {last_status}). "
+                f"Tente novamente em alguns minutos."
+            ) from last_err
     raise last_err or RuntimeError("Falha ao acessar URL da NFC-e")
 
 
