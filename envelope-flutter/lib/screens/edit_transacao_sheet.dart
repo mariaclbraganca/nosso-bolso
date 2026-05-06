@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import '../providers/mes_provider.dart';
+import '../providers/usuarios_provider.dart';
 import '../providers/transacoes_provider.dart';
 
 class EditTransacaoSheet extends ConsumerStatefulWidget {
@@ -93,6 +93,17 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
                 ? const CircularProgressIndicator(color: Colors.white) 
                 : const Text('Salvar Alterações', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _isSaving ? null : _excluir,
+            icon: const Icon(Icons.delete_outline, color: AppColors.red, size: 20),
+            label: const Text('Excluir transação', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              side: const BorderSide(color: AppColors.red),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
         ],
       ),
     );
@@ -127,4 +138,56 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     ),
   );
+
+  void _excluir() async {
+    final valor = (widget.transacao['valor'] as num).toDouble();
+    final desc = widget.transacao['descricao'] ?? 'Transação';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Excluir transação?', style: TextStyle(color: AppColors.tx)),
+        content: Text(
+          '$desc\nR\$ ${valor.toStringAsFixed(2)}\n\nO saldo será restaurado automaticamente.',
+          style: const TextStyle(color: AppColors.mu, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.mu)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _isSaving = true);
+    try {
+      final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+      await ApiService.delete(
+        '/transacoes/${widget.transacao['id']}',
+        familiaId: perfil?['familia_id'],
+      );
+      ref.invalidate(pagedTransacoesProvider);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Transação excluída com sucesso'),
+          backgroundColor: AppColors.grn,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 }
