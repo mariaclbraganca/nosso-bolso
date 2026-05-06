@@ -32,7 +32,7 @@ class _RemanejarSheetState extends ConsumerState<RemanejarSheet> {
         'destino_id': _destino!['id'],
         'valor': valor,
         'familia_id': perfil['familia_id'],
-        'usuario_id': perfil['auth_id'],
+        'usuario_id': perfil['id'],
       });
 
       if (!mounted) return;
@@ -41,12 +41,26 @@ class _RemanejarSheetState extends ConsumerState<RemanejarSheet> {
         const SnackBar(content: Text('Saldo transferido!'), backgroundColor: AppColors.grn),
       );
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      // Dialog em vez de snackbar — snackbar dentro de bottom sheet com
+      // teclado aberto somia rápido demais e o erro ficava silencioso.
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.card,
+          title: const Text('Não foi possível transferir',
+              style: TextStyle(color: AppColors.red)),
+          content: Text('$e', style: const TextStyle(color: AppColors.tx)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  const Text('OK', style: TextStyle(color: AppColors.acc)),
+            ),
+          ],
+        ),
+      );
     }
   }
 
