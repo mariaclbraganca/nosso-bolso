@@ -39,6 +39,10 @@ class StatusIntegracao(str, Enum):
 class IngestaoRequest(BaseModel):
     familia_id: UUID
     qr_code_url: str
+    # HTML opcional: se enviado, o backend usa direto (raspagem feita pelo
+    # cliente). Necessário porque a SEFAZ-GO bloqueia IPs de data center
+    # — o app raspa do celular do usuário (IP residencial BR) e manda pronto.
+    html_payload: Optional[str] = None
 
     @field_validator("qr_code_url")
     @classmethod

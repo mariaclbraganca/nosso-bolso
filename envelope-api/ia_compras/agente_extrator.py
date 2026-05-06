@@ -1,4 +1,4 @@
-from ia_compras.scraper_sefaz import raspar_nfce, extrair_texto_nota
+from ia_compras.scraper_sefaz import raspar_nfce, extrair_texto_nota, processar_html_pre_raspado
 from ia_compras.circuit_breaker import extrair_com_fallback
 from ia_compras.models_compras import CategoriaItem
 from ia_compras.shelf_life import calcular_data_feedback
@@ -64,8 +64,19 @@ def _parse_data(valor) -> Optional[datetime]:
         return None
 
 
-async def processar_nota(qr_code_url: str, familia_id: str) -> dict:
-    html = raspar_nfce(qr_code_url)
+async def processar_nota(
+    qr_code_url: str, familia_id: str, html_payload: Optional[str] = None
+) -> dict:
+    """Processa uma NFC-e e grava no Mongo.
+
+    Se `html_payload` vier, usa direto (raspagem feita pelo cliente —
+    necessário em produção porque a SEFAZ-GO bloqueia o IP do Render).
+    Caso contrário, faz o scrape no servidor (fallback / dev local).
+    """
+    if html_payload:
+        html = processar_html_pre_raspado(html_payload)
+    else:
+        html = raspar_nfce(qr_code_url)
     texto = extrair_texto_nota(html)
     raw, provider = await extrair_com_fallback(texto, EXTRACTION_SCHEMA)
     raw = _validar_grounding(raw, texto)

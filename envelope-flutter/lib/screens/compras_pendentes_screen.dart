@@ -12,6 +12,7 @@ import 'lista_compras_screen.dart';
 import 'configuracao_ia_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'qr_scanner_screen.dart';
+import '../services/nfce_scraper.dart';
 
 class ComprasPendentesScreen extends ConsumerStatefulWidget {
   const ComprasPendentesScreen({super.key});
@@ -264,10 +265,33 @@ class _ComprasPendentesScreenState
 
   Future<void> _enviarIngestao(String familiaId, String qrUrl) async {
     try {
+      // Raspagem local: o backend (Render AWS US-East) é bloqueado pela
+      // SEFAZ-GO, então fazemos do celular (IP residencial BR) e mandamos
+      // o HTML pronto. Se o scrape local falhar (ex: SEFAZ não suportada),
+      // segue sem html_payload e o backend tenta como fallback.
+      String? htmlPayload;
+      try {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Baixando dados da nota...'),
+            backgroundColor: AppColors.acc,
+            duration: Duration(seconds: 3),
+          ));
+        }
+        htmlPayload = await NfceScraper.raspar(qrUrl);
+      } catch (e) {
+        // segue sem html — backend tenta baixar (pode falhar)
+        debugPrint('Scrape local falhou, deixando o backend tentar: $e');
+      }
+
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/ingestao');
       final resp = await http.post(uri,
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'familia_id': familiaId, 'qr_code_url': qrUrl}));
+          body: jsonEncode({
+            'familia_id': familiaId,
+            'qr_code_url': qrUrl,
+            if (htmlPayload != null) 'html_payload': htmlPayload,
+          }));
       if (resp.statusCode == 202) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

@@ -1,113 +1,28 @@
+"""Scraper SEFAZ: raspagem de NFC-e a partir de URL ou HTML pré-raspado."""
 import html as html_lib
 import logging
 import re
 from typing import Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
+
+from ia_compras.scraper_http import (
+    SefazIndisponivelError,
+    build_session,
+    criar_sessao,
+    extrair_chave_acesso as _extrair_chave_acesso,
+    normalizar_url_qr as _normalizar_url_qr,
+    _DEFAULT_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
-_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
-_DEFAULT_TIMEOUT = 20
+# Re-export para quem importa de scraper_sefaz
+SefazIndisponivelError = SefazIndisponivelError
 
 
-def _extrair_chave_acesso(qr_code_url: str) -> Optional[str]:
-    """Extrai a chave de acesso (44 dígitos) da URL do QR code da NFC-e.
-
-    Formatos suportados:
-      - ?p=<44dig>|...
-      - ?chNFe=<44dig>
-      - ?chave=<44dig>
-      - chave embutida em qualquer parâmetro
-    """
-    try:
-        qs = parse_qs(urlparse(qr_code_url).query)
-    except Exception:
-        qs = {}
-
-    # ?p=CHAVE|...
-    if "p" in qs and qs["p"]:
-        primeiro = qs["p"][0].split("|")[0]
-        if re.fullmatch(r"\d{44}", primeiro):
-            return primeiro
-
-    for key in ("chNFe", "chave", "chaveAcesso"):
-        if key in qs and qs[key]:
-            valor = qs[key][0]
-            if re.fullmatch(r"\d{44}", valor):
-                return valor
-
-    m = re.search(r"\d{44}", qr_code_url)
-    if m:
-        return m.group(0)
-    return None
-
-
-class SefazIndisponivelError(RuntimeError):
-    """Erro específico quando o portal SEFAZ está respondendo 5xx — usado pra
-    diferenciar de outros erros (rede, LLM, etc) na UI."""
-
-
-def _build_session(qr_code_url: str) -> tuple[requests.Session, str]:
-    """Cria sessão e visita a URL inicial para obter cookies (jsessionid etc.).
-
-    Retry comedido (2 tentativas com 10s entre elas) — o WAF da SEFAZ-GO
-    bloqueia IPs que martelam, então retry agressivo PIORA: prolonga o
-    bloqueio. Se cair com 4xx/5xx, lança SefazIndisponivelError com
-    mensagem útil pra UI sugerir aguardar."""
-    import time
-    sess = requests.Session()
-    sess.headers.update({
-        "User-Agent": _UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-    })
-    last_status: int | None = None
-    last_err: Exception | None = None
-    for tentativa in range(2):
-        try:
-            resp = sess.get(
-                qr_code_url, timeout=_DEFAULT_TIMEOUT, allow_redirects=True
-            )
-            if resp.status_code in (403, 429, 500, 502, 503, 504):
-                last_status = resp.status_code
-                last_err = requests.HTTPError(
-                    f"{resp.status_code} {resp.reason}", response=resp
-                )
-                logger.warning(
-                    "SEFAZ retornou %s na tentativa %d/2", resp.status_code, tentativa + 1
-                )
-                if tentativa == 0:
-                    time.sleep(10)
-                continue
-            resp.raise_for_status()
-            resp.encoding = resp.encoding or "ISO-8859-1"
-            return sess, resp.text
-        except requests.RequestException as e:
-            last_err = e
-            if tentativa == 0:
-                time.sleep(10)
-
-    if last_status:
-        if last_status in (403, 429):
-            raise SefazIndisponivelError(
-                "Portal SEFAZ está bloqueando temporariamente nossas requisições "
-                "(rate limit). Aguarde 5-10 minutos e tente novamente."
-            ) from last_err
-        if 500 <= last_status < 600:
-            raise SefazIndisponivelError(
-                f"Portal SEFAZ indisponível (HTTP {last_status}). "
-                f"Tente novamente em alguns minutos."
-            ) from last_err
-    raise last_err or RuntimeError("Falha ao acessar URL da NFC-e")
-
-
-def _scrape_sefaz_go(sess: requests.Session, chave: str) -> Optional[str]:
+def _scrape_sefaz_go(sess, chave: str) -> Optional[str]:
     """SEFAZ-GO entrega o conteúdo da NFC-e numa chamada AJAX que devolve XML
     com o HTML escapado dentro de <DANFE_NFCE_HTML>...</DANFE_NFCE_HTML>.
     Esta chamada precisa do cookie de sessão e do header Referer apontando
@@ -139,7 +54,7 @@ def _scrape_sefaz_go(sess: requests.Session, chave: str) -> Optional[str]:
     return html_lib.unescape(html_lib.unescape(m.group(1)))
 
 
-def _scrape_generico(qr_code_url: str, sess: requests.Session, html_main: str) -> str:
+def _scrape_generico(qr_code_url: str, sess, html_main: str) -> str:
     """Fallback: tenta seguir iframes/links comuns das SEFAZ.
 
     Estratégia: além do HTML principal, baixa o conteúdo de iframes internos
@@ -171,22 +86,65 @@ def _scrape_generico(qr_code_url: str, sess: requests.Session, html_main: str) -
     return "\n".join(pedacos)
 
 
+def processar_html_pre_raspado(html_payload: str) -> str:
+    """Aceita HTML já raspado pelo cliente (IP brasileiro residencial)
+    e devolve o conteúdo útil para o LLM.
+
+    Suporta dois formatos:
+    - Envelope XML da SEFAZ-GO com <DANFE_NFCE_HTML>...</DANFE_NFCE_HTML>
+      (faz duplo unescape pra resolver os entities)
+    - HTML cru de qualquer outra SEFAZ (devolve como veio)
+    """
+    if not html_payload:
+        raise ValueError("html_payload vazio")
+    m = re.search(r"<DANFE_NFCE_HTML>(.+?)</DANFE_NFCE_HTML>", html_payload, re.DOTALL)
+    if m:
+        return html_lib.unescape(html_lib.unescape(m.group(1)))
+    return html_payload
+
+
+def _tentar_sefaz_go_direto(chave: str) -> Optional[str]:
+    """Fallback: tenta acessar SEFAZ-GO diretamente via render/danfeNFCe
+    sem depender da URL pública (que pode dar 500 com digest inválido).
+
+    Cria sessão limpa, visita o render/ para cookies e chama o AJAX."""
+    sess = criar_sessao()
+    try:
+        inner = _scrape_sefaz_go(sess, chave)
+        if inner:
+            return inner
+    except Exception as e:
+        logger.warning("Fallback direto SEFAZ-GO falhou: %s", e)
+    return None
+
+
 def raspar_nfce(qr_code_url: str) -> str:
     """Baixa o HTML da NFC-e a partir da URL do QR code.
 
-    Diferente da SEFAZ a SEFAZ, mas tipicamente a primeira URL retorna apenas
-    a moldura/iframe — os dados reais vêm de uma segunda chamada que precisa
-    dos cookies de sessão da primeira. Esta função encapsula esse fluxo.
-
     Retorna sempre uma string com o HTML mais completo possível (já com unescape
     quando aplicável). O parsing/limpeza é feito por extrair_texto_nota().
+
+    Em produção (Render AWS US-East) a SEFAZ-GO bloqueia IPs de data center,
+    então o caminho real é o app raspar do celular e enviar via
+    processar_html_pre_raspado(). Esta função fica como fallback.
     """
     if not qr_code_url:
         raise ValueError("qr_code_url vazio")
 
-    sess, html_main = _build_session(qr_code_url)
-    host = urlparse(qr_code_url).netloc.lower()
     chave = _extrair_chave_acesso(qr_code_url)
+    host = urlparse(qr_code_url).netloc.lower()
+    url_normalizada = _normalizar_url_qr(qr_code_url)
+
+    try:
+        sess, html_main = build_session(url_normalizada)
+    except SefazIndisponivelError:
+        # URL pública falhou — tentar via chave direto na SEFAZ-GO
+        if "sefaz.go.gov.br" in host and chave:
+            logger.info("URL pública falhou, tentando SEFAZ-GO direto via chave")
+            inner = _tentar_sefaz_go_direto(chave)
+            if inner:
+                return inner
+        raise
 
     if "sefaz.go.gov.br" in host and chave:
         inner = _scrape_sefaz_go(sess, chave)
@@ -194,7 +152,7 @@ def raspar_nfce(qr_code_url: str) -> str:
             return inner
         logger.warning("SEFAZ-GO: fallback para scraping genérico")
 
-    return _scrape_generico(qr_code_url, sess, html_main)
+    return _scrape_generico(url_normalizada, sess, html_main)
 
 
 def extrair_texto_nota(html: str) -> str:

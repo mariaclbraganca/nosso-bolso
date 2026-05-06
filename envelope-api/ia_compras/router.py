@@ -16,11 +16,16 @@ logger = logging.getLogger(__name__)
 
 @router.post("/ingestao", status_code=202)
 async def ingestao_nota(payload: IngestaoRequest, bg: BackgroundTasks):
-    bg.add_task(_processar_background, payload.qr_code_url, str(payload.familia_id))
+    bg.add_task(
+        _processar_background,
+        payload.qr_code_url,
+        str(payload.familia_id),
+        payload.html_payload,
+    )
     return {"compra_id": "pending", "status": "processando"}
 
 
-def _processar_background(qr_url: str, familia_id: str):
+def _processar_background(qr_url: str, familia_id: str, html_payload: str | None = None):
     import asyncio
     try:
         # Em contexto de BackgroundTasks do FastAPI, pode ou não haver
@@ -34,9 +39,11 @@ def _processar_background(qr_url: str, familia_id: str):
             # Já há um loop ativo — criar um novo loop em thread separada
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                pool.submit(asyncio.run, processar_nota(qr_url, familia_id)).result()
+                pool.submit(
+                    asyncio.run, processar_nota(qr_url, familia_id, html_payload)
+                ).result()
         else:
-            asyncio.run(processar_nota(qr_url, familia_id))
+            asyncio.run(processar_nota(qr_url, familia_id, html_payload))
         logger.info(f"Nota processada com sucesso: familia={familia_id}")
     except Exception as e:
         logger.error(f"Erro ao processar nota: {e}", exc_info=True)
