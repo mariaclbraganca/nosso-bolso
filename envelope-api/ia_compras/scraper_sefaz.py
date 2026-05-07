@@ -43,6 +43,14 @@ def _scrape_sefaz_go(sess, chave: str) -> Optional[str]:
     txt = resp.text
     if "<STATUS>SUCCESS</STATUS>" not in txt:
         logger.warning("SEFAZ-GO render/html retornou status != SUCCESS: %s", txt[:200])
+        if "<STATUS>FAILURE</STATUS>" in txt:
+            # Portal aceitou a chave mas não tem dados — geralmente NFC-e
+            # recém-emitida (ainda não indexada) ou em contingência
+            raise SefazIndisponivelError(
+                "Esta NFC-e ainda não está disponível no portal da SEFAZ-GO. "
+                "Notas recém-emitidas levam alguns minutos (até horas) pra aparecer. "
+                "Tente de novo mais tarde ou confirme abrindo a URL do QR no navegador."
+            )
         return None
     m = re.search(r"<DANFE_NFCE_HTML>(.+?)</DANFE_NFCE_HTML>", txt, re.DOTALL)
     if not m:

@@ -72,6 +72,13 @@ class NfceScraper {
       );
     }
     if (!body.contains('<STATUS>SUCCESS</STATUS>')) {
+      if (body.contains('<STATUS>FAILURE</STATUS>')) {
+        throw Exception(
+          'NFC-e ainda não disponível no portal da SEFAZ-GO. '
+          'Notas recém-emitidas levam alguns minutos (até horas) pra aparecer. '
+          'Tente de novo mais tarde.',
+        );
+      }
       throw Exception('SEFAZ-GO não retornou os dados (status != SUCCESS)');
     }
     if (!body.contains('<DANFE_NFCE_HTML>')) {
