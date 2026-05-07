@@ -81,6 +81,18 @@ async def processar_nota(
     raw, provider = await extrair_com_fallback(texto, EXTRACTION_SCHEMA)
     raw = _validar_grounding(raw, texto)
 
+    # Guarda anti-alucinação do LLM: se Gemini não extraiu itens nem valor
+    # consistente, é sinal forte de que a fonte (HTML) era ruim mesmo assim
+    # — não gravar pendente lixo, falhar pra UI ver.
+    n_itens = len(raw.get("itens", []) or [])
+    valor_total_llm = float(raw.get("valor_total", 0) or 0)
+    if n_itens == 0 or valor_total_llm <= 0:
+        raise RuntimeError(
+            f"Não foi possível extrair os dados da nota "
+            f"(LLM devolveu {n_itens} itens, valor total R$ {valor_total_llm}). "
+            f"Tente escanear de novo ou verifique se a NFC-e está disponível na SEFAZ."
+        )
+
     itens_validados = []
     data_compra = _parse_data(raw.get("data_compra")) or datetime.now()
     for item_raw in raw.get("itens", []):

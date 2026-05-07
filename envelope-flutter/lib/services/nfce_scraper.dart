@@ -62,6 +62,15 @@ class NfceScraper {
       );
     }
     final body = resp.body;
+    final lower = body.toLowerCase();
+    if (lower.contains('acesso negado') ||
+        lower.contains('access denied') ||
+        lower.contains('forbidden')) {
+      throw Exception(
+        'SEFAZ-GO bloqueou a consulta (Acesso Negado). '
+        'Aguarde alguns minutos e tente de novo.',
+      );
+    }
     if (!body.contains('<STATUS>SUCCESS</STATUS>')) {
       throw Exception('SEFAZ-GO não retornou os dados (status != SUCCESS)');
     }

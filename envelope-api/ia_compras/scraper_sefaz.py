@@ -86,6 +86,35 @@ def _scrape_generico(qr_code_url: str, sess, html_main: str) -> str:
     return "\n".join(pedacos)
 
 
+def _validar_conteudo_nota(html: str) -> None:
+    """Garante que o HTML é uma NFC-e real e não uma página de erro/bloqueio
+    da SEFAZ. Se for inválido, lança SefazIndisponivelError com mensagem útil
+    pra UI — assim o LLM nunca recebe lixo (e não inventa dados)."""
+    if not html or len(html) < 500:
+        raise SefazIndisponivelError(
+            "Conteúdo da NFC-e está vazio ou muito pequeno. "
+            "A SEFAZ provavelmente não retornou os dados — tente novamente."
+        )
+    snippet = html[:2000].lower()
+    sinais_de_bloqueio = (
+        "acesso negado", "access denied", "forbidden",
+        "não autorizado", "blocked",
+    )
+    for sinal in sinais_de_bloqueio:
+        if sinal in snippet:
+            raise SefazIndisponivelError(
+                "Portal SEFAZ bloqueou a consulta (Acesso Negado). "
+                "Aguarde alguns minutos e tente de novo."
+            )
+    # Heurística: NFC-e real tem pelo menos uma palavra-chave de produto/valor
+    indicadores_nota = ("qtde", "vl. unit", "vl. total", "valor a pagar", "danfe", "nfc-e", "nfce")
+    if not any(k in snippet for k in indicadores_nota):
+        raise SefazIndisponivelError(
+            "Resposta da SEFAZ não parece ser uma NFC-e válida — "
+            "tente escanear o QR de novo."
+        )
+
+
 def processar_html_pre_raspado(html_payload: str) -> str:
     """Aceita HTML já raspado pelo cliente (IP brasileiro residencial)
     e devolve o conteúdo útil para o LLM.
@@ -94,13 +123,18 @@ def processar_html_pre_raspado(html_payload: str) -> str:
     - Envelope XML da SEFAZ-GO com <DANFE_NFCE_HTML>...</DANFE_NFCE_HTML>
       (faz duplo unescape pra resolver os entities)
     - HTML cru de qualquer outra SEFAZ (devolve como veio)
+
+    Valida o conteúdo antes de devolver — se for página de erro/bloqueio,
+    lança SefazIndisponivelError em vez de passar lixo pro LLM.
     """
     if not html_payload:
         raise ValueError("html_payload vazio")
     m = re.search(r"<DANFE_NFCE_HTML>(.+?)</DANFE_NFCE_HTML>", html_payload, re.DOTALL)
-    if m:
-        return html_lib.unescape(html_lib.unescape(m.group(1)))
-    return html_payload
+    conteudo = (
+        html_lib.unescape(html_lib.unescape(m.group(1))) if m else html_payload
+    )
+    _validar_conteudo_nota(conteudo)
+    return conteudo
 
 
 def _tentar_sefaz_go_direto(chave: str) -> Optional[str]:
@@ -149,10 +183,13 @@ def raspar_nfce(qr_code_url: str) -> str:
     if "sefaz.go.gov.br" in host and chave:
         inner = _scrape_sefaz_go(sess, chave)
         if inner:
+            _validar_conteudo_nota(inner)
             return inner
         logger.warning("SEFAZ-GO: fallback para scraping genérico")
 
-    return _scrape_generico(url_normalizada, sess, html_main)
+    conteudo = _scrape_generico(url_normalizada, sess, html_main)
+    _validar_conteudo_nota(conteudo)
+    return conteudo
 
 
 def extrair_texto_nota(html: str) -> str:
