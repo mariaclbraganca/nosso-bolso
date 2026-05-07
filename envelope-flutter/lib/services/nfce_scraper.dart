@@ -87,11 +87,33 @@ class NfceScraper {
     return body;
   }
 
+  /// SEFAZ-BA serve os dados diretamente na URL pública (sem iframe/AJAX).
+  /// Basta um GET e devolver o HTML como veio.
+  static Future<String> rasparSefazBa(String qrUrl) async {
+    final r =
+        await http.get(Uri.parse(qrUrl), headers: {'User-Agent': _ua}).timeout(_timeout);
+    if (r.statusCode != 200) {
+      throw Exception('SEFAZ-BA recusou a URL (HTTP ${r.statusCode})');
+    }
+    final body = r.body;
+    final lower = body.toLowerCase();
+    if (lower.contains('acesso negado') || lower.contains('forbidden')) {
+      throw Exception('SEFAZ-BA bloqueou a consulta (Acesso Negado).');
+    }
+    if (!lower.contains('qtde') && !lower.contains('valor a pagar')) {
+      throw Exception('SEFAZ-BA não retornou os dados da nota.');
+    }
+    return body;
+  }
+
   /// Roteador: detecta a SEFAZ pelo host e chama o scraper específico.
   static Future<String> raspar(String qrUrl) async {
     final host = Uri.tryParse(qrUrl)?.host.toLowerCase() ?? '';
     if (host.contains('sefaz.go.gov.br')) {
       return rasparSefazGo(qrUrl);
+    }
+    if (host.contains('sefaz.ba.gov.br')) {
+      return rasparSefazBa(qrUrl);
     }
     // Outras SEFAZ ainda não implementadas — backend tenta como fallback
     throw Exception(

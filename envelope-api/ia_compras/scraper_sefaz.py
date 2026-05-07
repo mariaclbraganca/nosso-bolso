@@ -156,27 +156,42 @@ def _validar_conteudo_nota(html: str) -> None:
 def extrair_valor_total_html(html: str) -> Optional[float]:
     """Tenta extrair o valor total da nota direto do HTML, sem depender do LLM.
 
-    Inspirado no scraper antigo: busca <span class="totalNumb txtMax">,
-    ou os padrões observados na SEFAZ-GO ('Valor a pagar R$:' seguido do número).
     Devolve None se não conseguir.
+
+    Estratégia em ordem (do mais específico pro mais frouxo):
+    1) <span class="totalNumb txtMax"> — classe COMPOSTA usada pela SEFAZ-BA
+       (e provavelmente outros estados que seguem o XSLT padrão da NFC-e).
+       Esse span aparece exatamente uma vez na nota, no campo 'Valor a pagar'.
+    2) Texto 'Valor a pagar R$:' seguido do número — pega SEFAZ-GO e fallback.
+    3) Texto 'Valor Total R$:' como último recurso.
+
+    NÃO usar 'span.totalNumb' sem composta — esse seletor pega 4+ spans
+    diferentes (qtd itens, valor pago, tributos) e o primeiro é a qtd, não
+    o valor total.
     """
     if not html:
         return None
     soup = BeautifulSoup(html, "html.parser")
 
-    # Padrão 1 (Selenium antigo): <span class="totalNumb txtMax">123,45</span>
-    span = soup.find("span", class_="totalNumb")
-    if span:
-        return _parse_valor_br(span.get_text(strip=True))
+    # 1) Compound class match: span DEVE ter ambas as classes
+    for span in soup.find_all("span"):
+        classes = span.get("class") or []
+        if "totalNumb" in classes and "txtMax" in classes:
+            v = _parse_valor_br(span.get_text(strip=True))
+            if v is not None and v > 0:
+                return v
 
-    # Padrão 2 (SEFAZ-GO atual): texto "Valor a pagar R$:" seguido do número
+    # 2) Texto "Valor a pagar R$:" seguido do número (pode ter quebra de linha)
     texto = soup.get_text(separator="\n")
-    m = re.search(
+    for padrao in (
         r"valor\s+a\s+pagar\s*r?\$?\s*:?\s*([\d\.]+,\d{2})",
-        texto, re.IGNORECASE,
-    )
-    if m:
-        return _parse_valor_br(m.group(1))
+        r"valor\s+total\s*r?\$?\s*:?\s*([\d\.]+,\d{2})",
+    ):
+        m = re.search(padrao, texto, re.IGNORECASE)
+        if m:
+            v = _parse_valor_br(m.group(1))
+            if v is not None and v > 0:
+                return v
     return None
 
 
