@@ -97,30 +97,101 @@ def _scrape_generico(qr_code_url: str, sess, html_main: str) -> str:
 def _validar_conteudo_nota(html: str) -> None:
     """Garante que o HTML é uma NFC-e real e não uma página de erro/bloqueio
     da SEFAZ. Se for inválido, lança SefazIndisponivelError com mensagem útil
-    pra UI — assim o LLM nunca recebe lixo (e não inventa dados)."""
+    pra UI — assim o LLM nunca recebe lixo (e não inventa dados).
+
+    Detecções (algumas inspiradas no scraper Selenium antigo):
+    - HTML muito curto / vazio
+    - WAF: 'Acesso Negado' / 'Access Denied' / 'Forbidden'
+    - Sessão: 'Sessão Expirada'
+    - Erros explícitos da SEFAZ: 'Nota Fiscal não encontrada',
+      'Chave de Acesso inválida', 'prazo de consulta expirado'
+    - Heurística positiva: precisa ter ao menos uma palavra-chave de NFC-e
+    """
     if not html or len(html) < 500:
         raise SefazIndisponivelError(
             "Conteúdo da NFC-e está vazio ou muito pequeno. "
             "A SEFAZ provavelmente não retornou os dados — tente novamente."
         )
-    snippet = html[:2000].lower()
-    sinais_de_bloqueio = (
-        "acesso negado", "access denied", "forbidden",
-        "não autorizado", "blocked",
+    snippet = html[:3000].lower()
+
+    # Bloqueios do WAF
+    if any(s in snippet for s in ("acesso negado", "access denied", "forbidden", "blocked")):
+        raise SefazIndisponivelError(
+            "Portal SEFAZ bloqueou a consulta (Acesso Negado). "
+            "Aguarde alguns minutos e tente de novo."
+        )
+
+    # Sessão expirada (acontece quando o digest da URL pública envelheceu)
+    if "sessão expirada" in snippet or "sessao expirada" in snippet:
+        raise SefazIndisponivelError(
+            "A consulta expirou. Escaneie o QR code da NFC-e de novo."
+        )
+
+    # Erros explícitos da SEFAZ — chave inválida ou nota não cadastrada
+    erros_explicitos = {
+        "nota fiscal não encontrada": "Esta NFC-e não foi encontrada no portal da SEFAZ.",
+        "chave de acesso inválida": "A chave de acesso da NFC-e é inválida.",
+        "prazo de consulta expirado": "O prazo para consulta desta NFC-e expirou.",
+        "houve um erro na operação": (
+            "A SEFAZ não conseguiu processar a consulta desta nota. "
+            "Pode ser muito recente — aguarde alguns minutos."
+        ),
+    }
+    for marcador, msg in erros_explicitos.items():
+        if marcador in snippet:
+            raise SefazIndisponivelError(msg)
+
+    # Heurística positiva: NFC-e real tem palavra-chave de produto/valor
+    indicadores_nota = (
+        "qtde", "vl. unit", "vl. total", "valor a pagar",
+        "danfe", "nfc-e", "nfce", "tab_produtos", "txttit",
     )
-    for sinal in sinais_de_bloqueio:
-        if sinal in snippet:
-            raise SefazIndisponivelError(
-                "Portal SEFAZ bloqueou a consulta (Acesso Negado). "
-                "Aguarde alguns minutos e tente de novo."
-            )
-    # Heurística: NFC-e real tem pelo menos uma palavra-chave de produto/valor
-    indicadores_nota = ("qtde", "vl. unit", "vl. total", "valor a pagar", "danfe", "nfc-e", "nfce")
     if not any(k in snippet for k in indicadores_nota):
         raise SefazIndisponivelError(
             "Resposta da SEFAZ não parece ser uma NFC-e válida — "
             "tente escanear o QR de novo."
         )
+
+
+def extrair_valor_total_html(html: str) -> Optional[float]:
+    """Tenta extrair o valor total da nota direto do HTML, sem depender do LLM.
+
+    Inspirado no scraper antigo: busca <span class="totalNumb txtMax">,
+    ou os padrões observados na SEFAZ-GO ('Valor a pagar R$:' seguido do número).
+    Devolve None se não conseguir.
+    """
+    if not html:
+        return None
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Padrão 1 (Selenium antigo): <span class="totalNumb txtMax">123,45</span>
+    span = soup.find("span", class_="totalNumb")
+    if span:
+        return _parse_valor_br(span.get_text(strip=True))
+
+    # Padrão 2 (SEFAZ-GO atual): texto "Valor a pagar R$:" seguido do número
+    texto = soup.get_text(separator="\n")
+    m = re.search(
+        r"valor\s+a\s+pagar\s*r?\$?\s*:?\s*([\d\.]+,\d{2})",
+        texto, re.IGNORECASE,
+    )
+    if m:
+        return _parse_valor_br(m.group(1))
+    return None
+
+
+def _parse_valor_br(s: str) -> Optional[float]:
+    """Converte '1.234,56' (BR) ou '1234.56' (US) para float."""
+    if not s:
+        return None
+    s = s.strip().replace("R$", "").strip()
+    # heurística: se tem vírgula, é BR (vírgula = decimal, ponto = milhar)
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
 
 def processar_html_pre_raspado(html_payload: str) -> str:

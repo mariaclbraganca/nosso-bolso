@@ -1,4 +1,9 @@
-from ia_compras.scraper_sefaz import raspar_nfce, extrair_texto_nota, processar_html_pre_raspado
+from ia_compras.scraper_sefaz import (
+    raspar_nfce,
+    extrair_texto_nota,
+    processar_html_pre_raspado,
+    extrair_valor_total_html,
+)
 from ia_compras.circuit_breaker import extrair_com_fallback
 from ia_compras.models_compras import CategoriaItem
 from ia_compras.shelf_life import calcular_data_feedback
@@ -92,6 +97,17 @@ async def processar_nota(
             f"(LLM devolveu {n_itens} itens, valor total R$ {valor_total_llm}). "
             f"Tente escanear de novo ou verifique se a NFC-e está disponível na SEFAZ."
         )
+
+    # Sanity check pós-LLM: compara o valor total extraído pelo LLM com o
+    # valor encontrado direto no HTML (parser BS4). Se divergir mais de R$ 0,50,
+    # o LLM provavelmente alucinou — usa o valor do HTML como autoridade.
+    valor_html = extrair_valor_total_html(html)
+    if valor_html and abs(valor_html - valor_total_llm) > 0.5:
+        logger.warning(
+            "Valor LLM (R$ %.2f) diverge do HTML (R$ %.2f) — usando o do HTML",
+            valor_total_llm, valor_html,
+        )
+        raw["valor_total"] = valor_html
 
     itens_validados = []
     data_compra = _parse_data(raw.get("data_compra")) or datetime.now()
