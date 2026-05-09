@@ -183,7 +183,7 @@ class _ComprasPendentesScreenState
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/falhas')
           .replace(queryParameters: {'familia_id': familiaId});
-      await http.delete(uri).timeout(const Duration(seconds: 8));
+      await http.delete(uri, headers: ApiService.authHeaders()).timeout(const Duration(seconds: 8));
       if (!mounted) return;
       ref.invalidate(comprasFalhasProvider);
     } catch (_) {
@@ -286,7 +286,7 @@ class _ComprasPendentesScreenState
 
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/ingestao');
       final resp = await http.post(uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'familia_id': familiaId,
             'qr_code_url': qrUrl,
@@ -471,7 +471,7 @@ class _CompraCard extends ConsumerWidget {
           Uri.parse('${ApiService.baseUrl}/api/v1/compras/${compra['compra_id']}')
               .replace(
                   queryParameters: {'familia_id': perfil['familia_id'] as String});
-      await http.delete(uri);
+      await http.delete(uri, headers: ApiService.authHeaders());
       ref.refresh(comprasPendentesProvider);
     } catch (e) {
       if (context.mounted) {
@@ -588,7 +588,7 @@ class _ConfirmarSheetState extends ConsumerState<_ConfirmarSheet> {
       final uri =
           Uri.parse('${ApiService.baseUrl}/api/v1/compras/confirmar');
       final resp = await http.post(uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'compra_id': widget.compra['compra_id'],
             'familia_id': perfil['familia_id'],

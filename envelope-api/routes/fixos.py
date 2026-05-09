@@ -1,11 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
 from models import GastoFixoCreate, GastoFixoUpdate
+from auth import AuthUser, get_current_user, assert_mesma_familia
 
 router = APIRouter()
 
 @router.get("/")
-def listar_fixos(familia_id: str, mes: str = None):
+def listar_fixos(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None, mes: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     
     # 1. Buscar fixos do mês solicitado
@@ -54,22 +59,31 @@ def listar_fixos(familia_id: str, mes: str = None):
     return fixos_atuais
 
 @router.post("/")
-def criar_fixo(payload: GastoFixoCreate):
+def criar_fixo(
+    payload: GastoFixoCreate,
+    user: AuthUser = Depends(get_current_user),
+):
+    fam = assert_mesma_familia(user, payload.familia_id)
     db = get_supabase()
     data = payload.model_dump()
-    data["familia_id"] = str(data["familia_id"])
+    data["familia_id"] = fam
     return db.table("gastos_fixos").insert(data).execute().data[0]
 
 @router.patch("/{fixo_id}")
-def atualizar_fixo(fixo_id: str, payload: GastoFixoUpdate):
+def atualizar_fixo(
+    fixo_id: str,
+    payload: GastoFixoUpdate,
+    user: AuthUser = Depends(get_current_user),
+):
     """Atualiza campos do fixo e gerencia saldo_geral se o status 'pago' mudou."""
     db = get_supabase()
 
-    # 1. Busca o fixo atual
-    fixo_res = db.table("gastos_fixos").select("*").eq("id", fixo_id).execute().data
+    # 1. Busca o fixo atual (filtra por família do usuário)
+    fixo_res = db.table("gastos_fixos").select("*") \
+        .eq("id", fixo_id).eq("familia_id", user.familia_id).execute().data
     if not fixo_res:
         raise HTTPException(status_code=404, detail="Fixo não encontrado")
-    
+
     fixo_atual = fixo_res[0]
     update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
     
@@ -109,8 +123,13 @@ def atualizar_fixo(fixo_id: str, payload: GastoFixoUpdate):
     return result.data[0]
 
 @router.delete("/{fixo_id}")
-def deletar_fixo(fixo_id: str, familia_id: str):
-    """Deletar fixo — filtrando sempre por familia_id."""
+def deletar_fixo(
+    fixo_id: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    """Deletar fixo — filtrando sempre pela família do JWT."""
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     result = db.table("gastos_fixos").delete().eq("id", fixo_id).eq("familia_id", familia_id).execute()
     if not result.data:

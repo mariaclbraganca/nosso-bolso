@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from database import get_supabase
 from models import TransacaoCreate, ReceitaCreate, TransacaoUpdate
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from datetime import datetime
 import io
 import csv
@@ -9,38 +10,53 @@ import csv
 router = APIRouter()
 
 @router.post("/")
-def registrar_transacao(payload: TransacaoCreate):
+def registrar_transacao(
+    payload: TransacaoCreate,
+    user: AuthUser = Depends(get_current_user),
+):
+    fam = assert_mesma_familia(user, payload.familia_id)
+    usr = assert_mesmo_usuario(user, payload.usuario_id)
     db = get_supabase()
     data = {
         "valor": payload.valor, "tipo": payload.tipo,
-        "usuario_id": str(payload.usuario_id),
+        "usuario_id": usr,
         "envelope_id": str(payload.envelope_id) if payload.envelope_id else None,
         "descricao": payload.descricao, "data": str(payload.data),
-        "familia_id": str(payload.familia_id),
+        "familia_id": fam,
     }
     result = db.table("transacoes").insert(data).execute()
     return result.data[0]
 
 @router.post("/receita")
-def registrar_receita(payload: ReceitaCreate):
+def registrar_receita(
+    payload: ReceitaCreate,
+    user: AuthUser = Depends(get_current_user),
+):
     """Atalho semântico: tipo sempre receita, envelope_id sempre null"""
+    fam = assert_mesma_familia(user, payload.familia_id)
+    usr = assert_mesmo_usuario(user, payload.usuario_id)
     db = get_supabase()
     data = {
         "valor": payload.valor, "tipo": "receita",
-        "usuario_id": str(payload.usuario_id),
+        "usuario_id": usr,
         "envelope_id": None,
         "descricao": payload.descricao, "data": str(payload.data),
-        "familia_id": str(payload.familia_id),
+        "familia_id": fam,
     }
     result = db.table("transacoes").insert(data).execute()
     return result.data[0]
 
 @router.get("/extrato")
-def extrato(familia_id: str, usuario_id: str = None, tipo: str = None,
-            envelope_id: str = None, mes: str = None,
-            q: str = None, valor_min: float = None, valor_max: float = None,
-            data_inicio: str = None, data_fim: str = None,
-            page: int = 1, limit: int = 30):
+def extrato(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None, usuario_id: str = None, tipo: str = None,
+    envelope_id: str = None, mes: str = None,
+    q: str = None, valor_min: float = None, valor_max: float = None,
+    data_inicio: str = None, data_fim: str = None,
+    page: int = 1, limit: int = 30,
+):
+    # familia_id sempre derivado do JWT — query param é ignorado
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     query = (db.table("transacoes")
              .select("*, usuarios(nome), envelopes(nome_envelope, emoji)")
@@ -77,7 +93,13 @@ def extrato(familia_id: str, usuario_id: str = None, tipo: str = None,
     return query.execute().data
 
 @router.get("/export")
-def exportar_extrato(familia_id: str, formato: str = "pdf", q: str = None, valor_min: float = None, valor_max: float = None, data_inicio: str = None, data_fim: str = None):
+def exportar_extrato(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None, formato: str = "pdf",
+    q: str = None, valor_min: float = None, valor_max: float = None,
+    data_inicio: str = None, data_fim: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     query = db.table("transacoes").select("*, envelopes(nome_envelope), usuarios(nome)").eq("familia_id", familia_id).is_("deleted_at", "null").order("created_at", desc=True)
     
@@ -150,7 +172,13 @@ def exportar_extrato(familia_id: str, formato: str = "pdf", q: str = None, valor
         return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=extrato_{familia_id}.pdf"})
 
 @router.put("/{transacao_id}")
-def editar_transacao(transacao_id: str, familia_id: str, payload: TransacaoUpdate):
+def editar_transacao(
+    transacao_id: str,
+    payload: TransacaoUpdate,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     # Criar dict apenas com campos não-nulos
     update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -172,7 +200,12 @@ def editar_transacao(transacao_id: str, familia_id: str, payload: TransacaoUpdat
     return result.data[0]
 
 @router.delete("/{transacao_id}")
-def excluir_transacao(transacao_id: str, familia_id: str):
+def excluir_transacao(
+    transacao_id: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     # Soft delete (SPEC-11)
     result = db.table("transacoes").update({"deleted_at": datetime.now().isoformat()}) \
@@ -184,7 +217,11 @@ def excluir_transacao(transacao_id: str, familia_id: str):
     return {"status": "success", "message": "Transação movida para a lixeira"}
 
 @router.get("/lixeira")
-def listar_lixeira(familia_id: str):
+def listar_lixeira(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     return db.table("transacoes").select("*, envelopes(nome_envelope)") \
         .eq("familia_id", familia_id) \
@@ -192,7 +229,12 @@ def listar_lixeira(familia_id: str):
         .order("deleted_at", desc=True).execute().data
 
 @router.post("/{transacao_id}/restaurar")
-def restaurar_transacao(transacao_id: str, familia_id: str):
+def restaurar_transacao(
+    transacao_id: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     result = db.table("transacoes").update({"deleted_at": None}) \
         .eq("id", transacao_id) \

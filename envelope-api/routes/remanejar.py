@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
 from models import RemanejarPayload
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 
 router = APIRouter()
 
 
 @router.post("/")
-def remanejar_saldo(payload: RemanejarPayload):
+def remanejar_saldo(
+    payload: RemanejarPayload,
+    user: AuthUser = Depends(get_current_user),
+):
     """Transfere saldo entre envelopes via RPC atômica.
 
     O par despesa+abastecimento direto na tabela transacoes não funciona
@@ -15,6 +19,8 @@ def remanejar_saldo(payload: RemanejarPayload):
     UPDATE direto nos dois envelopes (sem passar por trigger) e registra
     a operação em remanejamentos_log para auditoria.
     """
+    fam = assert_mesma_familia(user, payload.familia_id)
+    usr = assert_mesmo_usuario(user, payload.usuario_id)
     db = get_supabase()
     try:
         db.rpc(
@@ -23,8 +29,8 @@ def remanejar_saldo(payload: RemanejarPayload):
                 "p_origem_id": str(payload.origem_id),
                 "p_destino_id": str(payload.destino_id),
                 "p_valor": float(payload.valor),
-                "p_familia_id": str(payload.familia_id),
-                "p_usuario_id": str(payload.usuario_id),
+                "p_familia_id": fam,
+                "p_usuario_id": usr,
             },
         ).execute()
         return {"status": "success", "message": "Saldo remanejado com sucesso"}

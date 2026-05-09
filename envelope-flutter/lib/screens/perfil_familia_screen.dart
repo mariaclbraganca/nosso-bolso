@@ -45,7 +45,7 @@ class _PerfilFamiliaScreenState extends ConsumerState<PerfilFamiliaScreen> {
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil')
           .replace(queryParameters: {'familia_id': fid});
-      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+      final resp = await http.get(uri, headers: ApiService.authHeaders()).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200 && mounted) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         _nomeCtrl.text = (data['nome_familia'] as String?) ?? '';
@@ -75,7 +75,7 @@ class _PerfilFamiliaScreenState extends ConsumerState<PerfilFamiliaScreen> {
 
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil');
       final resp = await http.patch(uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiService.authHeaders(json: true),
           body: jsonEncode(body));
       if (resp.statusCode == 200 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

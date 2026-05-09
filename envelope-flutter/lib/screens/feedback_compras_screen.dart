@@ -107,7 +107,7 @@ class _FeedbackComprasScreenState extends ConsumerState<FeedbackComprasScreen> {
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/feedback');
       final resp = await http.patch(uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'compra_id': item['compra_id'],
             'nome_padronizado': item['nome_padronizado'],

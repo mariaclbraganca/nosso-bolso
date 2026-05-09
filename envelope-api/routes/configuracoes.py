@@ -1,6 +1,7 @@
 import os
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from auth import AuthUser, get_current_user
 
 router = APIRouter()
 
@@ -18,7 +19,13 @@ class ConfiguracaoResponse(BaseModel):
 
 
 @router.post("/configurar", response_model=ConfiguracaoResponse)
-def configurar(payload: ConfiguracaoRequest):
+def configurar(
+    payload: ConfiguracaoRequest,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Apenas admin pode trocar chaves de API (rotina sensível)."""
+    if user.role != "admin":
+        raise HTTPException(403, "Apenas admin pode alterar as chaves de IA")
     if payload.gemini_api_key:
         os.environ["GEMINI_API_KEY"] = payload.gemini_api_key
     if payload.mongo_uri:
@@ -32,7 +39,7 @@ def configurar(payload: ConfiguracaoRequest):
 
 
 @router.get("/configurar", response_model=ConfiguracaoResponse)
-def status_configuracao():
+def status_configuracao(user: AuthUser = Depends(get_current_user)):
     return ConfiguracaoResponse(
         gemini_api_key_configurada=bool(os.environ.get("GEMINI_API_KEY")),
         mongo_uri_configurada=bool(os.environ.get("MONGO_URI")),

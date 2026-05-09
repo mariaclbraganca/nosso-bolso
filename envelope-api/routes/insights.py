@@ -1,12 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
+from auth import AuthUser, get_current_user, assert_mesma_familia
 from datetime import date
 import calendar
 
 router = APIRouter()
 
 @router.get("/insights")
-def gerar_insights(familia_id: str, mes_atual: str):
+def gerar_insights(
+    mes_atual: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     
     # 1. Obter stats do mês atual

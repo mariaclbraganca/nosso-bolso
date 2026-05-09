@@ -11,7 +11,7 @@ final comprasPendentesProvider =
   final familiaId = perfil['familia_id'] as String? ?? '';
   final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/pendentes')
       .replace(queryParameters: {'familia_id': familiaId});
-  final resp = await http.get(uri);
+  final resp = await http.get(uri, headers: ApiService.authHeaders());
   if (resp.statusCode == 200) {
     return List<Map<String, dynamic>>.from(jsonDecode(resp.body));
   }
@@ -25,7 +25,7 @@ final feedbackPendenteProvider =
   final familiaId = perfil['familia_id'] as String? ?? '';
   final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/feedback-pendente')
       .replace(queryParameters: {'familia_id': familiaId});
-  final resp = await http.get(uri);
+  final resp = await http.get(uri, headers: ApiService.authHeaders());
   if (resp.statusCode == 200) {
     return List<Map<String, dynamic>>.from(jsonDecode(resp.body));
   }
@@ -39,7 +39,7 @@ final listaComprasProvider = FutureProvider.autoDispose
   final familiaId = perfil['familia_id'] as String? ?? '';
   final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/planejar')
       .replace(queryParameters: {'familia_id': familiaId, 'dias': '$dias'});
-  final resp = await http.get(uri);
+  final resp = await http.get(uri, headers: ApiService.authHeaders());
   if (resp.statusCode == 200) {
     return Map<String, dynamic>.from(jsonDecode(resp.body));
   }
@@ -54,7 +54,7 @@ final comprasFalhasProvider =
   try {
     final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/falhas')
         .replace(queryParameters: {'familia_id': familiaId});
-    final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+    final resp = await http.get(uri, headers: ApiService.authHeaders()).timeout(const Duration(seconds: 8));
     if (resp.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(resp.body));
     }

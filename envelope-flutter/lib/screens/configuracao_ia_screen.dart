@@ -45,7 +45,7 @@ class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil')
           .replace(queryParameters: {'familia_id': familiaId});
-      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+      final resp = await http.get(uri, headers: ApiService.authHeaders()).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200 && mounted) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         setState(() {
@@ -63,7 +63,7 @@ class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/perfil');
       final resp = await http.patch(uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'familia_id': familiaId,
             'envelope_supermercado_id': envelopeId,
@@ -99,7 +99,7 @@ class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
   Future<void> _verificarStatus() async {
     try {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/configurar');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 5));
+      final resp = await http.get(uri, headers: ApiService.authHeaders()).timeout(const Duration(seconds: 5));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         if (mounted) {
@@ -135,7 +135,7 @@ class _ConfiguracaoIAScreenState extends ConsumerState<ConfiguracaoIAScreen> {
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/configurar');
       final resp = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders(json: true),
         body: jsonEncode({
           'gemini_api_key': gemini,
           'mongo_uri': mongo,

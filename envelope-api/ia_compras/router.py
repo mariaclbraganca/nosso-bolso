@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from ia_compras.models_compras import (
     IngestaoRequest, CompraExtraida, FeedbackItemRequest,
     ConfirmarCompraRequest, MergeProdutoRequest, ListaComprasGerada, ItemExtraido,
@@ -6,6 +6,7 @@ from ia_compras.models_compras import (
 )
 from ia_compras.agente_extrator import processar_nota
 from ia_compras.mongo_client import get_compras_collection, get_dicionario_collection, get_perfis_collection
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from datetime import datetime
 from database import get_supabase
 import logging
@@ -15,11 +16,16 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/ingestao", status_code=202)
-async def ingestao_nota(payload: IngestaoRequest, bg: BackgroundTasks):
+async def ingestao_nota(
+    payload: IngestaoRequest,
+    bg: BackgroundTasks,
+    user: AuthUser = Depends(get_current_user),
+):
+    fam = assert_mesma_familia(user, payload.familia_id)
     bg.add_task(
         _processar_background,
         payload.qr_code_url,
-        str(payload.familia_id),
+        fam,
         payload.html_payload,
     )
     return {"compra_id": "pending", "status": "processando"}
@@ -75,7 +81,11 @@ def _processar_background(qr_url: str, familia_id: str, html_payload: str | None
 
 
 @router.get("/pendentes", response_model=list[CompraExtraida])
-def listar_pendentes(familia_id: str):
+def listar_pendentes(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     try:
         col = get_compras_collection()
         docs = list(col.find({"familia_id": familia_id, "status_integracao": "pendente"}))
@@ -86,12 +96,17 @@ def listar_pendentes(familia_id: str):
 
 
 @router.get("/falhas")
-def listar_falhas(familia_id: str):
+def listar_falhas(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     try:
         col = get_compras_collection()
         docs = list(col.find(
             {"familia_id": familia_id, "status_integracao": "falhou"},
-            {"compra_id": 1, "qr_code_url": 1, "erro": 1, "created_at": 1, "_id": 0},
+            {"compra_id": 1, "qr_code_url": 1, "erro": 1, "created_at": 1, "_id": 0,
+             "erro_categoria": 1},
         ))
         return docs
     except Exception as e:
@@ -100,9 +115,13 @@ def listar_falhas(familia_id: str):
 
 
 @router.delete("/falhas")
-def dispensar_falhas(familia_id: str):
+def dispensar_falhas(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
     """Remove todas as falhas da família — usado pelo botão Dispensar na UI
     quando o usuário viu o erro e quer limpar o banner."""
+    familia_id = assert_mesma_familia(user, familia_id)
     try:
         result = get_compras_collection().delete_many(
             {"familia_id": familia_id, "status_integracao": "falhou"}
@@ -114,9 +133,14 @@ def dispensar_falhas(familia_id: str):
 
 
 @router.post("/confirmar")
-def confirmar_compra(payload: ConfirmarCompraRequest):
+def confirmar_compra(
+    payload: ConfirmarCompraRequest,
+    user: AuthUser = Depends(get_current_user),
+):
+    fam = assert_mesma_familia(user, payload.familia_id)
+    usr = assert_mesmo_usuario(user, payload.usuario_id)
     col = get_compras_collection()
-    compra = col.find_one({"compra_id": payload.compra_id, "familia_id": str(payload.familia_id)})
+    compra = col.find_one({"compra_id": payload.compra_id, "familia_id": fam})
     if not compra:
         raise HTTPException(404, "Compra nao encontrada")
     if compra["status_integracao"] != "pendente":
@@ -126,11 +150,11 @@ def confirmar_compra(payload: ConfirmarCompraRequest):
     transacao = {
         "valor": compra["valor_total"],
         "tipo": "despesa",
-        "usuario_id": str(payload.usuario_id),
+        "usuario_id": usr,
         "envelope_id": str(payload.envelope_id),
         "descricao": f"{compra['supermercado']} — {len(compra['itens'])} itens",
         "data": compra["data_compra"][:10],
-        "familia_id": str(payload.familia_id),
+        "familia_id": fam,
     }
     result = db.table("transacoes").insert(transacao).execute()
     if not result.data:
@@ -142,13 +166,19 @@ def confirmar_compra(payload: ConfirmarCompraRequest):
         {"$set": {"status_integracao": "confirmado", "transacao_supabase_id": transacao_id}}
     )
 
-    envelope = db.table("envelopes").select("saldo_atual").eq("id", str(payload.envelope_id)).execute()
+    envelope = db.table("envelopes").select("saldo_atual") \
+        .eq("id", str(payload.envelope_id)).eq("familia_id", fam).execute()
     saldo = envelope.data[0]["saldo_atual"] if envelope.data else 0.0
     return {"transacao_id": transacao_id, "saldo_restante": saldo}
 
 
 @router.delete("/{compra_id}")
-def cancelar_compra(compra_id: str, familia_id: str):
+def cancelar_compra(
+    compra_id: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     col = get_compras_collection()
     result = col.update_one(
         {"compra_id": compra_id, "familia_id": familia_id},
@@ -160,8 +190,15 @@ def cancelar_compra(compra_id: str, familia_id: str):
 
 
 @router.patch("/feedback")
-def registrar_feedback(payload: FeedbackItemRequest):
+def registrar_feedback(
+    payload: FeedbackItemRequest,
+    user: AuthUser = Depends(get_current_user),
+):
     col = get_compras_collection()
+    # Garante que a compra é da família do usuário (não permite feedback cross-tenant)
+    compra = col.find_one({"compra_id": payload.compra_id, "familia_id": user.familia_id})
+    if not compra:
+        raise HTTPException(404, "Compra nao encontrada para esta familia")
     result = col.update_one(
         {"compra_id": payload.compra_id, "itens.nome_padronizado": payload.nome_padronizado},
         {"$set": {"itens.$.status_consumo": payload.status.value}}
@@ -172,7 +209,11 @@ def registrar_feedback(payload: FeedbackItemRequest):
 
 
 @router.get("/feedback-pendente")
-def feedback_pendente(familia_id: str):
+def feedback_pendente(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     try:
         col = get_compras_collection()
         now = datetime.now().isoformat()
@@ -202,7 +243,11 @@ def feedback_pendente(familia_id: str):
 
 
 @router.get("/planejar", response_model=ListaComprasGerada)
-def planejar_compras(familia_id: str, dias: int = 15):
+def planejar_compras(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None, dias: int = 15,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     from ia_compras.agente_estoque import analisar_estoque
     from ia_compras.agente_orcamento import consultar_saldo_envelope
     from ia_compras.agente_orquestrador import gerar_lista_inteligente
@@ -214,11 +259,15 @@ def planejar_compras(familia_id: str, dias: int = 15):
 
 
 @router.get("/perfil")
-def obter_perfil(familia_id: str):
+def obter_perfil(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
     """Retorna o perfil_familia (Mongo) usado pelos agentes de IA.
 
     Se não existir ainda, retorna 200 com defaults — assim a UI pode
     montar o formulário de configuração inicial sem 404."""
+    familia_id = assert_mesma_familia(user, familia_id)
     try:
         doc = get_perfis_collection().find_one({"familia_id": familia_id})
     except Exception as e:
@@ -238,10 +287,14 @@ def obter_perfil(familia_id: str):
 
 
 @router.patch("/perfil")
-def atualizar_perfil(payload: AtualizarPerfilRequest):
+def atualizar_perfil(
+    payload: AtualizarPerfilRequest,
+    user: AuthUser = Depends(get_current_user),
+):
     """Cria/atualiza o perfil_familia. Só os campos não-nulos são gravados,
     então a UI pode patchear apenas o envelope_supermercado_id sem mexer
     no resto."""
+    fam = assert_mesma_familia(user, payload.familia_id)
     set_fields = {
         k: (str(v) if k.endswith("_id") and v is not None else v)
         for k, v in payload.model_dump(exclude_none=True).items()
@@ -251,22 +304,28 @@ def atualizar_perfil(payload: AtualizarPerfilRequest):
         raise HTTPException(400, "Nenhum campo para atualizar")
     col = get_perfis_collection()
     col.update_one(
-        {"familia_id": str(payload.familia_id)},
-        {"$set": set_fields, "$setOnInsert": {"familia_id": str(payload.familia_id)}},
+        {"familia_id": fam},
+        {"$set": set_fields, "$setOnInsert": {"familia_id": fam}},
         upsert=True,
     )
-    doc = col.find_one({"familia_id": str(payload.familia_id)}) or {}
+    doc = col.find_one({"familia_id": fam}) or {}
     doc.pop("_id", None)
     return doc
 
 
 @router.post("/produtos/merge")
-def merge_produtos(payload: MergeProdutoRequest):
+def merge_produtos(
+    payload: MergeProdutoRequest,
+    user: AuthUser = Depends(get_current_user),
+):
     dic = get_dicionario_collection()
     manter = dic.find_one({"_id": _oid(payload.produto_manter_id)})
     remover = dic.find_one({"_id": _oid(payload.produto_remover_id)})
     if not manter or not remover:
         raise HTTPException(404, "Produto nao encontrado")
+    # Garante que ambos os produtos pertencem à família do usuário
+    if manter.get("familia_id") != user.familia_id or remover.get("familia_id") != user.familia_id:
+        raise HTTPException(403, "Produto não pertence à sua família")
 
     sinonimos = list(set(manter.get("sinonimos_llm", []) + remover.get("sinonimos_llm", [])))
     preco = (manter.get("preco_medio", 0) + remover.get("preco_medio", 0)) / 2

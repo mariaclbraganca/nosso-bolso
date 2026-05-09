@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
+from auth import AuthUser, get_current_user, assert_mesma_familia
 from datetime import date
 import calendar
 
 router = APIRouter()
 
 @router.get("/stats")
-def stats_mes(familia_id: str, mes: str = None):
+def stats_mes(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None, mes: str = None,
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
 
     if mes:
