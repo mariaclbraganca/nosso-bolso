@@ -101,26 +101,113 @@ def _parse_lista(familia_id: str, dias: int, saldo: float, raw: dict) -> ListaCo
     )
 
 
+def _buscar_preco_e_categoria(nome: str, familia_id: str) -> tuple[float, str, str]:
+    """Devolve (preco_medio, categoria, unidade) para um item da cesta básica.
+
+    Estratégia em ordem (do mais confiável pro menos):
+    1) Dicionário da própria família (já viu o item antes)
+    2) Dicionário de qualquer família (média global do produto)
+    3) None — não chutamos preço; o caller decide o que fazer
+    """
+    from ia_compras.mongo_client import get_dicionario_collection
+    dic = get_dicionario_collection()
+
+    # 1) próprio histórico da família
+    doc = dic.find_one({"familia_id": familia_id, "nome_canonico": nome})
+    if doc and (doc.get("preco_medio") or 0) > 0:
+        return (
+            float(doc["preco_medio"]),
+            doc.get("categoria", CategoriaItem.OUTROS.value),
+            doc.get("unidade_padrao", "un"),
+        )
+
+    # 2) média global (qualquer família que já tenha esse item)
+    cursor = dic.find(
+        {"nome_canonico": nome, "preco_medio": {"$gt": 0}},
+        {"preco_medio": 1, "categoria": 1, "unidade_padrao": 1},
+    )
+    precos = []
+    cat = CategoriaItem.OUTROS.value
+    unidade = "un"
+    for d in cursor:
+        precos.append(float(d["preco_medio"]))
+        cat = d.get("categoria", cat)
+        unidade = d.get("unidade_padrao", unidade)
+    if precos:
+        return (sum(precos) / len(precos), cat, unidade)
+
+    # 3) sem histórico
+    return (0.0, CategoriaItem.OUTROS.value, "un")
+
+
+def _quantidade_por_dias(dias: int) -> float:
+    """Heurística simples: 1 unidade base cobre 7 dias.
+
+    Sem ML/shelf_life nesta camada — esse é o fallback. Para 7 dias devolve
+    1, para 15 devolve 2, para 30 devolve 4. Garante mínimo 1.
+    """
+    import math
+    return max(1.0, float(math.ceil(dias / 7)))
+
+
 def _fallback_lista(
     familia_id: str, dias: int, saldo: float, estoque: dict, perfil: dict
 ) -> ListaComprasGerada:
-    from ia_compras.mongo_client import get_dicionario_collection
+    """Fallback puro-Python quando o Gemini falha.
+
+    Diferente do scraper antigo (que chutava preço=R$10), este:
+    - Usa preco_medio do dicionário (família, depois global) como autoridade.
+    - Marca itens sem histórico com preco_estimado=0 e motivo claro
+      ('Sem histórico de preço') — não inventa valor.
+    - Escala quantidade_sugerida pela duração em dias.
+    - Lê categoria/unidade do dicionário em vez de assumir OUTROS/un.
+    - Marca corte_sugerido=true acumulando custo (greedy) e
+      considera 'dentro_do_orcamento' como falso se houver item sem preço
+      (não dá pra afirmar que cabe no orçamento se não conhecemos o custo).
+    """
     cesta = perfil.get("cesta_basica_inegociavel", [])
+    qtd_base = _quantidade_por_dias(dias)
     itens: list[ItemLista] = []
-    custo = 0.0
+    custo_conhecido = 0.0
+    tem_item_sem_preco = False
+
     for nome in cesta:
-        if nome not in estoque or estoque[nome].get("consumido"):
-            doc = get_dicionario_collection().find_one({"nome_canonico": nome})
-            preco = doc["preco_medio"] if doc and doc.get("preco_medio", 0) > 0 else 10.0
-            itens.append(ItemLista(
-                nome=nome, categoria=CategoriaItem.OUTROS.value,
-                quantidade_sugerida=1.0, unidade="un", preco_estimado=preco,
-                motivo="Cesta básica - fallback local",
-                corte_sugerido=custo + preco > saldo,
-            ))
-            custo += preco
+        # pular se já tem em estoque (e não venceu)
+        if nome in estoque and not estoque[nome].get("consumido"):
+            continue
+
+        preco_medio, cat_str, unidade = _buscar_preco_e_categoria(nome, familia_id)
+        try:
+            cat = CategoriaItem(cat_str).value
+        except ValueError:
+            cat = CategoriaItem.OUTROS.value
+
+        custo_item = preco_medio * qtd_base
+        if preco_medio == 0:
+            tem_item_sem_preco = True
+            motivo = "Cesta básica — sem histórico de preço, verifique no mercado"
+            corte = False
+        else:
+            motivo = f"Cesta básica · ~R$ {preco_medio:.2f}/un (média histórica)"
+            corte = (custo_conhecido + custo_item) > saldo
+            custo_conhecido += custo_item
+
+        itens.append(ItemLista(
+            nome=nome,
+            categoria=cat,
+            quantidade_sugerida=qtd_base,
+            unidade=unidade,
+            preco_estimado=round(custo_item, 2),
+            motivo=motivo,
+            corte_sugerido=corte,
+        ))
+
+    # Pessimista: se algum item está sem preço, não afirmamos que cabe
+    dentro = (custo_conhecido <= saldo) and not tem_item_sem_preco
+
     return ListaComprasGerada(
         familia_id=familia_id, dias_cobertura=dias, saldo_envelope=saldo,
-        custo_estimado_total=round(custo, 2), dentro_do_orcamento=custo <= saldo,
+        custo_estimado_total=round(custo_conhecido, 2),
+        dentro_do_orcamento=dentro,
         itens=itens, gerado_em=datetime.now(),
     )
