@@ -1,14 +1,4 @@
 {
-  "builds": [
-    {
-      "src": "envelope-api/main.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "envelope-api/main.py"
-    }
-  ]
+  "outputDirectory": "envelope-flutter/build/web",
+  "buildCommand": null
 }
