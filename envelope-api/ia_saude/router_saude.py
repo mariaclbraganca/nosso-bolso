@@ -44,10 +44,12 @@ def _serialize_list(docs: list) -> list:
 async def anamnese_chat(payload: dict):
     historico = payload.get("historico_mensagens", [])
     if not historico:
-        # Historico vazio = início da anamnese — seed com mensagem de abertura
         historico = [{"role": "user", "content": "Pode começar a anamnese."}]
-    resultado = await turno_anamnese(historico)
-    return resultado
+    try:
+        resultado = await turno_anamnese(historico)
+        return resultado
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro no agente de anamnese: {exc}")
 
 
 @router.post("/anamnese/pausar")
