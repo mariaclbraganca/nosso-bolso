@@ -22,6 +22,17 @@ router = APIRouter(tags=["ia-saude"])
 
 _501 = HTTPException(status_code=501, detail="Not implemented yet")
 
+
+@router.get("/ping")
+async def ping():
+    import os
+    return {
+        "status": "ok",
+        "gemini_key_set": bool(os.environ.get("GEMINI_API_KEY")),
+        "gemini_model": os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        "mongo_ok": bool(get_perfil_metabolico_col()),
+    }
+
 CALORIA_MINIMA_SUGESTAO = 1200
 
 
