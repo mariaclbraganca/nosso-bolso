@@ -30,6 +30,13 @@ class RelatoriosScreen extends ConsumerWidget {
         double totRec = statsAtu.totalReceita;
         double totDesp = statsAtu.totalDespesa;
 
+        // Fixos pagos do mês + saldo real dos envelopes
+        final fixosPagos = ref.watch(fixosPagosPorMesProvider(mesAtu)).value ?? 0;
+        final saldoEnvelopes = ref.watch(totalStatsProvider)['available'] ?? 0;
+
+        // GASTOS KPI = despesas nos envelopes + fixos pagos do mês
+        final totGasto = totDesp + fixosPagos;
+
         double? pctRec;
         if (statsAnt.totalReceita > 0) {
           pctRec = ((totRec - statsAnt.totalReceita) / statsAnt.totalReceita) * 100;
@@ -39,9 +46,6 @@ class RelatoriosScreen extends ConsumerWidget {
         if (statsAnt.totalDespesa > 0) {
           pctDesp = ((totDesp - statsAnt.totalDespesa) / statsAnt.totalDespesa) * 100;
         }
-
-        // Gasto real = soma das despesas ativas do mês (mesma fonte do StatCardRow)
-        final totGasto = totDesp;
 
         // Gasto por envelope para o gráfico pizza (agrupa por envelope_id)
         final gastosPorEnvelope = <String, double>{};
@@ -78,10 +82,11 @@ class RelatoriosScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
             children: [
               StatCardRow(
-                totRec: totRec, 
-                totGasto: totDesp,
+                totRec: totRec,
+                totGasto: totGasto,
                 pctRec: pctRec,
                 pctGasto: pctDesp,
+                saldoEnvelopes: saldoEnvelopes,
               ),
               const SizedBox(height: 14),
 

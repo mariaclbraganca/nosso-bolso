@@ -122,3 +122,17 @@ class PagedTransacoesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> 
 final pagedTransacoesProvider = AsyncNotifierProvider<PagedTransacoesNotifier, List<Map<String, dynamic>>>(
   () => PagedTransacoesNotifier(),
 );
+
+/// Total de gastos fixos pagos para um determinado mês (yyyy-MM)
+final fixosPagosPorMesProvider = FutureProvider.autoDispose.family<double, String>((ref, mes) async {
+  final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
+  if (perfil == null || perfil['familia_id'] == null) return 0;
+  try {
+    final fixos = await ApiService.get('/fixos', perfil['familia_id'], params: {'mes': mes});
+    return fixos
+        .where((f) => f['pago'] == true)
+        .fold<double>(0, (sum, f) => sum + (f['valor'] as num).toDouble());
+  } catch (_) {
+    return 0;
+  }
+});

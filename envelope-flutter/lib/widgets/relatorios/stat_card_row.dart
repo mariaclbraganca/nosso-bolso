@@ -7,25 +7,30 @@ class StatCardRow extends StatelessWidget {
   final double totGasto;
   final double? pctRec;
   final double? pctGasto;
+  /// Quando informado, o card SALDO exibe o total disponível nos envelopes
+  /// em vez de (receita - gastos).
+  final double? saldoEnvelopes;
 
   const StatCardRow({
-    super.key, 
-    required this.totRec, 
+    super.key,
+    required this.totRec,
     required this.totGasto,
     this.pctRec,
     this.pctGasto,
+    this.saldoEnvelopes,
   });
 
   @override
   Widget build(BuildContext context) {
-    final saldo = totRec - totGasto;
+    final saldo = saldoEnvelopes ?? (totRec - totGasto);
+    final saldoLabel = saldoEnvelopes != null ? 'NOS ENVELOPES' : 'SALDO';
     return Row(
       children: [
         _buildStatCard('RECEITAS', totRec, AppColors.grn, pctRec),
         const SizedBox(width: 8),
         _buildStatCard('GASTOS', totGasto, AppColors.red, pctGasto, invertColor: true),
         const SizedBox(width: 8),
-        _buildStatCard('SALDO', saldo, saldo >= 0 ? AppColors.grn : AppColors.red, null),
+        _buildStatCard(saldoLabel, saldo, saldo >= 0 ? AppColors.grn : AppColors.red, null),
       ],
     );
   }
