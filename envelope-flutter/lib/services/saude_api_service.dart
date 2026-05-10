@@ -26,13 +26,18 @@ class SaudeApiService {
     };
   }
 
+  static const _kDefaultTimeout = Duration(seconds: 30);
+  static const _kAiTimeout = Duration(seconds: 90); // Gemini + cold start do Render
+
   static Future<Map<String, dynamic>> _getMap(
     String path, {
     Map<String, String>? params,
+    Duration? timeout,
   }) async {
     final uri = Uri.parse('$baseUrl$_prefix$path')
         .replace(queryParameters: params ?? {});
-    final res = await http.get(uri, headers: _headers());
+    final res = await http.get(uri, headers: _headers())
+        .timeout(timeout ?? _kDefaultTimeout);
     if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
     throw Exception('GET $path failed ${res.statusCode}: ${res.body}');
   }
@@ -40,10 +45,12 @@ class SaudeApiService {
   static Future<List<Map<String, dynamic>>> _getList(
     String path, {
     Map<String, String>? params,
+    Duration? timeout,
   }) async {
     final uri = Uri.parse('$baseUrl$_prefix$path')
         .replace(queryParameters: params ?? {});
-    final res = await http.get(uri, headers: _headers());
+    final res = await http.get(uri, headers: _headers())
+        .timeout(timeout ?? _kDefaultTimeout);
     if (res.statusCode == 200) {
       return (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
     }
@@ -52,13 +59,14 @@ class SaudeApiService {
 
   static Future<Map<String, dynamic>> _post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Duration? timeout,
+  }) async {
     final res = await http.post(
       Uri.parse('$baseUrl$_prefix$path'),
       headers: _headers(json: true),
       body: jsonEncode(body),
-    );
+    ).timeout(timeout ?? _kDefaultTimeout);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
@@ -73,7 +81,7 @@ class SaudeApiService {
       Uri.parse('$baseUrl$_prefix$path'),
       headers: _headers(json: true),
       body: jsonEncode(body),
-    );
+    ).timeout(_kDefaultTimeout);
     if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
     throw Exception('PATCH $path failed ${res.statusCode}: ${res.body}');
   }
@@ -102,7 +110,7 @@ class SaudeApiService {
 
   static Future<Map<String, dynamic>> turnoAnamnese(
     List<Map<String, String>> historico,
-  ) => _post('/anamnese/chat', {'historico_mensagens': historico});
+  ) => _post('/anamnese/chat', {'historico_mensagens': historico}, timeout: _kAiTimeout);
 
   // ── Extrato / Refeições ───────────────────────────────────────────────────
 

@@ -454,8 +454,32 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
       if (finalizado && dados != null) {
         await _calcularEAvancar(dados as Map<String, dynamic>);
       }
-    } catch (_) {
-      setState(() => _loading = false);
+    } catch (e) {
+      // Remove a mensagem do usuário do histórico para permitir reenvio
+      setState(() {
+        if (_historico.isNotEmpty && _historico.last['role'] == 'user') {
+          _chatCtrl.text = _historico.last['content'] ?? '';
+          _historico.removeLast();
+        }
+        _loading = false;
+      });
+      if (mounted) {
+        final isTimeout = e.toString().contains('TimeoutException');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isTimeout
+                ? 'O servidor demorou demais. Tente novamente — pode ser cold start.'
+                : 'Erro de conexão. Verifique sua internet e tente novamente.'),
+            backgroundColor: AppColors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Reenviar',
+              textColor: Colors.white,
+              onPressed: _enviarMensagem,
+            ),
+          ),
+        );
+      }
     }
   }
 
