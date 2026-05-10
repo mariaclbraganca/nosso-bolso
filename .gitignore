@@ -1,5 +1,6 @@
 ﻿*
 !.gitignore
+!vercel.json
 !envelope-api/
 !envelope-api/**
 !envelope-flutter/
