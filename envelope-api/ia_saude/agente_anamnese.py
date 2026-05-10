@@ -44,8 +44,9 @@ async def _chamar_gemini_chat(historico: list[dict]) -> str:
         role = "user" if msg["role"] == "user" else "model"
         contents.append({"role": role, "parts": [{"text": msg["content"]}]})
 
+    # Gemini REST API usa camelCase: systemInstruction (não system_instruction)
     payload = {
-        "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+        "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
         "contents": contents,
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
     }
@@ -53,10 +54,14 @@ async def _chamar_gemini_chat(historico: list[dict]) -> str:
     last_err: Exception | None = None
     for tentativa in range(3):
         try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(url, params={"key": api_key}, json=payload)
-                if resp.status_code in (429, 500, 502, 503, 504):
-                    last_err = Exception(f"HTTP {resp.status_code}")
+                if resp.status_code in (400, 429, 500, 502, 503, 504):
+                    body = resp.text[:300]
+                    last_err = Exception(f"HTTP {resp.status_code}: {body}")
+                    if resp.status_code == 400:
+                        # 400 não vai melhorar com retry — falha imediata
+                        break
                     await asyncio.sleep(2 ** tentativa)
                     continue
                 resp.raise_for_status()
@@ -66,7 +71,7 @@ async def _chamar_gemini_chat(historico: list[dict]) -> str:
             last_err = e
             await asyncio.sleep(2 ** tentativa)
 
-    raise RuntimeError(f"Gemini chat falhou após retries: {last_err}")
+    raise RuntimeError(f"Gemini chat falhou: {last_err}")
 
 
 def _tentar_parsear_finalizacao(texto: str) -> dict | None:
