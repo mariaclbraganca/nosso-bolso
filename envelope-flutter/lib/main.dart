@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:envelope_flutter/theme/app_theme.dart';
-import 'package:envelope_flutter/screens/main_navigation_screen.dart';
+import 'package:envelope_flutter/screens/hub_screen.dart';
 import 'package:envelope_flutter/screens/login_screen.dart';
 import 'package:envelope_flutter/screens/onboarding_screen.dart';
 import 'package:envelope_flutter/providers/auth_provider.dart';
@@ -46,7 +46,7 @@ class NossoBolsoApp extends ConsumerWidget {
             return perfilAsync.when(
               data: (perfil) {
                 if (perfil != null && perfil['familia_id'] != null) {
-                  return const MainNavigationScreen();
+                  return const HubScreen();
                 }
                 return const OnboardingScreen();
               },

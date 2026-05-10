@@ -5,6 +5,7 @@ import 'package:envelope_flutter/providers/auth_provider.dart';
 import 'package:envelope_flutter/providers/usuarios_provider.dart';
 import 'package:envelope_flutter/providers/mes_provider.dart';
 import 'package:envelope_flutter/theme/app_theme.dart';
+import 'package:envelope_flutter/screens/hub_screen.dart';
 
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key});
@@ -87,10 +88,21 @@ class DashboardHeader extends ConsumerWidget {
                   Text('Olá, ${userName.toUpperCase()} 👋', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
-              IconButton(
-                onPressed: () => ref.read(authServiceProvider).signOut(),
-                icon: const Icon(Icons.logout_rounded, color: AppColors.mu, size: 20),
-                tooltip: 'Sair',
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const HubScreen()),
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded, color: AppColors.mu, size: 20),
+                    tooltip: 'Módulos',
+                  ),
+                  IconButton(
+                    onPressed: () => ref.read(authServiceProvider).signOut(),
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.mu, size: 20),
+                    tooltip: 'Sair',
+                  ),
+                ],
               ),
             ],
           ),

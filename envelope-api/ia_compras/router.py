@@ -255,6 +255,21 @@ def planejar_compras(
     estoque = analisar_estoque(familia_id)
     saldo = consultar_saldo_envelope(familia_id)
     perfil = get_perfis_collection().find_one({"familia_id": familia_id}) or {}
+
+    # Injeta contexto nutricional para que o agente priorize proteínas/IG (Sprint 6)
+    try:
+        from ia_saude.mongo_client_saude import get_perfil_metabolico_col
+        perfis_saude = list(get_perfil_metabolico_col().find({"familia_id": familia_id}))
+        objetivos = [p.get("metabolico", {}).get("objetivo", "") for p in perfis_saude]
+        if objetivos:
+            perfil["_contexto_nutricional"] = {
+                "objetivos_membros": objetivos,
+                "priorizar_proteinas": "ganho_massa" in objetivos,
+                "priorizar_baixo_ig": "perda_peso" in objetivos,
+            }
+    except Exception:
+        pass  # módulo saúde pode não estar disponível
+
     return gerar_lista_inteligente(familia_id, dias, saldo, estoque, perfil)
 
 
