@@ -47,7 +47,7 @@ async def _chamar_gemini_chat(historico: list[dict]) -> str:
     payload = {
         "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024},
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
     }
 
     last_err: Exception | None = None

@@ -4,7 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../providers/saude_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/saude_api_service.dart';
-import 'dashboard_diario_screen.dart';
+import 'saude_navigation_screen.dart';
 
 class AnamneseScreen extends ConsumerStatefulWidget {
   final String membroId;
@@ -495,8 +495,9 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
   Future<void> _confirmar() async {
     if (!mounted) return;
     ref.invalidate(perfilMetabolicoProvider);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => DashboardDiarioScreen(membroId: widget.membroId)),
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SaudeNavigationScreen()),
+      (route) => false,
     );
   }
 
