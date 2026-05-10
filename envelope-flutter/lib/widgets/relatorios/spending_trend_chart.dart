@@ -18,8 +18,8 @@ class SpendingTrendChart extends ConsumerWidget {
     // Acumular gastos por dia
     final Map<int, double> gastoPorDia = {};
     for (var t in transacoes) {
-      if (t['tipo'] == 'despesa' && t['created_at'] != null) {
-        final dt = DateTime.parse(t['created_at']);
+      if (t['tipo'] == 'despesa' && t['data'] != null) {
+        final dt = DateTime.parse(t['data'].toString());
         final dia = dt.day;
         gastoPorDia[dia] = (gastoPorDia[dia] ?? 0) + (t['valor'] as num).toDouble();
       }

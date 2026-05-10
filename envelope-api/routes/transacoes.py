@@ -9,6 +9,34 @@ import csv
 
 router = APIRouter()
 
+
+def _sync_mongo_cancelar(transacao_id: str) -> None:
+    """Best-effort: quando uma transação Supabase é soft-deletada, marca a compra
+    MongoDB correspondente como cancelada para evitar inconsistência de status."""
+    try:
+        from ia_compras.mongo_client import get_compras_collection
+        get_compras_collection().update_one(
+            {"transacao_supabase_id": transacao_id},
+            {"$set": {"status_integracao": "cancelado_pelo_usuario", "transacao_supabase_id": None}},
+        )
+    except Exception:
+        pass
+
+
+def _sync_mongo_restaurar(transacao_id: str) -> None:
+    """Best-effort: quando uma transação Supabase é restaurada da lixeira, volta o
+    status da compra MongoDB para 'confirmado'."""
+    try:
+        from ia_compras.mongo_client import get_compras_collection
+        get_compras_collection().update_one(
+            {"status_integracao": "cancelado_pelo_usuario",
+             "$or": [{"transacao_supabase_id": transacao_id}, {"transacao_supabase_id": None}]},
+            {"$set": {"status_integracao": "confirmado", "transacao_supabase_id": transacao_id}},
+        )
+    except Exception:
+        pass
+
+
 @router.post("/")
 def registrar_transacao(
     payload: TransacaoCreate,
@@ -214,6 +242,7 @@ def excluir_transacao(
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Transação não encontrada ou acesso negado")
+    _sync_mongo_cancelar(transacao_id)
     return {"status": "success", "message": "Transação movida para a lixeira"}
 
 @router.get("/lixeira")
@@ -242,4 +271,5 @@ def restaurar_transacao(
         
     if not result.data:
         raise HTTPException(status_code=404, detail="Não foi possível restaurar")
+    _sync_mongo_restaurar(transacao_id)
     return {"status": "success", "message": "Transação restaurada"}

@@ -18,8 +18,14 @@ const _kSliceColors = [
 class EnvelopePieChartCard extends StatelessWidget {
   final List<Map<String, dynamic>> envelopes;
   final double totGasto;
+  final Map<String, double> gastosPorEnvelope;
 
-  const EnvelopePieChartCard({super.key, required this.envelopes, required this.totGasto});
+  const EnvelopePieChartCard({
+    super.key,
+    required this.envelopes,
+    required this.totGasto,
+    required this.gastosPorEnvelope,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -76,17 +82,16 @@ class EnvelopePieChartCard extends StatelessWidget {
 
   List<_PieItem> _buildItems() {
     final List<_PieItem> result = [];
-    // Ordenar por gasto (maior primeiro)
     final sorted = List<Map<String, dynamic>>.from(envelopes);
     sorted.sort((a, b) {
-      final ga = (a['valor_planejado'] as num).toDouble() - (a['saldo_atual'] as num).toDouble();
-      final gb = (b['valor_planejado'] as num).toDouble() - (b['saldo_atual'] as num).toDouble();
+      final ga = gastosPorEnvelope[a['id']] ?? 0;
+      final gb = gastosPorEnvelope[b['id']] ?? 0;
       return gb.compareTo(ga);
     });
 
     for (int i = 0; i < sorted.length && i < 8; i++) {
       final e = sorted[i];
-      final gasto = (e['valor_planejado'] as num).toDouble() - (e['saldo_atual'] as num).toDouble();
+      final gasto = gastosPorEnvelope[e['id']] ?? 0;
       if (gasto <= 0) continue;
       result.add(_PieItem(
         nome: (e['nome_envelope'] ?? '?').toString().split(' ')[0],

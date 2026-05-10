@@ -40,10 +40,17 @@ class RelatoriosScreen extends ConsumerWidget {
           pctDesp = ((totDesp - statsAnt.totalDespesa) / statsAnt.totalDespesa) * 100;
         }
 
-        final totGasto = envelopes.fold<double>(0, (s, e) {
-          final gasto = (e['valor_planejado'] as num).toDouble() - (e['saldo_atual'] as num).toDouble();
-          return s + (gasto > 0 ? gasto : 0);
-        });
+        // Gasto real = soma das despesas ativas do mês (mesma fonte do StatCardRow)
+        final totGasto = totDesp;
+
+        // Gasto por envelope para o gráfico pizza (agrupa por envelope_id)
+        final gastosPorEnvelope = <String, double>{};
+        for (final t in transacoes) {
+          if (t['tipo'] != 'despesa') continue;
+          final eid = t['envelope_id'] as String?;
+          if (eid == null) continue;
+          gastosPorEnvelope[eid] = (gastosPorEnvelope[eid] ?? 0) + (t['valor'] as num).toDouble();
+        }
 
         final sugestoesLocais = _gerarSugestoes(envelopes, transacoes, totRec, totDesp, statsAnt);
         final insightsIAData = ref.watch(insightsProvider(mesAtu)).value ?? [];
@@ -79,7 +86,7 @@ class RelatoriosScreen extends ConsumerWidget {
               const SizedBox(height: 14),
 
               // 🍩 Pizza por envelope (layout protótipo: horizontal)
-              EnvelopePieChartCard(envelopes: envelopes, totGasto: totGasto),
+              EnvelopePieChartCard(envelopes: envelopes, totGasto: totGasto, gastosPorEnvelope: gastosPorEnvelope),
               const SizedBox(height: 12),
 
               // 👥 Gastos por pessoa
@@ -91,7 +98,7 @@ class RelatoriosScreen extends ConsumerWidget {
               const SizedBox(height: 12),
 
               // 📊 Planejado vs Gasto (NOVO)
-              BudgetComparisonChart(envelopes: envelopes),
+              BudgetComparisonChart(envelopes: envelopes, gastosPorEnvelope: gastosPorEnvelope),
               const SizedBox(height: 12),
 
               // 🏆 Top 5 maiores gastos (NOVO)

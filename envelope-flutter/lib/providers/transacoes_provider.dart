@@ -26,6 +26,7 @@ final transacoesComDetalhesProvider = Provider<List<Map<String, dynamic>>>((ref)
   final mesSelecionado = ref.watch(mesAtualProvider); // 'yyyy-MM'
 
   return transacoes.where((t) {
+    if (t['deleted_at'] != null) return false;
     // Filtrar pelo mês selecionado
     final data = t['data']?.toString() ?? t['created_at']?.toString() ?? '';
     if (data.length >= 7) {
@@ -63,6 +64,7 @@ final statsPorMesProvider = Provider.family<MesStats, String>((ref, mes) {
   double desp = 0;
   
   for (var t in transacoes) {
+    if (t['deleted_at'] != null) continue;
     final data = t['data']?.toString() ?? t['created_at']?.toString() ?? '';
     if (data.startsWith(mes)) {
       final val = (t['valor'] as num?)?.toDouble() ?? 0.0;

@@ -5,8 +5,13 @@ import '../../theme/app_theme.dart';
 /// Gráfico de barras horizontais: Planejado vs Gasto por envelope
 class BudgetComparisonChart extends StatelessWidget {
   final List<Map<String, dynamic>> envelopes;
+  final Map<String, double> gastosPorEnvelope;
 
-  const BudgetComparisonChart({super.key, required this.envelopes});
+  const BudgetComparisonChart({
+    super.key,
+    required this.envelopes,
+    required this.gastosPorEnvelope,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,15 +19,14 @@ class BudgetComparisonChart extends StatelessWidget {
     final items = <_BudgetItem>[];
     for (var e in envelopes) {
       final plan = (e['valor_planejado'] as num).toDouble();
-      final saldo = (e['saldo_atual'] as num).toDouble();
-      final gasto = plan - saldo;
+      final gasto = gastosPorEnvelope[e['id']] ?? 0;
       if (plan <= 0) continue;
       items.add(_BudgetItem(
         nome: (e['nome_envelope'] ?? '?').toString().split(' ')[0],
         emoji: e['emoji'] ?? '📦',
         planejado: plan,
-        gasto: gasto > 0 ? gasto : 0,
-        pct: (gasto / plan * 100).clamp(0, 999),
+        gasto: gasto,
+        pct: plan > 0 ? (gasto / plan * 100).clamp(0, 999) : 0,
       ));
     }
     items.sort((a, b) => b.pct.compareTo(a.pct));
