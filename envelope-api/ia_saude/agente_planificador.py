@@ -6,12 +6,9 @@ Incorpora: Cesta de Foco (V13), coerência gastronômica (V16), refeição famil
 from __future__ import annotations
 
 import json
-import os
-import asyncio
-import httpx
 from datetime import datetime, timezone
 
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+from ia_saude.gemini_client import chamar_gemini
 
 # ── Categorias nutricionais ───────────────────────────────────────────────────
 
@@ -27,36 +24,11 @@ _RISCO_FURO_DIAS = 4  # se vence em ≤ 4 dias, confirma com o usuário
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
 
-def _get_gemini_key() -> str:
-    key = os.environ.get("GEMINI_API_KEY", "")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY não configurada")
-    return key
-
-
 async def _chamar_gemini(parts: list[dict]) -> str:
-    api_key = _get_gemini_key()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-    payload = {
+    return await chamar_gemini({
         "contents": [{"parts": parts}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
-    }
-    last_err: Exception | None = None
-    for tentativa in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(url, params={"key": api_key}, json=payload)
-                if resp.status_code in (429, 500, 502, 503, 504):
-                    last_err = Exception(f"HTTP {resp.status_code}")
-                    await asyncio.sleep(2 ** tentativa)
-                    continue
-                resp.raise_for_status()
-                data = resp.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            last_err = e
-            await asyncio.sleep(2 ** tentativa)
-    raise RuntimeError(f"Gemini falhou: {last_err}")
+    })
 
 
 def _parse_json(texto: str) -> dict:

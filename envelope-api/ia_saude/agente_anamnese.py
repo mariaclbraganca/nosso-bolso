@@ -2,11 +2,8 @@
 from __future__ import annotations
 
 import json
-import os
-import asyncio
-import httpx
 
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+from ia_saude.gemini_client import chamar_gemini
 
 _SYSTEM_PROMPT = """Você é um nutricionista clínico realizando uma anamnese inicial.
 Seu objetivo é coletar informações sobre o estilo de vida, hábitos, saúde e suplementação do usuário de forma natural e empática.
@@ -27,55 +24,7 @@ Quando todos os tópicos estiverem cobertos, finalize a conversa com exatamente 
 Se ainda há tópicos a cobrir, responda com texto normal (sem JSON)."""
 
 
-def _get_gemini_key() -> str:
-    key = os.environ.get("GEMINI_API_KEY", "")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY não configurada")
-    return key
-
-
-async def _chamar_gemini_chat(historico: list[dict]) -> str:
-    """Envia histórico de mensagens para Gemini e retorna o texto da resposta."""
-    api_key = _get_gemini_key()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-
-    contents = []
-    for msg in historico:
-        role = "user" if msg["role"] == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
-
-    # Gemini REST API usa camelCase: systemInstruction (não system_instruction)
-    payload = {
-        "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
-        "contents": contents,
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
-    }
-
-    last_err: Exception | None = None
-    for tentativa in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(url, params={"key": api_key}, json=payload)
-                if resp.status_code in (400, 429, 500, 502, 503, 504):
-                    body = resp.text[:300]
-                    last_err = Exception(f"HTTP {resp.status_code}: {body}")
-                    if resp.status_code == 400:
-                        # 400 não vai melhorar com retry — falha imediata
-                        break
-                    await asyncio.sleep(2 ** tentativa)
-                    continue
-                resp.raise_for_status()
-                data = resp.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            last_err = e
-            await asyncio.sleep(2 ** tentativa)
-
-    raise RuntimeError(f"Gemini chat falhou: {last_err}")
-
-
 def _tentar_parsear_finalizacao(texto: str) -> dict | None:
-    """Tenta extrair o JSON de finalização da resposta do agente."""
     try:
         inicio = texto.find("{")
         fim = texto.rfind("}") + 1
@@ -97,13 +46,22 @@ async def turno_anamnese(historico_mensagens: list[dict]) -> dict:
         historico_mensagens: lista de {role: 'user'|'assistant', content: str}
 
     Returns:
-        {
-            resposta_agente: str,
-            finalizado: bool,
-            dados_estruturados: dict | None  # só presente quando finalizado=True
-        }
+        { resposta_agente, finalizado, dados_estruturados }
     """
-    resposta_texto = await _chamar_gemini_chat(historico_mensagens)
+    contents = [
+        {
+            "role": "user" if m["role"] == "user" else "model",
+            "parts": [{"text": m["content"]}],
+        }
+        for m in historico_mensagens
+    ]
+    payload = {
+        "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
+    }
+
+    resposta_texto = await chamar_gemini(payload)
     dados = _tentar_parsear_finalizacao(resposta_texto)
 
     if dados is not None:
