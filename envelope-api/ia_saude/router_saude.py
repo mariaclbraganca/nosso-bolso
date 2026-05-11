@@ -26,11 +26,13 @@ _501 = HTTPException(status_code=501, detail="Not implemented yet")
 @router.get("/ping")
 async def ping():
     import os
+    from ia_saude.gemini_client import _carregar_chaves
+    chaves = _carregar_chaves()
     return {
         "status": "ok",
-        "gemini_key_set": bool(os.environ.get("GEMINI_API_KEY")),
+        "gemini_keys_count": len(chaves),
         "gemini_model": os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-        "mongo_ok": bool(get_perfil_metabolico_col()),
+        "mongo_ok": get_perfil_metabolico_col() is not None,
     }
 
 CALORIA_MINIMA_SUGESTAO = 1200
