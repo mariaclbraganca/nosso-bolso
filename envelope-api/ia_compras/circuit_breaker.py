@@ -34,18 +34,12 @@ async def extrair_com_fallback(html_bruto: str, schema: dict) -> tuple[dict, LLM
 def _montar_prompt_extracao(html_bruto: str, schema: dict) -> str:
     import json
     return (
-        "Você é um extrator de dados de notas fiscais brasileiras (NFC-e).\n"
-        "Extraia os dados do texto/HTML abaixo seguindo ESTRITAMENTE este schema JSON:\n"
-        f"{json.dumps(schema, ensure_ascii=False, indent=2)}\n\n"
-        "Regras IMPORTANTES:\n"
-        "- 'data_compra' deve estar no formato YYYY-MM-DD (procure por 'Emissão' ou 'Data').\n"
-        "- 'valor_total' é o valor a pagar TOTAL da nota (não soma manualmente; use o explícito).\n"
-        "- Use vírgula como separador decimal no source mas converta para PONTO no JSON (10,99 → 10.99).\n"
-        "- 'nome_padronizado' deve expandir abreviações comuns (ex: 'Mac Inst Nissin Mioj' → 'Macarrão Instantâneo Nissin Miojo').\n"
-        "- 'categoria' deve ser EXATAMENTE um dos valores do enum (case-sensitive, com acentos).\n"
-        "- Inclua TODOS os itens da nota, mesmo repetidos.\n"
-        "- Retorne APENAS o JSON, sem markdown, sem ```json, sem explicações.\n\n"
-        f"FONTE:\n{html_bruto[:15000]}"
+        "Extrator NFC-e. Schema:\n"
+        f"{json.dumps(schema, ensure_ascii=False)}\n\n"
+        "Regras: data_compra=YYYY-MM-DD | valor_total=explícito na nota (não some) | "
+        "decimais com ponto | nome_padronizado=sem abreviações | "
+        "categoria=enum exato | todos os itens | retorne APENAS JSON sem markdown.\n\n"
+        f"FONTE:\n{html_bruto[:10000]}"
     )
 
 

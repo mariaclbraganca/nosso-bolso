@@ -5,23 +5,21 @@ import json
 
 from ia_saude.gemini_client import chamar_gemini
 
-_SYSTEM_PROMPT = """Você é um nutricionista clínico realizando uma anamnese inicial.
-Seu objetivo é coletar informações sobre o estilo de vida, hábitos, saúde e suplementação do usuário de forma natural e empática.
+# Prompt comprimido: remove instruções redundantes, mantém estrutura
+_SYSTEM_PROMPT = """Nutricionista clínico em anamnese inicial. Uma pergunta por vez, aprofunde se necessário.
 
-Faça uma pergunta por vez. Após cada resposta, faça uma pergunta de aprofundamento se necessário antes de avançar.
+Tópicos obrigatórios (nesta ordem):
+1. Condições de saúde / medicamentos
+2. Rotina de trabalho (sedentário/em pé/esforço físico)
+3. Horários de fome
+4. Aversões e alergias/intolerâncias
+5. Suplementos (nome, dose)
+6. Exames de sangue recentes (opcional — aceite "não tenho")
 
-Tópicos obrigatórios a cobrir (nesta ordem):
-1. Condições de saúde ou medicamentos em uso
-2. Rotina de trabalho (sedentário, em pé, esforço físico)
-3. Horários habituais de fome ao longo do dia
-4. Alimentos que não gosta ou não pode comer (aversões e alergias/intolerâncias)
-5. Suplementos utilizados regularmente (whey, creatina, ômega-3, vitaminas, etc.)
-6. Exames de sangue recentes (opcional — aceite "não tenho" sem insistir)
+Ao cobrir todos, retorne SOMENTE este JSON (sem texto extra):
+{"finalizado":true,"dados":{"historico_saude":[],"medicamentos":[],"rotina_trabalho":"","horarios_fome":[],"aversoes":[],"alergias":[],"suplementos":[{"nome":"","dose":"","proteina_g_por_dose":0}],"bioquimica":{},"observacoes_livres":""}}
 
-Quando todos os tópicos estiverem cobertos, finalize a conversa com exatamente este JSON (sem texto antes ou depois):
-{"finalizado": true, "dados": {"historico_saude": [], "medicamentos": [], "rotina_trabalho": "", "horarios_fome": [], "aversoes": [], "alergias": [], "suplementos": [{"nome": "", "dose": "", "proteina_g_por_dose": 0}], "bioquimica": {}, "observacoes_livres": ""}}
-
-Se ainda há tópicos a cobrir, responda com texto normal (sem JSON)."""
+Enquanto houver tópicos pendentes, responda em texto normal."""
 
 
 def _tentar_parsear_finalizacao(texto: str) -> dict | None:
@@ -39,15 +37,7 @@ def _tentar_parsear_finalizacao(texto: str) -> dict | None:
 
 
 async def turno_anamnese(historico_mensagens: list[dict]) -> dict:
-    """
-    Processa um turno do chat de anamnese.
-
-    Args:
-        historico_mensagens: lista de {role: 'user'|'assistant', content: str}
-
-    Returns:
-        { resposta_agente, finalizado, dados_estruturados }
-    """
+    """Processa um turno do chat de anamnese."""
     contents = [
         {
             "role": "user" if m["role"] == "user" else "model",
@@ -58,7 +48,7 @@ async def turno_anamnese(historico_mensagens: list[dict]) -> dict:
     payload = {
         "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024},
     }
 
     resposta_texto = await chamar_gemini(payload)

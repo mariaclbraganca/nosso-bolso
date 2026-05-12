@@ -27,7 +27,7 @@ _RISCO_FURO_DIAS = 4  # se vence em ≤ 4 dias, confirma com o usuário
 async def _chamar_gemini(parts: list[dict]) -> str:
     return await chamar_gemini({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1500},
     })
 
 
@@ -153,60 +153,22 @@ def _montar_prompt(membros_saldo: list[dict], cesta: dict, aversoes: list[str]) 
         if multi_membro else ""
     )
 
-    return f"""Você é um nutricionista e chef especialista em refeições práticas e saudáveis.
+    return f"""Nutricionista e chef sugerindo jantar prático. Retorne APENAS JSON.
 
-CONTEXTO DA(S) PESSOA(S) — saldo de macros restante no dia:
+SALDO DE MACROS DO DIA:
 {membros_txt}
 
-INGREDIENTES EM FOCO (priorizados por vencimento próximo):
+INGREDIENTES DISPONÍVEIS (priorizados por vencimento):
 {ingredientes_txt}
 
-TEMPEROS BÁSICOS SEMPRE DISPONÍVEIS (não liste como ingrediente):
-{', '.join(cesta['temperos_assumidos'])}
-
-RESTRIÇÕES ALIMENTARES: {restricoes_txt}
-
+TEMPEROS ASSUMIDOS (não liste): {', '.join(cesta['temperos_assumidos'])}
+RESTRIÇÕES: {restricoes_txt}
 {regra_porcao}
 
-REGRAS DE COERÊNCIA GASTRONÔMICA:
-- NUNCA misture frutas doces + carnes salgadas na mesma receita
-- NUNCA misture iogurte + feijão + peixe na mesma receita
-- Cada prato: no máximo 2 ingredientes principais além dos temperos
-- Se ingredientes disponíveis não formam prato coerente, prefira:
-  a) Duas refeições separadas (prato + sobremesa)
-  b) Alertar sobre o que está por vencer e ignorar o incompatível
+Regras: use APENAS ingredientes listados | max 2 principais por prato | não misture frutas doces + carnes | inclua 1 substituição por sugestão.
 
-Sugira 3 opções de jantar usando APENAS ingredientes disponíveis.
-Para cada opção, inclua uma substituição caso falte o ingrediente principal.
-
-Retorne APENAS JSON com esta estrutura:
-{{
-  "sugestoes": [
-    {{
-      "nome": "Peito de Frango Grelhado com Batata-Doce",
-      "ingredientes_usados": [{{"nome": "frango", "quantidade_g": 150}}],
-      "preparo_minutos": 20,
-      "modo_preparo_resumido": "Tempere o frango e grelhe em fogo médio por 8 min cada lado.",
-      "substituicoes": ["sem frango -> 3 ovos inteiros"],
-      "porcoes_por_membro": [
-        {{
-          "nome_membro": "Nome",
-          "quantidade_g": 350,
-          "calorias_kcal": 380,
-          "proteina_g": 42,
-          "carboidrato_g": 35,
-          "gordura_g": 8
-        }}
-      ],
-      "macros_totais": {{
-        "calorias_kcal": 380,
-        "proteina_g": 42,
-        "carboidrato_g": 35,
-        "gordura_g": 8
-      }}
-    }}
-  ]
-}}"""
+Retorne 3 sugestões neste schema:
+{{"sugestoes":[{{"nome":"","ingredientes_usados":[{{"nome":"","quantidade_g":0}}],"preparo_minutos":0,"modo_preparo_resumido":"","substituicoes":[],"porcoes_por_membro":[{{"nome_membro":"","quantidade_g":0,"calorias_kcal":0,"proteina_g":0,"carboidrato_g":0,"gordura_g":0}}],"macros_totais":{{"calorias_kcal":0,"proteina_g":0,"carboidrato_g":0,"gordura_g":0}}}}]}}"""
 
 
 # ── Função principal ──────────────────────────────────────────────────────────

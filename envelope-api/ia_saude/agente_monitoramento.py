@@ -78,7 +78,7 @@ def calcular_adesao_real(refeicoes_30_dias: list[dict], pausas: list[dict]) -> d
 async def _chamar_gemini(prompt: str) -> str:
     return await chamar_gemini({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024},
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 768},
     })
 
 
@@ -178,32 +178,15 @@ async def gerar_relatorio_mensal(membro_id: str) -> dict:
     if hidratacao_insuficiente:
         fatores_plateau.append(f"hidratação insuficiente (média {hidratacao_media:.0f}ml de meta {meta_agua:.0f}ml)")
 
-    prompt = f"""Você é um nutricionista clínico gerando um relatório mensal de acompanhamento.
+    _proteina_atual = metabolico.get('metas_macros', {}).get('proteina_total_g', 0)
+    prompt = f"""Nutricionista clínico. Relatório mensal {inicio_periodo}→{fim_periodo}. Retorne APENAS JSON.
 
-DADOS DO PERÍODO ({inicio_periodo} a {fim_periodo}):
-- Objetivo: {objetivo}
-- Adesão ao plano: {adesao_info['adesao_pct']}% ({adesao_info['dias_com_registro']}/{adesao_info['dias_validos']} dias válidos)
-- Dias em pausa (excluídos): {adesao_info['dias_em_pausa']}
-- Média calórica diária: {media_calorica} kcal (meta: {meta_kcal} kcal)
-- Variação de peso (média móvel 7d): {variacao_peso if variacao_peso is not None else 'dados insuficientes'} kg
-- Progresso esperado: {progresso_esperado_kg if progresso_esperado_kg is not None else 'N/A'} kg
-- Plateau detectado: {'sim — ' + ', '.join(fatores_plateau) if plateau else 'não'}
-- Hidratação média: {hidratacao_media:.0f}ml / {meta_agua}ml meta
+Objetivo:{objetivo} | Adesão:{adesao_info['adesao_pct']}% ({adesao_info['dias_com_registro']}/{adesao_info['dias_validos']}d válidos, {adesao_info['dias_em_pausa']}d pausa)
+Média:{media_calorica}kcal (meta:{meta_kcal}) | Peso:{variacao_peso if variacao_peso is not None else 'insuf.'}kg (esperado:{progresso_esperado_kg if progresso_esperado_kg is not None else 'N/A'}kg)
+Plateau:{'sim — '+', '.join(fatores_plateau) if plateau else 'não'} | Hidratação:{hidratacao_media:.0f}/{meta_agua}ml
 
-Gere uma análise empática e profissional. Se houve plateau, identifique possíveis causas.
-Sugira ajuste de protocolo APENAS se plateau persistente ou adesão < 60%.
-NÃO sugira restrição abaixo de 1.200 kcal/dia.
-
-Retorne APENAS JSON:
-{{
-  "analise_narrativa": "análise completa em 3-5 frases",
-  "ajuste_recomendado": {{
-    "recomendar": true,
-    "nova_meta_calorica_kcal": {meta_kcal},
-    "nova_proteina_g": {metabolico.get('metas_macros', {{}}).get('proteina_total_g', 0)},
-    "justificativa": "motivo do ajuste"
-  }}
-}}"""
+Análise empática 3-5 frases. Ajuste APENAS se plateau ou adesão<60%. Mínimo absoluto:1200kcal/dia.
+{{"analise_narrativa":"","ajuste_recomendado":{{"recomendar":false,"nova_meta_calorica_kcal":{meta_kcal},"nova_proteina_g":{_proteina_atual},"justificativa":""}}}}"""
 
     texto = await _chamar_gemini(prompt)
     gemini_resp = _parse_json(texto)

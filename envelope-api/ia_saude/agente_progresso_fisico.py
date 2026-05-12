@@ -8,52 +8,24 @@ import json
 
 from ia_saude.gemini_client import chamar_gemini
 
-_PROMPT_PRIMEIRA_FOTO = """Você é um profissional de educação física avaliando composição corporal.
-Esta é a PRIMEIRA foto de referência do usuário.
+_AVISO = "Estimativa visual para acompanhamento pessoal. Não substitui avaliação profissional."
+_SCHEMA = '{"descricao_qualitativa":"","comparacao_anterior":"primeira_foto|positiva|neutra|negativa","areas_destaque":[],"observacao_encorajadora":"","confianca":0.0}'
 
-Descreva a composição corporal atual de forma qualitativa e encorajadora.
-Analise: definição muscular visível, distribuição de massa, postura.
+_PROMPT_PRIMEIRA_FOTO = f"""Prof. de educação física avaliando composição corporal — PRIMEIRA foto de referência.
+Analise: definição muscular, distribuição de massa, postura. Seja encorajador. Não mencione peso nem faça diagnósticos.
+{_AVISO}
+Retorne APENAS JSON: {_SCHEMA} (comparacao_anterior="primeira_foto")"""
 
-NÃO mencione peso estimado.
-NÃO faça diagnósticos médicos.
-SEMPRE inclua uma perspectiva encorajadora como referência inicial.
-
-AVISO LEGAL: Estimativa visual para acompanhamento pessoal. Não substitui avaliação profissional.
-
-Retorne APENAS JSON:
-{
-  "descricao_qualitativa": "descrição objetiva e respeitosa da composição atual",
-  "comparacao_anterior": "primeira_foto",
-  "areas_destaque": ["ombros", "abdômen"],
-  "observacao_encorajadora": "frase motivacional específica ao que foi observado",
-  "confianca": 0.72
-}"""
-
-_PROMPT_COMPARACAO = """Você é um profissional de educação física avaliando progresso corporal.
-Compare as DUAS imagens — foto anterior (primeiro inline_data) e foto atual (segundo inline_data).
-
-Analise: definição muscular, distribuição de gordura, proporções, mudanças visíveis entre os dois momentos.
-
-NÃO mencione peso estimado.
-NÃO faça diagnósticos médicos.
-SEMPRE inclua uma perspectiva encorajadora.
-
-AVISO LEGAL: Estimativa visual para acompanhamento pessoal. Não substitui avaliação profissional.
-
-Retorne APENAS JSON:
-{
-  "descricao_qualitativa": "descrição das mudanças observadas entre as fotos",
-  "comparacao_anterior": "positiva|neutra|negativa",
-  "areas_destaque": ["área1", "área2"],
-  "observacao_encorajadora": "frase motivacional específica ao progresso observado",
-  "confianca": 0.72
-}"""
+_PROMPT_COMPARACAO = f"""Prof. de educação física comparando progresso — foto anterior (1ª imagem) vs atual (2ª imagem).
+Analise mudanças em definição, gordura e proporções. Seja encorajador. Não mencione peso nem faça diagnósticos.
+{_AVISO}
+Retorne APENAS JSON: {_SCHEMA} (comparacao_anterior: positiva|neutra|negativa)"""
 
 
 async def _chamar_gemini(parts: list[dict]) -> str:
     return await chamar_gemini({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024},
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 512},
     })
 
 

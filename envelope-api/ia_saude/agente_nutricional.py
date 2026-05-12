@@ -9,76 +9,29 @@ import json
 
 from ia_saude.gemini_client import chamar_gemini
 
-_PROMPT_ANALISE = """Você é um nutricionista especializado em análise visual e textual de alimentos.
+# Prompt comprimido: tabelas em uma linha, schema sem valores de exemplo
+_PROMPT_ANALISE = """Nutricionista analisando alimentos. Retorne APENAS JSON.
 
-FATORES DE COCÇÃO — use para calcular peso_cru_g = peso_prato_g / fator_coccao:
-arroz branco/integral: 2.5 | macarrão/massa: 2.3 | feijão/lentilha/grão-de-bico: 2.5
-frango/peixe: 0.75 | carne bovina/suína: 0.70 | batata-doce/batata: 0.80 | ovo cozido: 0.88
+COCÇÃO (peso_cru_g = peso_prato_g / fator): arroz/feijão/lentilha=2.5 | macarrão=2.3 | frango/peixe=0.75 | carne=0.70 | batata=0.80 | ovo cozido=0.88
+FATOR 1.0 (sem conversão): frutas cruas, saladas, pães, industrializados, laticínios prontos
 
-REGRA DE EXCEÇÃO — fator_coccao DEVE ser EXATAMENTE 1.0 para:
-- Frutas cruas (maçã, banana, laranja, melancia, etc.)
-- Saladas e vegetais crus
-- Pães, biscoitos e produtos de padaria
-- Produtos industrializados/embalados
-- Iogurtes, queijos e laticínios prontos
+UNIDADE: "g"=granel | "ml"=líquidos | "unidade"=embalados/ovos/frutas | "fatia"=pão/queijo fatiado
 
-UNIDADE DE MEDIDA — use o campo "unidade_medida":
-- "g"       → alimentos a granel (carne, arroz, legumes)
-- "ml"      → líquidos (leite, suco, água, refrigerante)
-- "unidade" → produtos embalados inteiros, ovos, frutas
-- "fatia"   → pão de forma, queijo fatiado, pizza
+GORDURA DE PREPARO: adicione item extra com "tipo":"gordura_preparo" se detectar brilho/oleosidade(8-12g) ou marcas de grelha(3-5g). "cozido/vapor/airfryer"=0g. Seja pessimista.
 
-GORDURA DE PREPARO — adicione como item extra se detectar:
-- Brilho/oleosidade na superfície ou texto "frito/refogado" → 8-12g de azeite/óleo
-- Marcas de grelha → 3-5g de azeite
-- "cozido/vapor/airfryer" → 0g
-- Por padrão seja PESSIMISTA: inclua gordura se houver dúvida.
-- Item deve ter "tipo": "gordura_preparo" e "metodo_inferido": "visual" ou "texto".
+ETANOL: use "tipo":"etanol", 7kcal/g, "pausa_metabolica":true. Nunca classifique como carbo.
 
-CATEGORIA ESPECIAL — ETANOL: se identificar bebida alcoólica, use "tipo": "etanol".
-Não classifique álcool como carboidrato. Use 7 kcal/g de álcool puro.
-Exemplo: taça de vinho 150ml 12% → alcool_puro_g=14, calorias_kcal=98, "pausa_metabolica": true.
+CLARIFICAÇÃO: se entrada vaga ("comi muito","rodízio","pratão") retorne:
+{"status":"aguardando_clarificacao","pergunta_agente":"pergunta quantificável"}
 
-REGRA DE CLARIFICAÇÃO: se a entrada contiver expressões vagas como "comi muito",
-"bastante", "pratão", "rodízio", "um monte de" — NÃO estime os macros.
-Retorne: {"status": "aguardando_clarificacao", "pergunta_agente": "pergunta específica e quantificável"}
-
-Se a entrada for clara, retorne APENAS este JSON:
-{
-  "status": "calculado",
-  "descricao": "nome do prato",
-  "itens_identificados": [
-    {
-      "nome": "arroz branco",
-      "tipo": "alimento",
-      "quantidade": 150,
-      "unidade_medida": "g",
-      "peso_prato_g": 150,
-      "fator_coccao": 2.5,
-      "peso_cru_g": 60,
-      "calorias_kcal": 195,
-      "proteina_g": 4,
-      "carboidrato_g": 43,
-      "gordura_g": 0.5,
-      "fibra_g": 1
-    }
-  ],
-  "macros_totais": {
-    "calorias_kcal": 380,
-    "proteina_g": 42,
-    "carboidrato_g": 43,
-    "gordura_g": 4.5,
-    "fibra_g": 3
-  },
-  "confianca": 0.85,
-  "observacao": "porção estimada — margem de ±15%"
-}"""
+Se entrada clara, retorne:
+{"status":"calculado","descricao":"...","itens_identificados":[{"nome":"","tipo":"alimento","quantidade":0,"unidade_medida":"g","peso_prato_g":0,"fator_coccao":1.0,"peso_cru_g":0,"calorias_kcal":0,"proteina_g":0,"carboidrato_g":0,"gordura_g":0,"fibra_g":0}],"macros_totais":{"calorias_kcal":0,"proteina_g":0,"carboidrato_g":0,"gordura_g":0,"fibra_g":0},"confianca":0.0,"observacao":""}"""
 
 
 async def _chamar_gemini(parts: list[dict]) -> str:
     return await chamar_gemini({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024},
     })
 
 
@@ -103,31 +56,22 @@ async def analisar_foto(imagem_base64: str, mime_type: str) -> dict:
 
 
 async def analisar_audio(audio_base64: str, mime_type: str) -> dict:
-    """Gemini transcreve o áudio e aplica análise nutricional."""
-    prompt_audio = (
-        "Transcreva este áudio e analise nutricionalmente o que foi descrito. "
-        + _PROMPT_ANALISE
-    )
     parts = [
         {"inline_data": {"mime_type": mime_type, "data": audio_base64}},
-        {"text": prompt_audio},
+        {"text": "Transcreva e analise nutricionalmente. " + _PROMPT_ANALISE},
     ]
     texto = await _chamar_gemini(parts)
     return _parse_json_resposta(texto)
 
 
 async def analisar_texto(descricao: str) -> dict:
-    prompt = f"O usuário descreveu sua refeição assim: \"{descricao}\"\n\n{_PROMPT_ANALISE}"
-    parts = [{"text": prompt}]
-    texto = await _chamar_gemini(parts)
+    prompt = f'Refeição descrita: "{descricao}"\n\n{_PROMPT_ANALISE}'
+    texto = await _chamar_gemini([{"text": prompt}])
     return _parse_json_resposta(texto)
 
 
 async def analisar_refeicao(modalidade: str, dados_entrada: dict) -> dict:
-    """
-    Dispatcher principal. modalidade: 'foto' | 'audio' | 'texto'
-    Retorna dict com status 'calculado' ou 'aguardando_clarificacao'.
-    """
+    """Dispatcher: 'foto' | 'audio' | 'texto'"""
     if modalidade == "foto":
         return await analisar_foto(
             dados_entrada["imagem_base64"],
