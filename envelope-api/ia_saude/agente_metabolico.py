@@ -74,6 +74,11 @@ def calcular_meta_agua_ml(peso_kg: float) -> int:
     return round(peso_kg * 37.5)
 
 
+def calcular_meta_fibra_g(peso_kg: float) -> int:
+    """14 g por 1000 kcal é a referência; simplificado: max(25, 0.14 × peso_kg × 10)."""
+    return max(25, round(peso_kg * 1.4))
+
+
 def calcular_perfil_completo(perfil: dict) -> dict:
     """
     Recalcula todas as métricas metabólicas a partir do documento de perfil.
@@ -95,7 +100,9 @@ def calcular_perfil_completo(perfil: dict) -> dict:
     meta = calcular_meta_calorica(tdee, objetivo)
     macros = calcular_macros(meta, objetivo)
     macros = descontar_suplementos(macros, suplementos)
-    meta_agua = calcular_meta_agua_ml(antro.get("peso_kg", 70))
+    peso = antro.get("peso_kg", 70)
+    meta_agua = calcular_meta_agua_ml(peso)
+    meta_fibra = calcular_meta_fibra_g(peso)
 
     return {
         "tmb_kcal": round(tmb),
@@ -103,12 +110,13 @@ def calcular_perfil_completo(perfil: dict) -> dict:
         "meta_calorica_kcal": round(meta),
         "proteina_suplemento_g": macros["proteina_suplemento_g"],
         "metas_macros": {
-            "proteina_total_g":   macros["proteina_total_g"],
+            "proteina_total_g":      macros["proteina_total_g"],
             "proteina_via_comida_g": macros["proteina_via_comida_g"],
-            "carboidrato_g":      macros["carboidrato_g"],
-            "gordura_g":          macros["gordura_g"],
+            "carboidrato_g":         macros["carboidrato_g"],
+            "gordura_g":             macros["gordura_g"],
         },
-        "meta_agua_ml": meta_agua,
+        "meta_agua_ml":  meta_agua,
+        "meta_fibra_g":  meta_fibra,
         "nivel_atividade": nivel_atividade,
         "objetivo": objetivo,
         "usa_registro_exercicio": usa_reg_exercicio,

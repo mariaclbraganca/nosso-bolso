@@ -36,6 +36,35 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
   // Replicar para membros
   final Set<String> _replicarPara = {};
 
+  // Refeições recentes para atalhos
+  List<Map<String, dynamic>> _recentes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarRecentes();
+  }
+
+  Future<void> _carregarRecentes() async {
+    try {
+      final lista = await SaudeApiService.getRefeicoeRecentes(widget.membroId);
+      if (mounted) setState(() => _recentes = lista);
+    } catch (_) {}
+  }
+
+  void _usarRecente(Map<String, dynamic> recente) {
+    setState(() {
+      _tipoRefeicao = recente['tipo_refeicao'] as String? ?? _tipoRefeicao;
+      _analise = {
+        'descricao': recente['descricao'] ?? '',
+        'itens_identificados': recente['itens_identificados'] ?? [],
+        'totais': recente['macros_totais'] ?? {},
+        'confianca': recente['confianca_ia'] ?? 0.8,
+      };
+      _aguardandoClarificacao = false;
+    });
+  }
+
   @override
   void dispose() {
     _textoCtrl.dispose();
@@ -183,6 +212,39 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_recentes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('RECENTES', style: TextStyle(fontSize: 10, color: AppColors.mu, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _recentes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final r = _recentes[i];
+                  final desc = (r['descricao'] as String? ?? '').trim();
+                  final label = desc.length > 28 ? '${desc.substring(0, 28)}…' : desc;
+                  return GestureDetector(
+                    onTap: () => _usarRecente(r),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      decoration: BoxDecoration(
+                        color: AppColors.grn.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.grn.withOpacity(0.3)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.grn)),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: AppColors.bord, height: 1),
+          ],
           const SizedBox(height: 16),
           TextField(
             controller: _textoCtrl,

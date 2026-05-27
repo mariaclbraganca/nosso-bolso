@@ -155,12 +155,16 @@ async def gerar_relatorio_mensal(membro_id: str) -> dict:
     deficit_real = tdee - media_calorica
     progresso_esperado_kg = round(deficit_real * 30 / 7700, 2) if objetivo == "perda_peso" else None
 
-    # Plateau V24 — só detecta com dados suficientes
+    # Plateau V24 — compara MM7d semana N vs semana N-2 (≥21 registros)
+    # ou semana N vs semana N-1 como fallback (≥14 registros)
     plateau = False
     if len(pesos) >= 14:
-        m1 = calcular_media_movel_peso(pesos[:7])
-        m2 = calcular_media_movel_peso(pesos[-7:])
-        plateau = detectar_plateau(m1, m2)
+        mm_atual = calcular_media_movel_peso(pesos[-7:])
+        if len(pesos) >= 21:
+            mm_anterior = calcular_media_movel_peso(pesos[-21:-14])
+        else:
+            mm_anterior = calcular_media_movel_peso(pesos[-14:-7])
+        plateau = detectar_plateau(mm_atual, mm_anterior)
 
     # Hidratação média do período (V5)
     hidratacao_docs = list(get_registro_hidratacao_col().find({

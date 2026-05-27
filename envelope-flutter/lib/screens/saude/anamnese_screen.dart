@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/saude_provider.dart';
 import '../../providers/usuarios_provider.dart';
@@ -35,6 +37,58 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
 
   // Etapa 3 — confirmação
   Map<String, dynamic>? _perfilCalculado;
+
+  String get _prefKey => 'anamnese_${widget.membroId}';
+
+  @override
+  void initState() {
+    super.initState();
+    _restaurarEstado();
+  }
+
+  Future<void> _restaurarEstado() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefKey);
+    if (raw == null) return;
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      setState(() {
+        _etapa = (data['etapa'] as int?) ?? 0;
+        _pesoCtrl.text = data['peso'] as String? ?? '';
+        _alturaCtrl.text = data['altura'] as String? ?? '';
+        _idadeCtrl.text = data['idade'] as String? ?? '';
+        _sexo = data['sexo'] as String? ?? 'M';
+        _nivelAtividade = data['nivel_atividade'] as String? ?? 'moderado';
+        _objetivo = data['objetivo'] as String? ?? 'manutencao';
+        _alergias.addAll((data['alergias'] as List<dynamic>?)?.cast<String>() ?? []);
+        final hist = data['historico'] as List<dynamic>? ?? [];
+        _historico.addAll(hist.map((e) => Map<String, String>.from(e as Map)));
+      });
+      if (_etapa == 1 && _historico.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _salvarEstado() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKey, jsonEncode({
+      'etapa': _etapa,
+      'peso': _pesoCtrl.text,
+      'altura': _alturaCtrl.text,
+      'idade': _idadeCtrl.text,
+      'sexo': _sexo,
+      'nivel_atividade': _nivelAtividade,
+      'objetivo': _objetivo,
+      'alergias': _alergias,
+      'historico': _historico,
+    }));
+  }
+
+  Future<void> _limparEstado() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefKey);
+  }
 
   @override
   void dispose() {
@@ -407,6 +461,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
       return;
     }
     setState(() => _etapa = 1);
+    _salvarEstado();
     _iniciarChat();
   }
 
@@ -438,6 +493,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
       _historico.add({'role': 'user', 'content': texto});
       _loading = true;
     });
+    _salvarEstado();
     _scrollToBottom();
     try {
       final resp = await SaudeApiService.turnoAnamnese(List<Map<String, String>>.from(_historico));
@@ -449,6 +505,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
         _historico.add({'role': 'assistant', 'content': agentMsg});
         _loading = false;
       });
+      _salvarEstado();
       _scrollToBottom();
 
       if (finalizado && dados != null) {
@@ -515,6 +572,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
         _loading = false;
         _etapa = 2;
       });
+      await _limparEstado();
     } catch (e) {
       setState(() => _loading = false);
     }

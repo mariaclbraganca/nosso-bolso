@@ -124,6 +124,14 @@ class SaudeApiService {
     String data,
   ) => _getList('/refeicao', params: {'membro_id': membroId, 'data': data});
 
+  static Future<List<Map<String, dynamic>>> getRefeicoeRecentes(
+    String membroId, {
+    int limite = 10,
+  }) =>
+      _getList('/refeicao/recentes',
+          params: {'membro_id': membroId, 'limite': '$limite'},
+          timeout: _kDefaultTimeout);
+
   static Future<Map<String, dynamic>> registrarRefeicao(
     Map<String, dynamic> payload,
   ) => _post('/refeicao/registrar', payload);

@@ -330,6 +330,30 @@ async def deletar_refeicao(refeicao_id: str):
     return {"status": "deletado", "refeicao_id": refeicao_id}
 
 
+@router.get("/refeicao/recentes")
+async def listar_refeicoes_recentes(
+    membro_id: str = Query(...),
+    limite: int = Query(10, ge=1, le=50),
+):
+    """Últimas 'limite' refeições distintas (por descrição) para atalhos rápidos."""
+    col = get_registro_refeicoes_col()
+    docs = list(col.find(
+        {"membro_id": membro_id, "deleted_at": None, "is_jejum": {"$ne": True}},
+        sort=[("registrado_em", -1)],
+        limit=limite * 3,  # busca extra para deduplicar
+    ))
+    vistos: set[str] = set()
+    recentes = []
+    for doc in docs:
+        chave = (doc.get("descricao") or "").strip().lower()
+        if chave and chave not in vistos:
+            vistos.add(chave)
+            recentes.append(doc)
+        if len(recentes) >= limite:
+            break
+    return _serialize_list(recentes)
+
+
 # ── Extrato e Sugestões ───────────────────────────────────────────────────────
 
 def _somar_macros_refeicoes(docs: list) -> dict:
@@ -392,20 +416,35 @@ async def extrato_diario(
         meta_kcal + calorias_exercicio - consumido["calorias_kcal"],
     )
 
+    prot_meta = metas.get("proteina_via_comida_g", 0)
+    carb_meta = metas.get("carboidrato_g", 0)
+    gord_meta = metas.get("gordura_g", 0)
+    fibra_meta = metabolico.get("meta_fibra_g", 25)
+
     return {
         "data": data,
         "membro_id": membro_id,
-        "meta_calorica_kcal": meta_kcal,
+        # metas
+        "meta_calorica_kcal":  meta_kcal,
+        "proteina_meta_g":     prot_meta,
+        "carboidrato_meta_g":  carb_meta,
+        "gordura_meta_g":      gord_meta,
+        "fibra_meta_g":        fibra_meta,
+        # consumido (flat)
+        "calorias_consumidas_kcal":  round(consumido["calorias_kcal"], 1),
+        "proteina_consumida_g":      round(consumido["proteina_g"], 1),
+        "carboidrato_consumido_g":   round(consumido["carboidrato_g"], 1),
+        "gordura_consumida_g":       round(consumido["gordura_g"], 1),
+        "fibra_consumida_g":         round(consumido["fibra_g"], 1),
+        # saldo
+        "saldo_kcal":        round(saldo_kcal, 1),
+        "saldo_proteina_g":  round(prot_meta - consumido["proteina_g"], 1),
+        "saldo_carboidrato_g": round(carb_meta - consumido["carboidrato_g"], 1),
+        "saldo_gordura_g":   round(gord_meta - consumido["gordura_g"], 1),
+        # extras
         "calorias_exercicio_kcal": calorias_exercicio,
-        "consumido": consumido,
-        "saldo": {
-            "calorias_kcal":  round(saldo_kcal, 1),
-            "proteina_g":     round(metas.get("proteina_via_comida_g", 0) - consumido["proteina_g"], 1),
-            "carboidrato_g":  round(metas.get("carboidrato_g", 0) - consumido["carboidrato_g"], 1),
-            "gordura_g":      round(metas.get("gordura_g", 0) - consumido["gordura_g"], 1),
-        },
-        "etanol_kcal_dia": consumido["etanol_kcal"],
-        "refeicoes_count": len(refeicoes),
+        "etanol_kcal_dia":         round(consumido["etanol_kcal"], 1),
+        "refeicoes_count":         len(refeicoes),
     }
 
 

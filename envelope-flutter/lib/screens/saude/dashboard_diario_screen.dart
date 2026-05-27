@@ -6,6 +6,7 @@ import '../../providers/usuarios_provider.dart';
 import '../../services/saude_api_service.dart';
 import '../../widgets/saude/macro_progress_ring.dart';
 import '../../widgets/saude/macro_bar.dart';
+import '../../widgets/saude/meal_timeline.dart';
 import '../../widgets/saude/refeicao_card.dart';
 import '../../widgets/saude/hidratacao_widget.dart';
 import 'anamnese_screen.dart';
@@ -127,6 +128,15 @@ class _DashboardContent extends ConsumerWidget {
               data: (hidra) => _buildHidratacao(context, ref, hidra, familiaId),
             ),
           ),
+          SliverToBoxAdapter(
+            child: refeicaoAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (refeicoes) => refeicoes.isEmpty
+                  ? const SizedBox.shrink()
+                  : MealTimeline(refeicoes: refeicoes),
+            ),
+          ),
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(14, 16, 14, 8),
@@ -181,6 +191,8 @@ class _DashboardContent extends ConsumerWidget {
     final carbMeta = (extrato['carboidrato_meta_g'] as num?)?.toDouble() ?? 200;
     final gordCons = (extrato['gordura_consumida_g'] as num?)?.toDouble() ?? 0;
     final gordMeta = (extrato['gordura_meta_g'] as num?)?.toDouble() ?? 70;
+    final fibraCons = (extrato['fibra_consumida_g'] as num?)?.toDouble() ?? 0;
+    final fibraMeta = (extrato['fibra_meta_g'] as num?)?.toDouble() ?? 25;
 
     return Column(
       children: [
@@ -199,6 +211,8 @@ class _DashboardContent extends ConsumerWidget {
               MacroBar(label: 'Carboidrato', consumido: carbCons, meta: carbMeta, color: AppColors.org),
               const SizedBox(height: 10),
               MacroBar(label: 'Gordura', consumido: gordCons, meta: gordMeta, color: AppColors.pur),
+              const SizedBox(height: 10),
+              MacroBar(label: 'Fibra', consumido: fibraCons, meta: fibraMeta, color: AppColors.grn),
             ],
           ),
         ),
@@ -211,26 +225,52 @@ class _DashboardContent extends ConsumerWidget {
   Widget _buildAcoesRapidas(BuildContext context, WidgetRef ref, String familiaId) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _AcaoRapida(
-              icon: Icons.nightlight_round,
-              label: 'Pular / Jejum',
-              color: AppColors.pur,
-              onTap: () => _registrarJejum(context, ref, familiaId),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _AcaoRapida(
+                  icon: Icons.nightlight_round,
+                  label: 'Pular / Jejum',
+                  color: AppColors.pur,
+                  onTap: () => _registrarJejum(context, ref, familiaId),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AcaoRapida(
+                  icon: Icons.monitor_weight_rounded,
+                  label: 'Registrar Peso',
+                  color: AppColors.acc,
+                  onTap: () => _registrarPeso(context, ref, familiaId),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _AcaoRapida(
-              icon: Icons.monitor_weight_rounded,
-              label: 'Registrar Peso',
-              color: AppColors.acc,
-              onTap: () => _registrarPeso(context, ref, familiaId),
-            ),
+          const SizedBox(height: 8),
+          _AcaoRapida(
+            icon: Icons.auto_awesome,
+            label: 'Sugerir Próxima Refeição',
+            color: AppColors.org,
+            onTap: () => _mostrarSugestaoRefeicao(context, familiaId),
           ),
         ],
+      ),
+    );
+  }
+
+  void _mostrarSugestaoRefeicao(BuildContext context, String familiaId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _SugestaoRefeicaoSheet(
+        membroId: membroId,
+        familiaId: familiaId,
       ),
     );
   }
@@ -403,6 +443,153 @@ class _AcaoRapida extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SugestaoRefeicaoSheet extends StatefulWidget {
+  final String membroId;
+  final String familiaId;
+  const _SugestaoRefeicaoSheet({required this.membroId, required this.familiaId});
+
+  @override
+  State<_SugestaoRefeicaoSheet> createState() => _SugestaoRefeicaoSheetState();
+}
+
+class _SugestaoRefeicaoSheetState extends State<_SugestaoRefeicaoSheet> {
+  Map<String, dynamic>? _sugestao;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    try {
+      final res = await SaudeApiService.getSugestaoJantar(
+        widget.familiaId,
+        [widget.membroId],
+      );
+      if (mounted) setState(() => _sugestao = res);
+    } catch (e) {
+      if (mounted) setState(() => _erro = e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (_, ctrl) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: const BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(color: AppColors.bord, borderRadius: BorderRadius.circular(2)),
+                margin: const EdgeInsets.only(bottom: 16),
+              ),
+            ),
+            Row(children: [
+              const Icon(Icons.auto_awesome, color: AppColors.org, size: 18),
+              const SizedBox(width: 8),
+              const Text('Sugestão de Refeição', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.tx)),
+            ]),
+            const SizedBox(height: 16),
+            if (_erro != null)
+              Text('Erro: $_erro', style: const TextStyle(color: AppColors.red))
+            else if (_sugestao == null)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(children: [
+                  CircularProgressIndicator(color: AppColors.org),
+                  SizedBox(height: 12),
+                  Text('Analisando seu saldo de macros...', style: TextStyle(color: AppColors.mu, fontSize: 13)),
+                ]),
+              ))
+            else
+              Expanded(
+                child: ListView(controller: ctrl, children: [
+                  _buildSugestaoContent(_sugestao!),
+                ]),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSugestaoContent(Map<String, dynamic> s) {
+    final titulo = s['titulo'] as String? ?? s['nome'] as String? ?? 'Sugestão';
+    final descricao = s['descricao'] as String? ?? s['sugestao'] as String? ?? s['texto'] as String? ?? '';
+    final macros = s['macros'] as Map<String, dynamic>? ?? {};
+    final motivo = s['motivo'] as String? ?? s['justificativa'] as String? ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.org)),
+        if (descricao.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(descricao, style: const TextStyle(fontSize: 14, color: AppColors.tx, height: 1.5)),
+        ],
+        if (macros.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final entry in macros.entries)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.bord),
+                ),
+                child: Text('${entry.key}: ${entry.value}', style: const TextStyle(fontSize: 12, color: AppColors.mu)),
+              ),
+          ]),
+        ],
+        if (motivo.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.org.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.org.withOpacity(0.2)),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.info_outline, color: AppColors.org, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(motivo, style: const TextStyle(fontSize: 12, color: AppColors.org, height: 1.4))),
+            ]),
+          ),
+        ],
+        if (s.containsKey('itens') && s['itens'] is List) ...[
+          const SizedBox(height: 16),
+          const Text('Ingredientes', style: TextStyle(fontSize: 12, color: AppColors.mu, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          for (final item in (s['itens'] as List))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(children: [
+                const Icon(Icons.circle, size: 5, color: AppColors.mu),
+                const SizedBox(width: 8),
+                Expanded(child: Text(item.toString(), style: const TextStyle(fontSize: 13, color: AppColors.tx))),
+              ]),
+            ),
+        ],
+      ],
     );
   }
 }
