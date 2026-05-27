@@ -487,12 +487,16 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
     final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
     setState(() => _loading = true);
     try {
+      final alturaRaw = double.tryParse(_alturaCtrl.text.replaceAll(',', '.')) ?? 170;
+      // Usuários frequentemente digitam em metros (1.76) — converter para cm
+      final alturaCm = alturaRaw < 3.0 ? alturaRaw * 100 : alturaRaw;
+
       final payload = {
         'membro_id': widget.membroId,
         'familia_id': perfil?['familia_id'] ?? '',
         'antropometria': {
           'peso_kg': double.tryParse(_pesoCtrl.text.replaceAll(',', '.')) ?? 70,
-          'altura_cm': double.tryParse(_alturaCtrl.text.replaceAll(',', '.')) ?? 170,
+          'altura_cm': alturaCm,
           'idade': int.tryParse(_idadeCtrl.text) ?? 30,
           'sexo': _sexo,
         },

@@ -24,7 +24,12 @@ _MACRO_PCT: dict[str, dict[str, float]] = {
 
 
 def calcular_tmb(peso_kg: float, altura_cm: float, idade: int, sexo: str) -> float:
-    """Mifflin-St Jeor. sexo: 'M' | 'F'."""
+    """Mifflin-St Jeor. sexo: 'M' | 'F'.
+
+    Aceita altura em metros (< 3.0) e converte automaticamente para cm.
+    """
+    if altura_cm < 3.0:
+        altura_cm = altura_cm * 100
     base = 10 * peso_kg + 6.25 * altura_cm - 5 * idade
     return base + 5 if sexo.upper() == "M" else base - 161
 

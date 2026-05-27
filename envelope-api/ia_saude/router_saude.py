@@ -95,16 +95,20 @@ async def get_perfil_metabolico(membro_id: str):
 
 @router.post("/perfil-metabolico")
 async def criar_perfil_metabolico(payload: dict):
+    """Cria ou substitui o perfil metabólico (upsert).
+
+    Comportamento de upsert permite que 'Refazer Anamnese' funcione
+    sem precisar deletar o perfil existente primeiro.
+    """
     membro_id = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
         raise HTTPException(status_code=422, detail="membro_id e familia_id obrigatórios")
 
     col = get_perfil_metabolico_col()
-    if col.find_one({"membro_id": membro_id}):
-        raise HTTPException(status_code=409, detail="Perfil já existe — use PATCH para atualizar")
-
+    existente = col.find_one({"membro_id": membro_id})
     agora = _now()
+
     doc = {
         "membro_id":     membro_id,
         "familia_id":    familia_id,
@@ -112,13 +116,19 @@ async def criar_perfil_metabolico(payload: dict):
         "antropometria": payload.get("antropometria", {}),
         "bioquimica":    payload.get("bioquimica", {}),
         "metabolico":    payload.get("metabolico", {}),
-        "pausas":        [],
-        "criado_em":     agora,
+        "pausas":        existente.get("pausas", []) if existente else [],
+        "criado_em":     existente.get("criado_em", agora) if existente else agora,
         "atualizado_em": agora,
     }
     doc["metabolico"].update(calcular_perfil_completo(doc))
-    result = col.insert_one(doc)
-    doc["_id"] = str(result.inserted_id)
+
+    if existente:
+        col.replace_one({"membro_id": membro_id}, doc)
+        doc["_id"] = str(existente["_id"])
+    else:
+        result = col.insert_one(doc)
+        doc["_id"] = str(result.inserted_id)
+
     return doc
 
 
