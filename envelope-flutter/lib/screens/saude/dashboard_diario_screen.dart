@@ -10,6 +10,7 @@ import '../../widgets/saude/meal_slot_card.dart';
 import '../../widgets/saude/morning_digest_card.dart';
 import '../../widgets/saude/hidratacao_widget.dart';
 import '../../providers/astrix_provider.dart';
+import '../../providers/exercicio_provider.dart';
 import '../../widgets/mascote/astrix_painter.dart';
 import 'anamnese_screen.dart';
 import 'registrar_refeicao_sheet.dart';
@@ -122,18 +123,21 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
 
   @override
   Widget build(BuildContext context) {
-    final extratoAsync  = ref.watch(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)));
-    final refeicaoAsync = ref.watch(refeicoesDiaProvider((membroId: widget.membroId, data: _hoje)));
-    final hidraAsync    = ref.watch(hidratacaoDiaProvider((membroId: widget.membroId, data: _hoje)));
-    final streakAsync   = ref.watch(streakProvider(widget.membroId));
+    final extratoAsync   = ref.watch(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)));
+    final refeicaoAsync  = ref.watch(refeicoesDiaProvider((membroId: widget.membroId, data: _hoje)));
+    final hidraAsync     = ref.watch(hidratacaoDiaProvider((membroId: widget.membroId, data: _hoje)));
+    final streakAsync    = ref.watch(streakProvider(widget.membroId));
+    final exercicioAsync = ref.watch(exercicioDiaProvider((membroId: widget.membroId, data: _hoje)));
+    final kcalExercicio  = (exercicioAsync.asData?.value?['total_calorias_kcal'] as num?)?.toInt() ?? 0;
 
     // ── Astrix triggers ──────────────────────────────────────────────────────
     ref.listen(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)), (_, next) {
       next.whenData((e) {
         if (_celebradoHoje) return;
-        final cons = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
-        final meta = (e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
-        if (meta > 0 && cons >= meta * 0.95) {
+        final cons      = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+        final metaBase  = (e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+        final metaAdj   = metaBase + kcalExercicio;
+        if (metaAdj > 0 && cons >= metaAdj * 0.95) {
           _celebradoHoje = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
@@ -177,6 +181,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         ref.invalidate(refeicoesDiaProvider);
         ref.invalidate(hidratacaoDiaProvider);
         ref.invalidate(streakProvider);
+        ref.invalidate(exercicioDiaProvider);
       },
       color: AppColors.grn,
       backgroundColor: AppColors.surf,
@@ -185,9 +190,9 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
           // 1 — Saudação personalizada
           SliverToBoxAdapter(
             child: extratoAsync.when(
-              loading: () => _buildGreeting(nome, streakAsync.value ?? 0, null),
-              error:   (_, __) => _buildGreeting(nome, streakAsync.value ?? 0, null),
-              data:    (e) => _buildGreeting(nome, streakAsync.value ?? 0, e),
+              loading: () => _buildGreeting(nome, streakAsync.value ?? 0, null, kcalExercicio),
+              error:   (_, __) => _buildGreeting(nome, streakAsync.value ?? 0, null, kcalExercicio),
+              data:    (e) => _buildGreeting(nome, streakAsync.value ?? 0, e, kcalExercicio),
             ),
           ),
 
@@ -207,7 +212,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
                 padding: const EdgeInsets.all(16),
                 child: Text('Erro ao carregar dados: $e', style: const TextStyle(color: AppColors.red)),
               ),
-              data: (extrato) => _buildAnelCalorico(extrato),
+              data: (extrato) => _buildAnelCalorico(extrato, kcalExercicio),
             ),
           ),
 
@@ -215,9 +220,9 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
           SliverToBoxAdapter(
             child: extratoAsync.maybeWhen(
               data: (e) {
-                final cons = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
-                final meta = (e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
-                if (meta > 0 && cons >= meta * 0.95) return _buildCelebracaoBanner(cons, meta);
+                final cons    = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+                final metaAdj = ((e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000) + kcalExercicio;
+                if (metaAdj > 0 && cons >= metaAdj * 0.95) return _buildCelebracaoBanner(cons, metaAdj);
                 return const SizedBox.shrink();
               },
               orElse: () => const SizedBox.shrink(),
@@ -258,11 +263,11 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
 
   // ── Saudação ──────────────────────────────────────────────────────────────
 
-  Widget _buildGreeting(String nome, int streak, Map<String, dynamic>? extrato) {
+  Widget _buildGreeting(String nome, int streak, Map<String, dynamic>? extrato, int kcalExercicio) {
     final h    = DateTime.now().hour;
     final saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
     final nomeStr = nome.isNotEmpty ? ', $nome' : '';
-    final status   = _statusMsg(extrato);
+    final status   = _statusMsg(extrato, kcalExercicio);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -307,20 +312,20 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     );
   }
 
-  String _statusMsg(Map<String, dynamic>? extrato) {
+  String _statusMsg(Map<String, dynamic>? extrato, int kcalExercicio) {
     if (extrato == null) return 'Carregando seu dia...';
-    final count = (extrato['refeicoes_count'] as num?)?.toInt() ?? 0;
-    final cons  = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
-    final meta  = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
-    final h     = DateTime.now().hour;
+    final count   = (extrato['refeicoes_count'] as num?)?.toInt() ?? 0;
+    final cons    = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+    final metaAdj = ((extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000) + kcalExercicio;
+    final h       = DateTime.now().hour;
 
     if (count == 0) {
       if (h < 10) return 'Começou o dia! Não esqueça do café da manhã ☕';
       if (h < 13) return 'Bora registrar o que você já comeu hoje?';
       return 'Vamos lá! Registre suas refeições do dia.';
     }
-    if (meta <= 0) return 'Continue registrando suas refeições!';
-    final pct = cons / meta;
+    if (metaAdj <= 0) return 'Continue registrando suas refeições!';
+    final pct = cons / metaAdj;
     if (pct >= 0.95) return 'Meta calórica batida! Dia incrível 🎯';
     if (pct >= 0.6)  return 'No caminho certo! Continue assim 💪';
     if (pct >= 0.3)  return 'Bom progresso! Lembre das próximas refeições.';
@@ -329,18 +334,44 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
 
   // ── Anel calórico ─────────────────────────────────────────────────────────
 
-  Widget _buildAnelCalorico(Map<String, dynamic> extrato) {
-    final cons = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
-    final meta = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+  Widget _buildAnelCalorico(Map<String, dynamic> extrato, int kcalExercicio) {
+    final cons     = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+    final metaBase = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+    final metaAdj  = metaBase + kcalExercicio;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          Center(child: MacroProgressRing(consumido: cons, meta: meta, size: 160)),
-          const SizedBox(height: 6),
+          Center(child: MacroProgressRing(consumido: cons, meta: metaAdj, size: 160)),
+          const SizedBox(height: 8),
+          if (kcalExercicio > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.org.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.org.withOpacity(0.4)),
+                    ),
+                    child: Text(
+                      '🏋️ +$kcalExercicio kcal do treino',
+                      style: const TextStyle(fontSize: 11, color: AppColors.org, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Text(
-            meta > 0 ? 'Meta diária: ${meta.toInt()} kcal' : '',
+            metaAdj > 0
+                ? kcalExercicio > 0
+                    ? 'Meta ajustada: ${metaAdj.toInt()} kcal'
+                    : 'Meta diária: ${metaBase.toInt()} kcal'
+                : '',
             style: const TextStyle(fontSize: 11, color: AppColors.mu),
           ),
         ],
