@@ -7,6 +7,8 @@ import '../constants.dart';
 import '../services/api_service.dart';
 import '../providers/usuarios_provider.dart';
 import '../providers/envelopes_provider.dart';
+import '../providers/astrix_provider.dart';
+import '../widgets/mascote/astrix_painter.dart';
 import 'form_gasto_sheet.dart';
 import 'form_envelope_sheet.dart';
 import 'remanejar_sheet.dart';
@@ -21,10 +23,12 @@ class EnvelopeDetailSheet extends ConsumerStatefulWidget {
 }
 
 class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
+  bool _astrixAlertShown = false;
+
   @override
   Widget build(BuildContext context) {
     final id = widget.envelope['id'];
-    
+
     // Assinar as mudanças do envelope específico em tempo real
     final envelopesAsync = ref.watch(envelopesProvider);
     
@@ -36,6 +40,7 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
         final pct = plan > 0 ? (saldo / plan).clamp(0.0, 1.0) : 0.0;
         final isNeg = saldo < 0;
         final spent = plan - saldo;
+        final nome = (env['nome'] as String? ?? 'envelope').toLowerCase();
 
         Color color = AppColors.grn;
         if (pct <= 0.2) {
@@ -45,6 +50,29 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
         }
         if (isNeg) {
           color = AppColors.dred;
+        }
+
+        // Astrix tip — warn once when envelope is low or overdrawn
+        if (!_astrixAlertShown) {
+          if (isNeg) {
+            _astrixAlertShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.astrix(
+                'Xiii... o envelope "$nome" estourou 😬\nQuer remanejá-lo?',
+                mood: AstrixMood.sad,
+              );
+            });
+          } else if (pct <= 0.2 && plan > 0) {
+            _astrixAlertShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.astrix(
+                'Psst! O envelope "$nome" está quase no limite 🔔\nCuidado com os próximos gastos!',
+                mood: AstrixMood.thinking,
+              );
+            });
+          }
         }
 
         return Container(

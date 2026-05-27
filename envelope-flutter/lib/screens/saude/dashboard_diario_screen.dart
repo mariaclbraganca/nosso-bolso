@@ -9,6 +9,8 @@ import '../../widgets/saude/macro_bar.dart';
 import '../../widgets/saude/meal_slot_card.dart';
 import '../../widgets/saude/morning_digest_card.dart';
 import '../../widgets/saude/hidratacao_widget.dart';
+import '../../providers/astrix_provider.dart';
+import '../../widgets/mascote/astrix_painter.dart';
 import 'anamnese_screen.dart';
 import 'registrar_refeicao_sheet.dart';
 
@@ -110,6 +112,9 @@ class _DashboardContent extends ConsumerStatefulWidget {
 }
 
 class _DashboardContentState extends ConsumerState<_DashboardContent> {
+  bool _celebradoHoje = false;
+  int _lastStreakSeen  = 0;
+
   String get _hoje {
     final n = DateTime.now();
     return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
@@ -121,6 +126,44 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     final refeicaoAsync = ref.watch(refeicoesDiaProvider((membroId: widget.membroId, data: _hoje)));
     final hidraAsync    = ref.watch(hidratacaoDiaProvider((membroId: widget.membroId, data: _hoje)));
     final streakAsync   = ref.watch(streakProvider(widget.membroId));
+
+    // ── Astrix triggers ──────────────────────────────────────────────────────
+    ref.listen(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)), (_, next) {
+      next.whenData((e) {
+        if (_celebradoHoje) return;
+        final cons = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+        final meta = (e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+        if (meta > 0 && cons >= meta * 0.95) {
+          _celebradoHoje = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.astrix(
+              'Meta do dia atingida! 🎉\nVocê foi incrível hoje!',
+              mood: AstrixMood.celebrate,
+              duration: const Duration(seconds: 6),
+            );
+          });
+        }
+      });
+    });
+
+    ref.listen(streakProvider(widget.membroId), (_, next) {
+      next.whenData((streak) {
+        if (streak <= _lastStreakSeen) return;
+        _lastStreakSeen = streak;
+        String? msg;
+        if (streak == 3) msg = '3 dias seguidos! 🔥\nVocê tá pegando o ritmo!';
+        if (streak == 7) msg = 'UMA SEMANA INTEIRA! 🏆\nIsso é consistência de verdade!';
+        if (streak == 14) msg = '14 dias! Você é imparável! 💪';
+        if (streak == 30) msg = '30 DIAS! 🦄✨ Você virou lenda!';
+        if (msg != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.astrix(msg!, mood: AstrixMood.celebrate, duration: const Duration(seconds: 7));
+          });
+        }
+      });
+    });
     final familiaId = ref.watch(perfilUsuarioLogadoProvider).asData?.value?['familia_id'] as String? ?? '';
     final nomeCompleto  = ref.watch(perfilUsuarioLogadoProvider).asData?.value?['nome'] as String? ?? '';
     final nome          = nomeCompleto.split(' ').first;

@@ -9,6 +9,7 @@ import 'package:envelope_flutter/screens/login_screen.dart';
 import 'package:envelope_flutter/screens/onboarding_screen.dart';
 import 'package:envelope_flutter/providers/auth_provider.dart';
 import 'package:envelope_flutter/providers/usuarios_provider.dart';
+import 'package:envelope_flutter/widgets/mascote/astrix_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,8 @@ class NossoBolsoApp extends ConsumerWidget {
       title: 'Nosso Bolso',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
+      builder: (context, child) =>
+          AstrixOverlay(child: child ?? const SizedBox.shrink()),
       home: authState.when(
         data: (state) {
           if (state.session != null) {

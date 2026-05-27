@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../providers/usuarios_provider.dart';
 import '../providers/envelopes_provider.dart';
 import '../providers/saude_provider.dart';
+import '../providers/astrix_provider.dart';
+import '../widgets/mascote/astrix_painter.dart';
 import 'main_navigation_screen.dart';
 import 'saude/saude_navigation_screen.dart';
 
@@ -25,6 +28,7 @@ class HubScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(nome, mes, hoje.year),
+            _AstrixWelcome(nome: nome.split(' ').first),
             const SizedBox(height: 24),
             Expanded(
               child: ListView(
@@ -321,4 +325,41 @@ class _ModuloCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Astrix welcome trigger ────────────────────────────────────────────────────
+class _AstrixWelcome extends ConsumerStatefulWidget {
+  final String nome;
+  const _AstrixWelcome({required this.nome});
+
+  @override
+  ConsumerState<_AstrixWelcome> createState() => _AstrixWelcomeState();
+}
+
+class _AstrixWelcomeState extends ConsumerState<_AstrixWelcome> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeWelcome());
+  }
+
+  Future<void> _maybeWelcome() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now();
+    final key = 'astrix_welcome_${today.year}_${today.month}_${today.day}';
+    if (prefs.getBool(key) == true) return;
+    await prefs.setBool(key, true);
+    if (!mounted) return;
+
+    final h = today.hour;
+    final saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+    ref.astrix(
+      '$saudacao, ${widget.nome}! Eu sou o Astrix 🦄\nTô aqui pra te ajudar com seu dinheiro e sua saúde!',
+      mood: AstrixMood.wave,
+      duration: const Duration(seconds: 6),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
