@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 class StreakService {
   static const _kPrefix = 'saude_streak_';
@@ -45,6 +46,8 @@ class StreakService {
     }
 
     await prefs.setString(key, jsonEncode({'streak': streak, 'lastDate': today}));
+    // Usuário registrou atividade hoje — cancela o alerta de streak das 20h
+    NotificationService.cancelarLembreteStreak();
     return streak;
   }
 

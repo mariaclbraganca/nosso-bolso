@@ -9,11 +9,13 @@ import 'package:envelope_flutter/screens/login_screen.dart';
 import 'package:envelope_flutter/screens/onboarding_screen.dart';
 import 'package:envelope_flutter/providers/auth_provider.dart';
 import 'package:envelope_flutter/providers/usuarios_provider.dart';
+import 'package:envelope_flutter/services/notification_service.dart';
 import 'package:envelope_flutter/widgets/mascote/astrix_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
+  await NotificationService.init();
 
   try {
     await Supabase.initialize(

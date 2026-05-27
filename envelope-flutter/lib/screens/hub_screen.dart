@@ -6,7 +6,9 @@ import '../providers/usuarios_provider.dart';
 import '../providers/envelopes_provider.dart';
 import '../providers/saude_provider.dart';
 import '../providers/astrix_provider.dart';
+import '../services/notification_service.dart';
 import '../widgets/mascote/astrix_painter.dart';
+import 'notification_settings_screen.dart';
 import 'main_navigation_screen.dart';
 import 'saude/saude_navigation_screen.dart';
 
@@ -27,7 +29,7 @@ class HubScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(nome, mes, hoje.year),
+            _buildHeader(context, nome, mes, hoje.year),
             _AstrixWelcome(nome: nome.split(' ').first),
             const SizedBox(height: 24),
             Expanded(
@@ -59,7 +61,7 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(String nome, String mes, int ano) {
+  Widget _buildHeader(BuildContext context, String nome, String mes, int ano) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
@@ -82,15 +84,21 @@ class HubScreen extends ConsumerWidget {
               ),
             ],
           ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.acc.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+          Row(children: [
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const NotificationSettingsScreen())),
+              child: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: const Icon(Icons.notifications_rounded, color: AppColors.mu, size: 20),
+              ),
             ),
-            child: const Icon(Icons.grid_view_rounded, color: AppColors.acc, size: 20),
-          ),
+          ]),
         ],
       ),
     );
@@ -347,6 +355,15 @@ class _AstrixWelcomeState extends ConsumerState<_AstrixWelcome> {
     final prefs = await SharedPreferences.getInstance();
     final today = DateTime.now();
     final key = 'astrix_welcome_${today.year}_${today.month}_${today.day}';
+    final isFirstTime = prefs.getBool('notif_permission_asked') != true;
+
+    // Pede permissão na primeira abertura e agenda notificações
+    if (isFirstTime) {
+      await prefs.setBool('notif_permission_asked', true);
+      final granted = await NotificationService.requestPermission();
+      if (granted) await NotificationService.agendarTodas();
+    }
+
     if (prefs.getBool(key) == true) return;
     await prefs.setBool(key, true);
     if (!mounted) return;
