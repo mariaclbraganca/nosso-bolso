@@ -4,6 +4,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import envelopes, transacoes, dashboard, abastecer, fixos, remanejar, insights, notificacoes, configuracoes
+from routes.configuracoes import carregar_config_do_supabase
 from ia_compras.router import router as compras_router
 from ia_compras.mongo_client import ensure_indexes
 from ia_saude.router_saude import router as saude_router
@@ -13,6 +14,8 @@ app = FastAPI(title="Envelope App API v2")
 
 @app.on_event("startup")
 def startup_event():
+    # Carrega chaves dinâmicas (Gemini, Mongo) do Supabase antes de tudo
+    carregar_config_do_supabase()
     try:
         ensure_indexes()
     except Exception:

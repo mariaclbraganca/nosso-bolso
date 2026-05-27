@@ -5,6 +5,7 @@ import '../providers/envelopes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants.dart';
+import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -59,7 +60,7 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
         imageUrl = supabase.storage.from('comprovantes').getPublicUrl(filePath);
       }
 
-      await supabase.from('transacoes').insert({
+      await ApiService.post('/transacoes/', {
         'valor': valor,
         'tipo': 'despesa',
         'envelope_id': _selectedEnvelopeId,

@@ -6,7 +6,7 @@ import '../providers/envelopes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/fixos_provider.dart';
 import '../theme/app_theme.dart';
-import '../constants.dart';
+import '../services/api_service.dart';
 import '../widgets/abastecer_item.dart';
 
 class AbastecerSheet extends ConsumerStatefulWidget {
@@ -76,22 +76,25 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
 
     setState(() => _isSaving = true);
     try {
-      final List<Map<String, dynamic>> bodies = [];
+      // Coleta payloads sem iniciar as requisições ainda
+      final List<Map<String, dynamic>> payloads = [];
       _controllers.forEach((id, controller) {
         final val = double.tryParse(controller.text.replaceAll(',', '.'));
         if (val != null && val > 0) {
-          bodies.add({
-            'valor': val, 
-            'tipo': 'abastecimento', 
-            'envelope_id': id, 
-            'usuario_id': perfil['id'], 
-            'descricao': 'Abastecimento',
+          payloads.add({
+            'valor': val,
+            'envelope_id': id,
+            'usuario_id': perfil['id'],
             'familia_id': perfil['familia_id'],
           });
         }
       });
 
-      if (bodies.isNotEmpty) await supabase.from('transacoes').insert(bodies);
+      // Sequencial: cada chamada vê o saldo decrementado pela anterior,
+      // permitindo que a validação pessimista do backend funcione corretamente.
+      for (final payload in payloads) {
+        await ApiService.post('/abastecer/', payload);
+      }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {

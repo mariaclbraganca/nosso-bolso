@@ -51,6 +51,7 @@ def registrar_transacao(
         "envelope_id": str(payload.envelope_id) if payload.envelope_id else None,
         "descricao": payload.descricao, "data": str(payload.data),
         "familia_id": fam,
+        "comprovante_url": payload.comprovante_url,
     }
     result = db.table("transacoes").insert(data).execute()
     return result.data[0]

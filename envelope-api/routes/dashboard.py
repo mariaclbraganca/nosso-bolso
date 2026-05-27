@@ -49,10 +49,17 @@ def stats_mes(
     fixos = db.table("gastos_fixos").select("*").eq("familia_id", familia_id) \
         .eq("mes", inicio[:7]).execute()
 
+    # Gastos fixos pagos no mês não geram linha em transacoes — somamos manualmente.
+    total_fixos_pagos = sum(
+        float(f["valor"]) for f in fixos.data if f.get("pago") is True
+    )
+    total_gastos += total_fixos_pagos
+
     return {
         "saldo_disponivel": saldo_row.data["valor_total_disponivel"],
         "total_receitas_mes": total_receitas,
         "total_gastos_mes": total_gastos,
+        "total_fixos_pagos_mes": total_fixos_pagos,
         "gastos_por_usuario": gastos_u,
         "receitas_por_usuario": receitas_u,
         "envelopes": envelopes.data,

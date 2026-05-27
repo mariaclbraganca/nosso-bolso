@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/forms/origin_selector.dart';
-import '../constants.dart';
+import '../services/api_service.dart';
 import 'abastecer_sheet.dart';
 
 class FormReceitaScreen extends ConsumerStatefulWidget {
@@ -37,11 +37,9 @@ class _FormReceitaScreenState extends ConsumerState<FormReceitaScreen> {
       if (perfil == null || perfil['familia_id'] == null) throw 'Usuário sem família vinculada';
       final usuarioId = perfil['id'];
 
-      await supabase.from('transacoes').insert({
+      await ApiService.post('/transacoes/receita', {
         'valor': valor,
-        'tipo': 'receita',
         'usuario_id': usuarioId,
-        'envelope_id': null,
         'descricao': '$_origem${_obsController.text.isNotEmpty ? ' - ${_obsController.text}' : ''}',
         'familia_id': perfil['familia_id'],
       });

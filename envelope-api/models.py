@@ -11,6 +11,7 @@ class TransacaoCreate(BaseModel):
     descricao: Optional[str] = None
     data: date = date.today()
     familia_id: UUID
+    comprovante_url: Optional[str] = None
 
     @model_validator(mode='after')
     def validar_envelope_id(self):

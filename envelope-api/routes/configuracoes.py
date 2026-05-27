@@ -2,10 +2,9 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from auth import AuthUser, get_current_user
+from database import get_supabase
 
 router = APIRouter()
-
-_ENV_FILE = os.path.join(os.path.dirname(__file__), "..", ".env")
 
 
 class ConfiguracaoRequest(BaseModel):
@@ -23,15 +22,26 @@ def configurar(
     payload: ConfiguracaoRequest,
     user: AuthUser = Depends(get_current_user),
 ):
-    """Apenas admin pode trocar chaves de API (rotina sensível)."""
     if user.role != "admin":
         raise HTTPException(403, "Apenas admin pode alterar as chaves de IA")
+
+    db = get_supabase()
+
     if payload.gemini_api_key:
         os.environ["GEMINI_API_KEY"] = payload.gemini_api_key
+        db.table("configuracoes_app").upsert(
+            {"chave": "GEMINI_API_KEY", "valor": payload.gemini_api_key},
+            on_conflict="chave",
+        ).execute()
+
     if payload.mongo_uri:
         os.environ["MONGO_URI"] = payload.mongo_uri
+        db.table("configuracoes_app").upsert(
+            {"chave": "MONGO_URI", "valor": payload.mongo_uri},
+            on_conflict="chave",
+        ).execute()
         _reconectar_mongo()
-    _salvar_env()
+
     return ConfiguracaoResponse(
         gemini_api_key_configurada=bool(os.environ.get("GEMINI_API_KEY")),
         mongo_uri_configurada=bool(os.environ.get("MONGO_URI")),
@@ -55,27 +65,18 @@ def _reconectar_mongo():
         pass
 
 
-def _salvar_env():
-    """Persiste as chaves no arquivo .env para sobreviver a restarts."""
+def carregar_config_do_supabase() -> None:
+    """Startup: carrega chaves dinâmicas do Supabase para os.environ.
+
+    Variáveis já definidas no ambiente (ex: via Render dashboard) têm
+    prioridade — setdefault não sobrescreve valores existentes.
+    """
     try:
-        path = os.path.abspath(_ENV_FILE)
-        linhas: dict[str, str] = {}
-
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
-                for linha in f:
-                    linha = linha.strip()
-                    if "=" in linha and not linha.startswith("#"):
-                        chave, _, valor = linha.partition("=")
-                        linhas[chave.strip()] = valor.strip()
-
-        if os.environ.get("GEMINI_API_KEY"):
-            linhas["GEMINI_API_KEY"] = os.environ["GEMINI_API_KEY"]
-        if os.environ.get("MONGO_URI"):
-            linhas["MONGO_URI"] = os.environ["MONGO_URI"]
-
-        with open(path, "w", encoding="utf-8") as f:
-            for chave, valor in linhas.items():
-                f.write(f"{chave}={valor}\n")
+        db = get_supabase()
+        rows = db.table("configuracoes_app").select("chave,valor").execute().data
+        for row in rows:
+            chave, valor = row.get("chave"), row.get("valor")
+            if chave and valor:
+                os.environ.setdefault(chave, valor)
     except Exception:
         pass

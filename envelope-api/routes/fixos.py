@@ -86,12 +86,39 @@ def atualizar_fixo(
 
     fixo_atual = fixo_res[0]
     update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
-    
+
     if not update_data:
         raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
 
-    # 2. Se mudou o status de 'pago', ajustar saldo_geral com validação prévia
-    if "pago" in update_data and update_data["pago"] != fixo_atual["pago"]:
+    # 2a. Fixo já pago e somente o valor foi alterado: ajustar delta no saldo_geral.
+    # Bloco independente do bloco de mudança de status (2b), pois pago não muda aqui.
+    fixo_ja_pago = fixo_atual.get("pago", False)
+    valor_mudou = (
+        "valor" in update_data
+        and abs(float(update_data["valor"]) - float(fixo_atual["valor"])) > 0.001
+    )
+    mudou_status_pago = "pago" in update_data and update_data["pago"] != fixo_ja_pago
+
+    if fixo_ja_pago and valor_mudou and not mudou_status_pago:
+        delta = float(update_data["valor"]) - float(fixo_atual["valor"])
+        familia_id = fixo_atual["familia_id"]
+        saldo_row = db.table("saldo_geral").select("valor_total_disponivel") \
+            .eq("familia_id", familia_id).single().execute()
+        saldo_atual_val = float(saldo_row.data["valor_total_disponivel"])
+        novo_saldo = saldo_atual_val - delta  # delta>0 → cobra mais; delta<0 → estorna
+        if novo_saldo < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Saldo insuficiente para corrigir o valor do fixo. "
+                    f"Disponível: R$ {saldo_atual_val:.2f} | Delta necessário: R$ {delta:.2f}."
+                ),
+            )
+        db.table("saldo_geral").update({"valor_total_disponivel": novo_saldo}) \
+            .eq("familia_id", familia_id).execute()
+
+    # 2b. Se mudou o status de 'pago', ajustar saldo_geral com validação prévia
+    if mudou_status_pago:
         valor = float(update_data.get("valor", fixo_atual["valor"]))
         familia_id = fixo_atual["familia_id"]
 
