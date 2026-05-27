@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/saude_api_service.dart';
+import '../services/streak_service.dart';
 import 'usuarios_provider.dart';
 
 final membroSaudeProvider = StateProvider<String?>((ref) {
@@ -54,4 +55,9 @@ typedef _DigestArgs = ({String membroId, String familiaId});
 final morningDigestProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, _DigestArgs>((ref, args) async {
   return SaudeApiService.getMorningDigest(args.membroId, args.familiaId);
+});
+
+final streakProvider = FutureProvider.autoDispose
+    .family<int, String>((ref, membroId) async {
+  return StreakService.getStreak(membroId);
 });

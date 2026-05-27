@@ -6,10 +6,31 @@ import '../../providers/usuarios_provider.dart';
 import '../../services/saude_api_service.dart';
 import '../../widgets/saude/macro_progress_ring.dart';
 import '../../widgets/saude/macro_bar.dart';
-import '../../widgets/saude/meal_timeline.dart';
-import '../../widgets/saude/refeicao_card.dart';
+import '../../widgets/saude/meal_slot_card.dart';
+import '../../widgets/saude/morning_digest_card.dart';
 import '../../widgets/saude/hidratacao_widget.dart';
 import 'anamnese_screen.dart';
+import 'registrar_refeicao_sheet.dart';
+
+// ── Definição dos slots do dia ────────────────────────────────────────────────
+
+class _Slot {
+  final String tipo;
+  final IconData icon;
+  final String label;
+  final String horarioDica;
+
+  const _Slot(this.tipo, this.icon, this.label, this.horarioDica);
+}
+
+const _kSlots = [
+  _Slot('cafe_da_manha', Icons.coffee_rounded,       'Café da manhã',  '7h – 9h'),
+  _Slot('almoco',        Icons.restaurant_rounded,   'Almoço',         '12h – 14h'),
+  _Slot('lanche_tarde',  Icons.cookie_rounded,       'Lanche',         '15h – 17h'),
+  _Slot('jantar',        Icons.nightlight_round,     'Jantar',         '19h – 21h'),
+];
+
+// ── Tela principal ────────────────────────────────────────────────────────────
 
 class DashboardDiarioScreen extends ConsumerWidget {
   final String membroId;
@@ -23,15 +44,14 @@ class DashboardDiarioScreen extends ConsumerWidget {
     return perfilAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.grn)),
       error: (e, _) => Center(child: Text('Erro: $e', style: const TextStyle(color: AppColors.red))),
-      data: (perfil) {
-        if (perfil == null) {
-          return _SemPerfilView(membroId: membroId);
-        }
-        return _DashboardContent(membroId: membroId, perfil: perfil);
-      },
+      data: (perfil) => perfil == null
+          ? _SemPerfilView(membroId: membroId)
+          : _DashboardContent(membroId: membroId),
     );
   }
 }
+
+// ── Sem perfil ────────────────────────────────────────────────────────────────
 
 class _SemPerfilView extends StatelessWidget {
   final String membroId;
@@ -48,13 +68,13 @@ class _SemPerfilView extends StatelessWidget {
             const Text('🥗', style: TextStyle(fontSize: 64)),
             const SizedBox(height: 16),
             const Text(
-              'Configure seu perfil nutricional',
+              'Vamos montar seu plano nutricional!',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.tx),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
-              'Responda uma anamnese rápida para calcular suas metas de calorias e macros.',
+              'Responda algumas perguntas rápidas e receba suas metas de calorias e nutrientes personalizadas.',
               style: TextStyle(fontSize: 14, color: AppColors.mu),
               textAlign: TextAlign.center,
             ),
@@ -70,7 +90,7 @@ class _SemPerfilView extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (_) => AnamneseScreen(membroId: membroId)),
               ),
-              child: const Text('Começar Anamnese', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('Criar meu plano', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -79,35 +99,61 @@ class _SemPerfilView extends StatelessWidget {
   }
 }
 
-class _DashboardContent extends ConsumerWidget {
+// ── Conteúdo principal ────────────────────────────────────────────────────────
+
+class _DashboardContent extends ConsumerStatefulWidget {
   final String membroId;
-  final Map<String, dynamic> perfil;
+  const _DashboardContent({required this.membroId});
 
-  const _DashboardContent({required this.membroId, required this.perfil});
+  @override
+  ConsumerState<_DashboardContent> createState() => _DashboardContentState();
+}
 
+class _DashboardContentState extends ConsumerState<_DashboardContent> {
   String get _hoje {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final n = DateTime.now();
+    return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final extratoAsync = ref.watch(extratoDiarioProvider((membroId: membroId, data: _hoje)));
-    final refeicaoAsync = ref.watch(refeicoesDiaProvider((membroId: membroId, data: _hoje)));
-    final hidraAsync = ref.watch(hidratacaoDiaProvider((membroId: membroId, data: _hoje)));
+  Widget build(BuildContext context) {
+    final extratoAsync  = ref.watch(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)));
+    final refeicaoAsync = ref.watch(refeicoesDiaProvider((membroId: widget.membroId, data: _hoje)));
+    final hidraAsync    = ref.watch(hidratacaoDiaProvider((membroId: widget.membroId, data: _hoje)));
+    final streakAsync   = ref.watch(streakProvider(widget.membroId));
     final familiaId = ref.watch(perfilUsuarioLogadoProvider).asData?.value?['familia_id'] as String? ?? '';
+    final nomeCompleto  = ref.watch(perfilUsuarioLogadoProvider).asData?.value?['nome'] as String? ?? '';
+    final nome          = nomeCompleto.split(' ').first;
+
+    // Morning digest — carregado em background, não bloqueia a tela
+    final digestAsync = ref.watch(morningDigestProvider((membroId: widget.membroId, familiaId: familiaId)));
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(extratoDiarioProvider);
         ref.invalidate(refeicoesDiaProvider);
         ref.invalidate(hidratacaoDiaProvider);
+        ref.invalidate(streakProvider);
       },
       color: AppColors.grn,
       backgroundColor: AppColors.surf,
       child: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _buildHeader()),
+          // 1 — Saudação personalizada
+          SliverToBoxAdapter(
+            child: extratoAsync.when(
+              loading: () => _buildGreeting(nome, streakAsync.value ?? 0, null),
+              error:   (_, __) => _buildGreeting(nome, streakAsync.value ?? 0, null),
+              data:    (e) => _buildGreeting(nome, streakAsync.value ?? 0, e),
+            ),
+          ),
+
+          // 2 — Morning Digest card (lazy, dismissable)
+          SliverToBoxAdapter(
+            child: MorningDigestCard(digestData: digestAsync.value),
+          ),
+
+          // 3 — Anel calórico
           SliverToBoxAdapter(
             child: extratoAsync.when(
               loading: () => const Padding(
@@ -116,75 +162,219 @@ class _DashboardContent extends ConsumerWidget {
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Erro ao carregar extrato: $e', style: const TextStyle(color: AppColors.red)),
+                child: Text('Erro ao carregar dados: $e', style: const TextStyle(color: AppColors.red)),
               ),
-              data: (extrato) => _buildExtrato(context, ref, extrato, familiaId),
+              data: (extrato) => _buildAnelCalorico(extrato),
             ),
           ),
+
+          // 4 — Banner de celebração
           SliverToBoxAdapter(
-            child: hidraAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (hidra) => _buildHidratacao(context, ref, hidra, familiaId),
+            child: extratoAsync.maybeWhen(
+              data: (e) {
+                final cons = (e['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+                final meta = (e['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+                if (meta > 0 && cons >= meta * 0.95) return _buildCelebracaoBanner(cons, meta);
+                return const SizedBox.shrink();
+              },
+              orElse: () => const SizedBox.shrink(),
             ),
           ),
+
+          // 5 — Meal slots
           SliverToBoxAdapter(
             child: refeicaoAsync.when(
               loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (refeicoes) => refeicoes.isEmpty
-                  ? const SizedBox.shrink()
-                  : MealTimeline(refeicoes: refeicoes),
+              error:   (_, __) => const SizedBox.shrink(),
+              data:    (refeicoes) => _buildMealSlots(context, ref, refeicoes, familiaId),
             ),
           ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(14, 16, 14, 8),
-              child: Text(
-                'REFEIÇÕES DE HOJE',
-                style: TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.8, fontWeight: FontWeight.bold),
-              ),
+
+          // 6 — Macros secundários
+          SliverToBoxAdapter(
+            child: extratoAsync.maybeWhen(
+              data: (e) => _buildMacros(e),
+              orElse: () => const SizedBox.shrink(),
             ),
           ),
-          refeicaoAsync.when(
-            loading: () => const SliverToBoxAdapter(
-              child: Center(child: CircularProgressIndicator(color: AppColors.grn)),
+
+          // 7 — Hidratação
+          SliverToBoxAdapter(
+            child: hidraAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error:   (_, __) => const SizedBox.shrink(),
+              data:    (h) => _buildHidratacao(context, ref, h, familiaId),
             ),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-            data: (refeicoes) => refeicoes.isEmpty
-                ? SliverToBoxAdapter(child: _buildVazio())
-                : SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (ctx, i) => RefeicaoCard(
-                        refeicao: refeicoes[i],
-                        onDelete: () => _deletarRefeicao(context, ref, refeicoes[i]['id'] as String? ?? ''),
-                      ),
-                      childCount: refeicoes.length,
-                    ),
-                  ),
           ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final now = DateTime.now();
-    final weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    final months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  // ── Saudação ──────────────────────────────────────────────────────────────
+
+  Widget _buildGreeting(String nome, int streak, Map<String, dynamic>? extrato) {
+    final h    = DateTime.now().hour;
+    final saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+    final nomeStr = nome.isNotEmpty ? ', $nome' : '';
+    final status   = _statusMsg(extrato);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-      child: Text(
-        '${weekdays[now.weekday % 7]}, ${now.day} de ${months[now.month - 1]}',
-        style: const TextStyle(fontSize: 13, color: AppColors.mu),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$saud$nomeStr!',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.tx),
+                ),
+                const SizedBox(height: 3),
+                Text(status, style: const TextStyle(fontSize: 13, color: AppColors.mu)),
+              ],
+            ),
+          ),
+          if (streak >= 2)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.org.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.org.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🔥', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$streak dias',
+                    style: const TextStyle(fontSize: 12, color: AppColors.org, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildExtrato(BuildContext context, WidgetRef ref, Map<String, dynamic> extrato, String familiaId) {
-    final kcalCons = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
-    final kcalMeta = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+  String _statusMsg(Map<String, dynamic>? extrato) {
+    if (extrato == null) return 'Carregando seu dia...';
+    final count = (extrato['refeicoes_count'] as num?)?.toInt() ?? 0;
+    final cons  = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+    final meta  = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+    final h     = DateTime.now().hour;
+
+    if (count == 0) {
+      if (h < 10) return 'Começou o dia! Não esqueça do café da manhã ☕';
+      if (h < 13) return 'Bora registrar o que você já comeu hoje?';
+      return 'Vamos lá! Registre suas refeições do dia.';
+    }
+    if (meta <= 0) return 'Continue registrando suas refeições!';
+    final pct = cons / meta;
+    if (pct >= 0.95) return 'Meta calórica batida! Dia incrível 🎯';
+    if (pct >= 0.6)  return 'No caminho certo! Continue assim 💪';
+    if (pct >= 0.3)  return 'Bom progresso! Lembre das próximas refeições.';
+    return 'Ótimo começo! Continue registrando o dia.';
+  }
+
+  // ── Anel calórico ─────────────────────────────────────────────────────────
+
+  Widget _buildAnelCalorico(Map<String, dynamic> extrato) {
+    final cons = (extrato['calorias_consumidas_kcal'] as num?)?.toDouble() ?? 0;
+    final meta = (extrato['meta_calorica_kcal'] as num?)?.toDouble() ?? 2000;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          Center(child: MacroProgressRing(consumido: cons, meta: meta, size: 160)),
+          const SizedBox(height: 6),
+          Text(
+            meta > 0 ? 'Meta diária: ${meta.toInt()} kcal' : '',
+            style: const TextStyle(fontSize: 11, color: AppColors.mu),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Banner de celebração ──────────────────────────────────────────────────
+
+  Widget _buildCelebracaoBanner(double cons, double meta) {
+    final over = cons > meta;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: over ? AppColors.org.withOpacity(0.1) : AppColors.grn.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: over ? AppColors.org.withOpacity(0.3) : AppColors.grn.withOpacity(0.3),
+        ),
+      ),
+      child: Row(children: [
+        Text(over ? '⚠️' : '🎯', style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            over
+                ? 'Você passou ${(cons - meta).toInt()} kcal da meta de hoje. Tudo bem, amanhã é outro dia!'
+                : 'Excelente! Você está dentro da sua meta calórica hoje!',
+            style: TextStyle(
+              fontSize: 13,
+              color: over ? AppColors.org : AppColors.grn,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Meal slots ────────────────────────────────────────────────────────────
+
+  Widget _buildMealSlots(
+    BuildContext context,
+    WidgetRef ref,
+    List<Map<String, dynamic>> refeicoes,
+    String familiaId,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Text(
+            'REFEIÇÕES DO DIA',
+            style: TextStyle(fontSize: 10, color: AppColors.mu, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+          ),
+        ),
+        ..._kSlots.map((slot) {
+          final slotRefeicoes = refeicoes.where((r) => r['tipo_refeicao'] == slot.tipo).toList();
+          return MealSlotCard(
+            icon:         slot.icon,
+            label:        slot.label,
+            horarioDica:  slot.horarioDica,
+            refeicoes:    slotRefeicoes,
+            onRegistrar:  () => _abrirRegistro(context, familiaId, slot.tipo),
+            onPular:      () => _pularSlot(context, ref, familiaId, slot.tipo, slot.label),
+            onDeletar:    (id) => _deletarRefeicao(context, ref, id),
+          );
+        }),
+      ],
+    );
+  }
+
+  // ── Macro bars ────────────────────────────────────────────────────────────
+
+  Widget _buildMacros(Map<String, dynamic> extrato) {
     final protCons = (extrato['proteina_consumida_g'] as num?)?.toDouble() ?? 0;
     final protMeta = (extrato['proteina_meta_g'] as num?)?.toDouble() ?? 150;
     final carbCons = (extrato['carboidrato_consumido_g'] as num?)?.toDouble() ?? 0;
@@ -194,116 +384,68 @@ class _DashboardContent extends ConsumerWidget {
     final fibraCons = (extrato['fibra_consumida_g'] as num?)?.toDouble() ?? 0;
     final fibraMeta = (extrato['fibra_meta_g'] as num?)?.toDouble() ?? 25;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Center(
-            child: MacroProgressRing(consumido: kcalCons, meta: kcalMeta, size: 160),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Column(
-            children: [
-              MacroBar(label: 'Proteína', consumido: protCons, meta: protMeta, color: AppColors.blu),
-              const SizedBox(height: 10),
-              MacroBar(label: 'Carboidrato', consumido: carbCons, meta: carbMeta, color: AppColors.org),
-              const SizedBox(height: 10),
-              MacroBar(label: 'Gordura', consumido: gordCons, meta: gordMeta, color: AppColors.pur),
-              const SizedBox(height: 10),
-              MacroBar(label: 'Fibra', consumido: fibraCons, meta: fibraMeta, color: AppColors.grn),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildAcoesRapidas(context, ref, familiaId),
-      ],
-    );
-  }
-
-  Widget _buildAcoesRapidas(BuildContext context, WidgetRef ref, String familiaId) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.bord, width: 0.5),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _AcaoRapida(
-                  icon: Icons.nightlight_round,
-                  label: 'Pular / Jejum',
-                  color: AppColors.pur,
-                  onTap: () => _registrarJejum(context, ref, familiaId),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _AcaoRapida(
-                  icon: Icons.monitor_weight_rounded,
-                  label: 'Registrar Peso',
-                  color: AppColors.acc,
-                  onTap: () => _registrarPeso(context, ref, familiaId),
-                ),
-              ),
-            ],
+          const Text(
+            'NUTRIENTES',
+            style: TextStyle(fontSize: 10, color: AppColors.mu, fontWeight: FontWeight.bold, letterSpacing: 0.8),
           ),
-          const SizedBox(height: 8),
-          _AcaoRapida(
-            icon: Icons.auto_awesome,
-            label: 'Sugerir Próxima Refeição',
-            color: AppColors.org,
-            onTap: () => _mostrarSugestaoRefeicao(context, familiaId),
-          ),
+          const SizedBox(height: 12),
+          MacroBar(label: 'Proteína',    consumido: protCons,  meta: protMeta,  color: AppColors.blu),
+          const SizedBox(height: 10),
+          MacroBar(label: 'Carboidrato', consumido: carbCons,  meta: carbMeta,  color: AppColors.org),
+          const SizedBox(height: 10),
+          MacroBar(label: 'Gordura',     consumido: gordCons,  meta: gordMeta,  color: AppColors.pur),
+          const SizedBox(height: 10),
+          MacroBar(label: 'Fibra',       consumido: fibraCons, meta: fibraMeta, color: AppColors.grn),
         ],
       ),
     );
   }
 
-  void _mostrarSugestaoRefeicao(BuildContext context, String familiaId) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _SugestaoRefeicaoSheet(
-        membroId: membroId,
-        familiaId: familiaId,
-      ),
-    );
-  }
+  // ── Hidratação ────────────────────────────────────────────────────────────
 
   Widget _buildHidratacao(BuildContext context, WidgetRef ref, Map<String, dynamic> hidra, String familiaId) {
     final total = (hidra['total_ml'] as num?)?.toInt() ?? 0;
-    final meta = (hidra['meta_ml'] as num?)?.toInt() ?? 2000;
-
+    final meta  = (hidra['meta_ml']  as num?)?.toInt() ?? 2000;
     return HidratacaoWidget(
       totalMl: total,
-      metaMl: meta,
-      onRegistrar: () => _registrarAgua(ref, familiaId),
+      metaMl:  meta,
+      onRegistrar: () async {
+        try {
+          await SaudeApiService.registrarHidratacao(widget.membroId, familiaId, volumeMl: 250);
+          ref.invalidate(hidratacaoDiaProvider);
+        } catch (_) {}
+      },
     );
   }
 
-  Widget _buildVazio() {
-    return const Padding(
-      padding: EdgeInsets.all(32),
-      child: Center(
-        child: Text(
-          'Nenhuma refeição registrada hoje.\nToque no + para registrar.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.mu, fontSize: 14),
-        ),
+  // ── Ações ─────────────────────────────────────────────────────────────────
+
+  void _abrirRegistro(BuildContext context, String familiaId, String tipo) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RegistrarRefeicaoSheet(
+        membroId: widget.membroId,
+        familiaId: familiaId,
+        initialTipo: tipo,
       ),
-    );
-  }
-
-  Future<void> _registrarAgua(WidgetRef ref, String familiaId) async {
-    try {
-      await SaudeApiService.registrarHidratacao(membroId, familiaId, volumeMl: 250);
-      ref.invalidate(hidratacaoDiaProvider);
-    } catch (_) {}
+    ).then((_) {
+      ref.invalidate(extratoDiarioProvider);
+      ref.invalidate(refeicoesDiaProvider);
+      ref.invalidate(streakProvider);
+    });
   }
 
   Future<void> _deletarRefeicao(BuildContext context, WidgetRef ref, String id) async {
@@ -321,275 +463,45 @@ class _DashboardContent extends ConsumerWidget {
     }
   }
 
-  void _registrarJejum(BuildContext context, WidgetRef ref, String familiaId) {
-    final tipos = [
-      ('cafe_da_manha', 'Café da Manhã'),
-      ('lanche_manha', 'Lanche da Manhã'),
-      ('almoco', 'Almoço'),
-      ('lanche_tarde', 'Lanche da Tarde'),
-      ('jantar', 'Jantar'),
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('🌿 Pular qual refeição?',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.tx)),
-          ),
-          ...tipos.map((t) => ListTile(
-            title: Text(t.$2, style: const TextStyle(color: AppColors.tx)),
-            onTap: () async {
-              Navigator.pop(context);
-              final now = DateTime.now();
-              final data = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-              try {
-                await SaudeApiService.registrarRefeicao({
-                  'membro_id': membroId,
-                  'familia_id': familiaId,
-                  'tipo_refeicao': t.$1,
-                  'is_jejum': true,
-                  'motivo_jejum': 'nao_tive_fome',
-                  'modalidade_entrada': 'manual',
-                  'data_refeicao': data,
-                });
-                ref.invalidate(refeicoesDiaProvider);
-                ref.invalidate(extratoDiarioProvider);
-              } catch (_) {}
-            },
-          )),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  void _registrarPeso(BuildContext context, WidgetRef ref, String familiaId) {
-    final ctrl = TextEditingController();
-    showDialog(
+  Future<void> _pularSlot(
+    BuildContext context,
+    WidgetRef ref,
+    String familiaId,
+    String tipo,
+    String label,
+  ) async {
+    final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: const Text('Registrar Peso', style: TextStyle(color: AppColors.tx)),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: AppColors.tx),
-          decoration: const InputDecoration(
-            hintText: 'Ex: 74.5',
-            hintStyle: TextStyle(color: AppColors.mu),
-            suffixText: 'kg',
-            suffixStyle: TextStyle(color: AppColors.mu),
-          ),
+        title: Text('Pular $label?', style: const TextStyle(color: AppColors.tx)),
+        content: Text(
+          'Isso registra que você não comeu neste horário. Tudo bem!',
+          style: const TextStyle(color: AppColors.mu, fontSize: 13),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.grn),
-            onPressed: () async {
-              final peso = double.tryParse(ctrl.text.replaceAll(',', '.'));
-              if (peso == null) return;
-              Navigator.pop(context);
-              final now = DateTime.now();
-              try {
-                await SaudeApiService.registrarPeso({
-                  'membro_id': membroId,
-                  'familia_id': familiaId,
-                  'peso_kg': peso,
-                  'data_medicao': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
-                });
-              } catch (_) {}
-            },
-            child: const Text('Salvar'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.pur),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Pular'),
           ),
         ],
       ),
     );
-  }
-}
-
-class _AcaoRapida extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _AcaoRapida({required this.icon, required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3), width: 0.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 16),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SugestaoRefeicaoSheet extends StatefulWidget {
-  final String membroId;
-  final String familiaId;
-  const _SugestaoRefeicaoSheet({required this.membroId, required this.familiaId});
-
-  @override
-  State<_SugestaoRefeicaoSheet> createState() => _SugestaoRefeicaoSheetState();
-}
-
-class _SugestaoRefeicaoSheetState extends State<_SugestaoRefeicaoSheet> {
-  Map<String, dynamic>? _sugestao;
-  String? _erro;
-
-  @override
-  void initState() {
-    super.initState();
-    _carregar();
-  }
-
-  Future<void> _carregar() async {
+    if (confirmar != true || !context.mounted) return;
     try {
-      final res = await SaudeApiService.getSugestaoJantar(
-        widget.familiaId,
-        [widget.membroId],
-      );
-      if (mounted) setState(() => _sugestao = res);
-    } catch (e) {
-      if (mounted) setState(() => _erro = e.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (_, ctrl) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(color: AppColors.bord, borderRadius: BorderRadius.circular(2)),
-                margin: const EdgeInsets.only(bottom: 16),
-              ),
-            ),
-            Row(children: [
-              const Icon(Icons.auto_awesome, color: AppColors.org, size: 18),
-              const SizedBox(width: 8),
-              const Text('Sugestão de Refeição', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.tx)),
-            ]),
-            const SizedBox(height: 16),
-            if (_erro != null)
-              Text('Erro: $_erro', style: const TextStyle(color: AppColors.red))
-            else if (_sugestao == null)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Column(children: [
-                  CircularProgressIndicator(color: AppColors.org),
-                  SizedBox(height: 12),
-                  Text('Analisando seu saldo de macros...', style: TextStyle(color: AppColors.mu, fontSize: 13)),
-                ]),
-              ))
-            else
-              Expanded(
-                child: ListView(controller: ctrl, children: [
-                  _buildSugestaoContent(_sugestao!),
-                ]),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSugestaoContent(Map<String, dynamic> s) {
-    final titulo = s['titulo'] as String? ?? s['nome'] as String? ?? 'Sugestão';
-    final descricao = s['descricao'] as String? ?? s['sugestao'] as String? ?? s['texto'] as String? ?? '';
-    final macros = s['macros'] as Map<String, dynamic>? ?? {};
-    final motivo = s['motivo'] as String? ?? s['justificativa'] as String? ?? '';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.org)),
-        if (descricao.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(descricao, style: const TextStyle(fontSize: 14, color: AppColors.tx, height: 1.5)),
-        ],
-        if (macros.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final entry in macros.entries)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.surf,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.bord),
-                ),
-                child: Text('${entry.key}: ${entry.value}', style: const TextStyle(fontSize: 12, color: AppColors.mu)),
-              ),
-          ]),
-        ],
-        if (motivo.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.org.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.org.withOpacity(0.2)),
-            ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.info_outline, color: AppColors.org, size: 16),
-              const SizedBox(width: 8),
-              Expanded(child: Text(motivo, style: const TextStyle(fontSize: 12, color: AppColors.org, height: 1.4))),
-            ]),
-          ),
-        ],
-        if (s.containsKey('itens') && s['itens'] is List) ...[
-          const SizedBox(height: 16),
-          const Text('Ingredientes', style: TextStyle(fontSize: 12, color: AppColors.mu, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          for (final item in (s['itens'] as List))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(children: [
-                const Icon(Icons.circle, size: 5, color: AppColors.mu),
-                const SizedBox(width: 8),
-                Expanded(child: Text(item.toString(), style: const TextStyle(fontSize: 13, color: AppColors.tx))),
-              ]),
-            ),
-        ],
-      ],
-    );
+      await SaudeApiService.registrarRefeicao({
+        'membro_id': widget.membroId,
+        'familia_id': familiaId,
+        'tipo_refeicao': tipo,
+        'is_jejum': true,
+        'motivo_jejum': 'nao_tive_fome',
+        'modalidade_entrada': 'manual',
+        'data_refeicao': _hoje,
+      });
+      ref.invalidate(refeicoesDiaProvider);
+      ref.invalidate(extratoDiarioProvider);
+    } catch (_) {}
   }
 }

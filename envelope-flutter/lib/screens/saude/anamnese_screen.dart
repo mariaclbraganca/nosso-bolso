@@ -107,7 +107,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: Text(
-          ['Seus Dados', 'Anamnese', 'Confirmação'][_etapa],
+          ['Seus Dados', 'Conhecendo Você', 'Tudo Pronto! 🎉'][_etapa],
           style: const TextStyle(color: AppColors.tx),
         ),
         leading: BackButton(color: AppColors.mu),
@@ -130,16 +130,16 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
 
   Widget _buildEtapa1() {
     const niveis = [
-      ('sedentario', 'Sedentário', 'Pouco ou nenhum exercício'),
-      ('leve', 'Leve', 'Exercício 1-3x/semana'),
-      ('moderado', 'Moderado', 'Exercício 3-5x/semana'),
-      ('intenso', 'Intenso', 'Exercício 6-7x/semana'),
-      ('muito_intenso', 'Muito Intenso', 'Atleta / trabalho físico pesado'),
+      ('sedentario', '🛋️', 'Fico muito parado(a)', 'Não costumo me exercitar'),
+      ('leve', '🚶', 'Me mexo um pouco', 'Caminho ou exercito 1–3x por semana'),
+      ('moderado', '🏃', 'Treino regularmente', 'Exercito 3–5x por semana'),
+      ('intenso', '💪', 'Treino pesado', 'Exercito quase todo dia'),
+      ('muito_intenso', '🏅', 'Sou atleta / trabalho físico', 'Atividade intensa diária'),
     ];
     const objetivos = [
-      ('perda_peso', '⬇️ Emagrecer', 'Déficit de 500 kcal/dia'),
-      ('manutencao', '↔️ Manter', 'Equilíbrio calórico'),
-      ('ganho_massa', '⬆️ Ganhar Massa', 'Superávit de 250 kcal/dia'),
+      ('perda_peso', '⬇️', 'Emagrecer', 'Quero perder gordura'),
+      ('manutencao', '↔️', 'Manter', 'Estou bem do jeito que estou'),
+      ('ganho_massa', '⬆️', 'Ganhar massa', 'Quero ficar mais forte'),
     ];
 
     return SingleChildScrollView(
@@ -147,8 +147,9 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Dados Antropométricos',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          const Text('Seus dados corporais', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          const SizedBox(height: 4),
+          const Text('Preciso desses dados para calcular suas necessidades calóricas.', style: TextStyle(fontSize: 12, color: AppColors.mu)),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: _campo('Peso (kg)', _pesoCtrl, TextInputType.number)),
@@ -158,41 +159,90 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
             Expanded(child: _campo('Idade', _idadeCtrl, TextInputType.number)),
           ]),
           const SizedBox(height: 20),
-          const Text('Sexo', style: TextStyle(fontSize: 13, color: AppColors.mu)),
+          const Text('Sexo biológico', style: TextStyle(fontSize: 13, color: AppColors.mu)),
           const SizedBox(height: 8),
           Row(children: [
-            _sexoBtn('M', 'Masculino'),
+            _sexoBtn('M', '♂ Masculino'),
             const SizedBox(width: 8),
-            _sexoBtn('F', 'Feminino'),
+            _sexoBtn('F', '♀ Feminino'),
           ]),
-          const SizedBox(height: 20),
-          const Text('Nível de Atividade', style: TextStyle(fontSize: 13, color: AppColors.mu)),
-          const SizedBox(height: 8),
-          ...niveis.map((n) => RadioListTile<String>(
-            value: n.$1,
-            groupValue: _nivelAtividade,
-            onChanged: (v) => setState(() => _nivelAtividade = v!),
-            activeColor: AppColors.grn,
-            title: Text(n.$2, style: const TextStyle(color: AppColors.tx, fontSize: 14)),
-            subtitle: Text(n.$3, style: const TextStyle(color: AppColors.mu, fontSize: 11)),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-          )),
-          const SizedBox(height: 20),
-          const Text('Objetivo', style: TextStyle(fontSize: 13, color: AppColors.mu)),
-          const SizedBox(height: 8),
-          ...objetivos.map((o) => RadioListTile<String>(
-            value: o.$1,
-            groupValue: _objetivo,
-            onChanged: (v) => setState(() => _objetivo = v!),
-            activeColor: AppColors.grn,
-            title: Text(o.$2, style: const TextStyle(color: AppColors.tx, fontSize: 14)),
-            subtitle: Text(o.$3, style: const TextStyle(color: AppColors.mu, fontSize: 11)),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-          )),
-          const SizedBox(height: 20),
-          const Text('Alergias / Intolerâncias', style: TextStyle(fontSize: 13, color: AppColors.mu)),
+          const SizedBox(height: 24),
+          const Text('Como é sua rotina de atividade física?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          const SizedBox(height: 10),
+          ...niveis.map((n) {
+            final isSelected = _nivelAtividade == n.$1;
+            return GestureDetector(
+              onTap: () => setState(() => _nivelAtividade = n.$1),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.grn.withOpacity(0.1) : AppColors.surf,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? AppColors.grn : AppColors.bord,
+                    width: isSelected ? 1.5 : 0.5,
+                  ),
+                ),
+                child: Row(children: [
+                  Text(n.$2, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(n.$3, style: TextStyle(
+                        color: isSelected ? AppColors.grn : AppColors.tx,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 14,
+                      )),
+                      Text(n.$4, style: const TextStyle(color: AppColors.mu, fontSize: 11)),
+                    ],
+                  )),
+                  if (isSelected)
+                    const Icon(Icons.check_circle_rounded, color: AppColors.grn, size: 18),
+                ]),
+              ),
+            );
+          }),
+          const SizedBox(height: 24),
+          const Text('Qual é o seu objetivo?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          const SizedBox(height: 10),
+          Row(children: [
+            for (int i = 0; i < objetivos.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: Builder(builder: (_) {
+                final o = objetivos[i];
+                final isSelected = _objetivo == o.$1;
+                return GestureDetector(
+                  onTap: () => setState(() => _objetivo = o.$1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.grn.withOpacity(0.1) : AppColors.surf,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.grn : AppColors.bord,
+                        width: isSelected ? 1.5 : 0.5,
+                      ),
+                    ),
+                    child: Column(children: [
+                      Text(o.$2, style: const TextStyle(fontSize: 26)),
+                      const SizedBox(height: 4),
+                      Text(o.$3, style: TextStyle(
+                        color: isSelected ? AppColors.grn : AppColors.tx,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 12,
+                      ), textAlign: TextAlign.center),
+                      Text(o.$4, style: const TextStyle(color: AppColors.mu, fontSize: 10), textAlign: TextAlign.center),
+                    ]),
+                  ),
+                );
+              })),
+            ],
+          ]),
+          const SizedBox(height: 24),
+          const Text('Tem alguma restrição alimentar?', style: TextStyle(fontSize: 13, color: AppColors.mu)),
+          const Text('Alergias, intolerâncias ou preferências', style: TextStyle(fontSize: 11, color: AppColors.mu)),
           const SizedBox(height: 8),
           Row(children: [
             Expanded(
@@ -200,7 +250,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
                 controller: _alergiasCtrl,
                 style: const TextStyle(color: AppColors.tx),
                 decoration: const InputDecoration(
-                  hintText: 'Ex: lactose, glúten',
+                  hintText: 'Ex: lactose, glúten, carne vermelha...',
                   hintStyle: TextStyle(color: AppColors.mu),
                   filled: true,
                   fillColor: AppColors.surf,
@@ -210,7 +260,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.surf),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.surf, elevation: 0),
               onPressed: () {
                 final v = _alergiasCtrl.text.trim();
                 if (v.isNotEmpty) {
@@ -245,7 +295,7 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: _avancarParaChat,
-              child: const Text('Próximo — Anamnese', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text('Próximo →', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],
@@ -266,11 +316,21 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: Text(
-                      'O agente nutricional vai fazer algumas perguntas sobre seus hábitos.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.mu),
-                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text('🤖', style: TextStyle(fontSize: 40)),
+                      SizedBox(height: 12),
+                      Text(
+                        'Vou te fazer algumas perguntas rápidas para personalizar seu plano.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.tx, fontSize: 14),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Leva menos de 2 minutos!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.mu, fontSize: 12),
+                      ),
+                    ]),
                   ),
                 );
               }
@@ -352,26 +412,43 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
 
     final met = p['metabolico'] as Map<String, dynamic>? ?? {};
     final macros = met['metas_macros'] as Map<String, dynamic>? ?? {};
+    final tmb = (met['tmb_kcal'] as num?)?.toInt() ?? 0;
+    final tdee = (met['tdee_kcal'] as num?)?.toInt() ?? 0;
+    final meta = (met['meta_calorica_kcal'] as num?)?.toInt() ?? 0;
+    final protComida = (macros['proteina_via_comida_g'] as num?)?.toInt() ?? 0;
+    final carb = (macros['carboidrato_g'] as num?)?.toInt() ?? 0;
+    final gord = (macros['gordura_g'] as num?)?.toInt() ?? 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Seu Perfil Metabólico',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          const Text('Seu plano está pronto!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.tx)),
           const SizedBox(height: 4),
-          const Text('Confirme seus dados calculados:',
-              style: TextStyle(fontSize: 13, color: AppColors.mu)),
+          const Text('Calculei tudo com base nos seus dados. Aqui está o que seu corpo precisa por dia:', style: TextStyle(fontSize: 13, color: AppColors.mu)),
           const SizedBox(height: 20),
-          _infoRow('TMB (Taxa Metabólica Basal)', '${(met['tmb_kcal'] as num?)?.toInt() ?? 0} kcal'),
-          _infoRow('TDEE (Gasto Total Diário)', '${(met['tdee_kcal'] as num?)?.toInt() ?? 0} kcal'),
-          _infoRow('Meta Calórica Diária', '${(met['meta_calorica_kcal'] as num?)?.toInt() ?? 0} kcal'),
-          const Divider(color: AppColors.bord, height: 24),
-          _infoRow('Proteína Total', '${(macros['proteina_total_g'] as num?)?.toInt() ?? 0}g'),
-          _infoRow('Proteína via Comida', '${(macros['proteina_via_comida_g'] as num?)?.toInt() ?? 0}g'),
-          _infoRow('Carboidrato', '${(macros['carboidrato_g'] as num?)?.toInt() ?? 0}g'),
-          _infoRow('Gordura', '${(macros['gordura_g'] as num?)?.toInt() ?? 0}g'),
+          _cardInfo('🔥', 'Você queima dormindo', '$tmb kcal', 'Seu metabolismo em repouso'),
+          const SizedBox(height: 8),
+          _cardInfo('⚡', 'Você gasta no dia a dia', '$tdee kcal', 'Incluindo sua rotina de atividades'),
+          const SizedBox(height: 8),
+          _cardInfo('🎯', 'Sua meta de calorias', '$meta kcal/dia', 'O alvo para atingir seu objetivo', destaque: true),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.bord, width: 0.5),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('DISTRIBUIÇÃO DOS NUTRIENTES', style: TextStyle(fontSize: 11, color: AppColors.mu, fontWeight: FontWeight.bold, letterSpacing: 0.6)),
+              const SizedBox(height: 10),
+              _infoRow('💪 Proteína', '${protComida}g'),
+              _infoRow('🌾 Carboidrato', '${carb}g'),
+              _infoRow('🥑 Gordura', '${gord}g'),
+            ]),
+          ),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -385,11 +462,34 @@ class _AnamneseScreenState extends ConsumerState<AnamneseScreen> {
               onPressed: _loading ? null : _confirmar,
               child: _loading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Confirmar e Entrar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : const Text('Começar a usar meu plano! 🚀', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _cardInfo(String emoji, String titulo, String valor, String subtitulo, {bool destaque = false}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: destaque ? AppColors.grn.withOpacity(0.08) : AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: destaque ? AppColors.grn.withOpacity(0.4) : AppColors.bord,
+          width: destaque ? 1.5 : 0.5,
+        ),
+      ),
+      child: Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 28)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(titulo, style: TextStyle(fontSize: 12, color: destaque ? AppColors.grn : AppColors.mu)),
+          Text(valor, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: destaque ? AppColors.grn : AppColors.tx)),
+          Text(subtitulo, style: const TextStyle(fontSize: 11, color: AppColors.mu)),
+        ])),
+      ]),
     );
   }
 

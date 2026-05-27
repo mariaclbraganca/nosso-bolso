@@ -6,7 +6,6 @@ import '../../providers/saude_provider.dart';
 import '../hub_screen.dart';
 import 'dashboard_diario_screen.dart';
 import 'historico_screen.dart';
-import 'sugestao_jantar_screen.dart';
 import 'perfil_metabolico_screen.dart';
 import 'registrar_refeicao_sheet.dart';
 
@@ -34,7 +33,6 @@ class _SaudeNavigationScreenState extends ConsumerState<SaudeNavigationScreen> {
     final screens = [
       DashboardDiarioScreen(membroId: membroSelecionadoId),
       HistoricoScreen(membroId: membroSelecionadoId),
-      SugestaoJantarScreen(membroId: membroSelecionadoId),
       PerfilMetabolicoScreen(membroId: membroSelecionadoId),
     ];
 
@@ -79,9 +77,8 @@ class _SaudeNavigationScreenState extends ConsumerState<SaudeNavigationScreen> {
         child: Row(
           children: [
             _navItem(Icons.today_rounded, 'Hoje', 0),
-            _navItem(Icons.show_chart_rounded, 'Histórico', 1),
-            _navItem(Icons.dinner_dining_rounded, 'Jantar', 2),
-            _navItem(Icons.person_rounded, 'Perfil', 3),
+            _navItem(Icons.trending_up_rounded, 'Progresso', 1),
+            _navItem(Icons.spa_rounded, 'Meu Plano', 2),
           ],
         ),
       ),

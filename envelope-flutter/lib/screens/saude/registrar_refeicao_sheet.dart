@@ -7,12 +7,19 @@ import '../../theme/app_theme.dart';
 import '../../providers/saude_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/saude_api_service.dart';
+import '../../services/streak_service.dart';
 
 class RegistrarRefeicaoSheet extends ConsumerStatefulWidget {
   final String membroId;
   final String familiaId;
+  final String? initialTipo;
 
-  const RegistrarRefeicaoSheet({super.key, required this.membroId, required this.familiaId});
+  const RegistrarRefeicaoSheet({
+    super.key,
+    required this.membroId,
+    required this.familiaId,
+    this.initialTipo,
+  });
 
   @override
   ConsumerState<RegistrarRefeicaoSheet> createState() => _RegistrarRefeicaoSheetState();
@@ -20,7 +27,7 @@ class RegistrarRefeicaoSheet extends ConsumerStatefulWidget {
 
 class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet> {
   String _modalidade = 'texto'; // texto | foto | barcode
-  String _tipoRefeicao = 'almoco';
+  late String _tipoRefeicao;
   bool _isCheatMeal = false;
   bool _loading = false;
   final _textoCtrl = TextEditingController();
@@ -42,7 +49,18 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
   @override
   void initState() {
     super.initState();
+    _tipoRefeicao = widget.initialTipo ?? _tipoByHour();
     _carregarRecentes();
+  }
+
+  String _tipoByHour() {
+    final h = DateTime.now().hour;
+    if (h < 10) return 'cafe_da_manha';
+    if (h < 12) return 'lanche_manha';
+    if (h < 15) return 'almoco';
+    if (h < 18) return 'lanche_tarde';
+    if (h < 22) return 'jantar';
+    return 'ceia';
   }
 
   Future<void> _carregarRecentes() async {
@@ -700,6 +718,9 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
 
       ref.invalidate(extratoDiarioProvider);
       ref.invalidate(refeicoesDiaProvider);
+      StreakService.recordActivity(widget.membroId).then((_) {
+        ref.invalidate(streakProvider);
+      });
 
       if (mounted) Navigator.pop(context);
     } catch (e) {

@@ -44,16 +44,16 @@ class _SemPerfilPrompt extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('🧬', style: TextStyle(fontSize: 56)),
+            const Text('🥗', style: TextStyle(fontSize: 56)),
             const SizedBox(height: 16),
-            const Text('Nenhum perfil metabólico', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.tx)),
+            const Text('Vamos montar seu plano!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.tx)),
             const SizedBox(height: 8),
-            const Text('Faça a anamnese para calcular seu TMB, TDEE e metas de macros personalizadas.', style: TextStyle(color: AppColors.mu, fontSize: 13), textAlign: TextAlign.center),
+            const Text('Responda algumas perguntas rápidas e vou calcular quantas calorias e proteínas você precisa por dia.', style: TextStyle(color: AppColors.mu, fontSize: 13), textAlign: TextAlign.center),
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.grn, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AnamneseScreen(membroId: membroId))),
-              child: const Text('Iniciar Anamnese', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('Criar meu plano', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -134,17 +134,23 @@ class _PerfilContentState extends State<_PerfilContent> {
   }
 
   Widget _buildMetabolico(Map<String, dynamic> met, Map<String, dynamic> macros) {
+    final tmb = (met['tmb_kcal'] as num?)?.toInt() ?? 0;
+    final tdee = (met['tdee_kcal'] as num?)?.toInt() ?? 0;
+    final meta = (met['meta_calorica_kcal'] as num?)?.toInt() ?? 0;
+    final protComida = (macros['proteina_via_comida_g'] as num?)?.toInt() ?? 0;
+    final carb = (macros['carboidrato_g'] as num?)?.toInt() ?? 0;
+    final gord = (macros['gordura_g'] as num?)?.toInt() ?? 0;
+
     return _Secao(
-      titulo: 'Metabolismo',
+      titulo: 'SEU PLANO DIÁRIO',
       children: [
-        _InfoRow('TMB', '${(met['tmb_kcal'] as num?)?.toInt() ?? 0} kcal'),
-        _InfoRow('TDEE', '${(met['tdee_kcal'] as num?)?.toInt() ?? 0} kcal'),
-        _InfoRow('Meta Calórica', '${(met['meta_calorica_kcal'] as num?)?.toInt() ?? 0} kcal', destaque: true),
+        _InfoRow('Calorias que você queima em repouso', '$tmb kcal'),
+        _InfoRow('Calorias que você gasta no dia a dia', '$tdee kcal'),
+        _InfoRow('Sua meta calórica diária', '$meta kcal', destaque: true),
         const Divider(color: AppColors.bord, height: 16),
-        _InfoRow('Proteína Total', '${(macros['proteina_total_g'] as num?)?.toInt() ?? 0}g'),
-        _InfoRow('Proteína via Comida', '${(macros['proteina_via_comida_g'] as num?)?.toInt() ?? 0}g', destaque: true),
-        _InfoRow('Carboidrato', '${(macros['carboidrato_g'] as num?)?.toInt() ?? 0}g'),
-        _InfoRow('Gordura', '${(macros['gordura_g'] as num?)?.toInt() ?? 0}g'),
+        _InfoRow('Proteína (via alimentação)', '${protComida}g', destaque: true),
+        _InfoRow('Carboidrato', '${carb}g'),
+        _InfoRow('Gordura', '${gord}g'),
       ],
     );
   }
@@ -244,21 +250,29 @@ class _PerfilContentState extends State<_PerfilContent> {
 
   Widget _buildAcoes(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.mu,
-          side: const BorderSide(color: AppColors.bord),
-          minimumSize: const Size(double.infinity, 44),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      child: Column(children: [
+        const Text(
+          'Seus dados mudaram? Refaça o plano para atualizar suas metas.',
+          style: TextStyle(fontSize: 12, color: AppColors.mu),
+          textAlign: TextAlign.center,
         ),
-        icon: const Icon(Icons.edit_rounded, size: 16),
-        label: const Text('Refazer Anamnese'),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => AnamneseScreen(membroId: widget.membroId)),
+        const SizedBox(height: 10),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.grn,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Refazer Meu Plano', style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AnamneseScreen(membroId: widget.membroId)),
+          ),
         ),
-      ),
+      ]),
     );
   }
 
@@ -363,58 +377,94 @@ class _PerfilContentState extends State<_PerfilContent> {
   }
 
   void _adicionarPausa(BuildContext context) {
-    final inicioCtrl = TextEditingController();
-    final fimCtrl = TextEditingController();
+    DateTime? inicio;
+    DateTime? fim;
     String motivoSelecionado = 'ferias';
+
+    String fmtDate(DateTime? dt) => dt == null
+        ? 'Selecionar'
+        : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
 
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          backgroundColor: AppColors.card,
-          title: const Text('Pausar Monitoramento', style: TextStyle(color: AppColors.tx)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: inicioCtrl, style: const TextStyle(color: AppColors.tx), decoration: const InputDecoration(labelText: 'Início (AAAA-MM-DD)', labelStyle: TextStyle(color: AppColors.mu))),
-              TextField(controller: fimCtrl, style: const TextStyle(color: AppColors.tx), decoration: const InputDecoration(labelText: 'Fim (AAAA-MM-DD)', labelStyle: TextStyle(color: AppColors.mu))),
-              const SizedBox(height: 10),
-              DropdownButton<String>(
-                value: motivoSelecionado,
-                isExpanded: true,
-                dropdownColor: AppColors.surf,
-                style: const TextStyle(color: AppColors.tx),
-                items: const [
-                  DropdownMenuItem(value: 'ferias', child: Text('🏖️ Férias')),
-                  DropdownMenuItem(value: 'doenca', child: Text('🤒 Doença')),
-                  DropdownMenuItem(value: 'evento_especial', child: Text('🎉 Evento Especial')),
-                  DropdownMenuItem(value: 'outro', child: Text('📌 Outro')),
-                ],
-                onChanged: (v) => setLocal(() => motivoSelecionado = v ?? 'ferias'),
+        builder: (ctx, setLocal) {
+          Future<void> pickDate(bool isInicio) async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: ctx,
+              initialDate: isInicio ? now : (inicio ?? now).add(const Duration(days: 1)),
+              firstDate: now.subtract(const Duration(days: 30)),
+              lastDate: now.add(const Duration(days: 365)),
+            );
+            if (picked != null) setLocal(() => isInicio ? inicio = picked : fim = picked);
+          }
+
+          return AlertDialog(
+            backgroundColor: AppColors.card,
+            title: const Text('🏖️ Pausar Monitoramento', style: TextStyle(color: AppColors.tx)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Em quais datas você quer pausar?', style: TextStyle(color: AppColors.mu, fontSize: 12)),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: _DatePickerTile(
+                    label: 'Início',
+                    value: fmtDate(inicio),
+                    onTap: () => pickDate(true),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: _DatePickerTile(
+                    label: 'Fim',
+                    value: fmtDate(fim),
+                    onTap: () => pickDate(false),
+                  )),
+                ]),
+                const SizedBox(height: 12),
+                DropdownButton<String>(
+                  value: motivoSelecionado,
+                  isExpanded: true,
+                  dropdownColor: AppColors.surf,
+                  style: const TextStyle(color: AppColors.tx),
+                  underline: const Divider(color: AppColors.bord),
+                  items: const [
+                    DropdownMenuItem(value: 'ferias', child: Text('🏖️ Férias')),
+                    DropdownMenuItem(value: 'doenca', child: Text('🤒 Doença')),
+                    DropdownMenuItem(value: 'evento_especial', child: Text('🎉 Evento Especial')),
+                    DropdownMenuItem(value: 'outro', child: Text('📌 Outro motivo')),
+                  ],
+                  onChanged: (v) => setLocal(() => motivoSelecionado = v ?? 'ferias'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.org),
+                onPressed: inicio == null || fim == null
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+                        String isoDate(DateTime dt) =>
+                            '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                        try {
+                          await SaudeApiService.atualizarPerfilMetabolico(widget.membroId, {
+                            'nova_pausa': {
+                              'inicio': isoDate(inicio!),
+                              'fim': isoDate(fim!),
+                              'motivo': motivoSelecionado,
+                            },
+                          });
+                          widget.ref.invalidate(perfilMetabolicoProvider);
+                        } catch (_) {}
+                      },
+                child: const Text('Salvar'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.org),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  await SaudeApiService.atualizarPerfilMetabolico(widget.membroId, {
-                    'nova_pausa': {
-                      'inicio': inicioCtrl.text.trim(),
-                      'fim': fimCtrl.text.trim(),
-                      'motivo': motivoSelecionado,
-                    },
-                  });
-                  widget.ref.invalidate(perfilMetabolicoProvider);
-                } catch (_) {}
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -469,7 +519,9 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.mu)),
+          Expanded(
+            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.mu)),
+          ),
           Text(
             value,
             style: TextStyle(
@@ -479,6 +531,41 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DatePickerTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  const _DatePickerTile({required this.label, required this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surf,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.bord, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: AppColors.mu)),
+            const SizedBox(height: 2),
+            Row(children: [
+              const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.grn),
+              const SizedBox(width: 4),
+              Text(value, style: const TextStyle(fontSize: 13, color: AppColors.tx, fontWeight: FontWeight.w500)),
+            ]),
+          ],
+        ),
       ),
     );
   }
