@@ -8,6 +8,7 @@ from routes.configuracoes import carregar_config_do_supabase
 from ia_compras.router import router as compras_router
 from ia_compras.mongo_client import ensure_indexes
 from ia_saude.router_saude import router as saude_router
+from ia_saude.router_exercicio import router_exercicio
 from ia_saude.mongo_client_saude import ensure_saude_indexes
 
 app = FastAPI(title="Envelope App API v2")
@@ -43,7 +44,8 @@ app.include_router(remanejar.router,  prefix="/remanejar",  tags=["remanejar"])
 app.include_router(insights.router,   prefix="/insights",    tags=["insights"])
 app.include_router(notificacoes.router, prefix="/notificacoes", tags=["notificacoes"])
 app.include_router(compras_router, prefix="/api/v1/compras", tags=["ia-compras"])
-app.include_router(saude_router,   prefix="/api/v1/saude",   tags=["ia-saude"])
+app.include_router(saude_router,     prefix="/api/v1/saude",   tags=["ia-saude"])
+app.include_router(router_exercicio, prefix="/api/v1/saude",   tags=["ia-exercicio"])
 app.include_router(configuracoes.router, prefix="/api/v1", tags=["configuracoes"])
 
 @app.get("/")

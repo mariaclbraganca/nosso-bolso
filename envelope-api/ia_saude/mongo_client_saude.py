@@ -30,6 +30,10 @@ def get_preparo_lote_col():
     return get_sync_db()["preparo_lote"]
 
 
+def get_registro_exercicio_col():
+    return get_sync_db()["registro_exercicio"]
+
+
 # ── Versões async (Motor) ────────────────────────────────────────────────────
 
 def get_async_perfil_metabolico_col():
@@ -78,4 +82,8 @@ def ensure_saude_indexes():
 
     db["relatorio_monitoramento"].create_index(
         [("membro_id", ASCENDING), ("criado_em", DESCENDING)]
+    )
+
+    db["registro_exercicio"].create_index(
+        [("membro_id", ASCENDING), ("data", DESCENDING)]
     )

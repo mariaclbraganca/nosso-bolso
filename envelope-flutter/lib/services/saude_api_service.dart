@@ -249,4 +249,43 @@ class SaudeApiService {
   static Future<Map<String, dynamic>> registrarPreparoLote(
     Map<String, dynamic> payload,
   ) => _post('/preparo-lote', payload);
+
+  // ── Exercício ─────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getCatalogoExercicios() async {
+    final res = await _getMap('/exercicio/catalogo');
+    return (res['catalogo'] as List).cast<Map<String, dynamic>>();
+  }
+
+  static Future<Map<String, dynamic>> getExercicioDia(
+    String membroId,
+    String data,
+  ) =>
+      _getMap('/exercicio/dia', params: {'membro_id': membroId, 'data': data});
+
+  static Future<Map<String, dynamic>> registrarExercicio(
+    Map<String, dynamic> payload,
+  ) =>
+      _post('/exercicio/registrar', payload);
+
+  static Future<void> deletarExercicio(
+    String exercicioItemId,
+    String membroId,
+    String data,
+  ) async {
+    final uri = Uri.parse('$baseUrl$_prefix/exercicio/$exercicioItemId')
+        .replace(queryParameters: {'membro_id': membroId, 'data': data});
+    final res = await http.delete(uri, headers: _headers())
+        .timeout(_kDefaultTimeout);
+    if (res.statusCode != 200) throw Exception('DELETE exercício: ${res.body}');
+  }
+
+  static Future<List<Map<String, dynamic>>> getHistoricoExercicio(
+    String membroId, {
+    int dias = 30,
+  }) async {
+    final res = await _getMap('/exercicio/historico',
+        params: {'membro_id': membroId, 'dias': '$dias'});
+    return (res['historico'] as List).cast<Map<String, dynamic>>();
+  }
 }

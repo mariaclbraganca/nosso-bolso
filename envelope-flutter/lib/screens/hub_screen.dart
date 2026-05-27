@@ -6,11 +6,13 @@ import '../providers/usuarios_provider.dart';
 import '../providers/envelopes_provider.dart';
 import '../providers/saude_provider.dart';
 import '../providers/astrix_provider.dart';
+import '../providers/exercicio_provider.dart';
 import '../services/notification_service.dart';
 import '../widgets/mascote/astrix_painter.dart';
 import 'notification_settings_screen.dart';
 import 'main_navigation_screen.dart';
 import 'saude/saude_navigation_screen.dart';
+import 'exercicio/exercicio_navigation_screen.dart';
 
 class HubScreen extends ConsumerWidget {
   const HubScreen({super.key});
@@ -51,7 +53,14 @@ class HubScreen extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 12),
-                  _ProximoModuloCard(),
+                  _ExercicioCard(
+                    membroId: membroId,
+                    onTap: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const ExercicioNavigationScreen()),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -203,53 +212,59 @@ class _NutricionalCard extends ConsumerWidget {
   }
 }
 
-class _ProximoModuloCard extends StatelessWidget {
+class _ExercicioCard extends ConsumerWidget {
+  final String membroId;
+  final VoidCallback onTap;
+  const _ExercicioCard({required this.membroId, required this.onTap});
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.bord, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Text('🏋️', style: const TextStyle(fontSize: 28)),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'EXERCÍCIO FÍSICO',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.mu,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Em breve — treinos, TDEE real e biofeedback',
-                  style: TextStyle(fontSize: 12, color: AppColors.mu),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.surf,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Em breve',
-              style: TextStyle(fontSize: 10, color: AppColors.mu),
-            ),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (membroId.isEmpty) {
+      return _ModuloCard(
+        emoji: '🏋️',
+        titulo: 'EXERCÍCIO FÍSICO',
+        cor: AppColors.org,
+        onTap: onTap,
+        resumo: 'Registre seus treinos',
+        detalhe: 'Calorias, histórico e progresso',
+      );
+    }
+
+    final hoje = DateTime.now();
+    final dataStr = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
+    final diaAsync = ref.watch(exercicioDiaProvider((membroId: membroId, data: dataStr)));
+
+    final resumo = diaAsync.when(
+      data: (dia) {
+        final kcal = (dia['total_calorias_kcal'] as num?)?.toInt() ?? 0;
+        final mins = (dia['total_duracao_min'] as num?)?.toInt() ?? 0;
+        if (kcal == 0) return 'Nenhum treino hoje';
+        final h = mins ~/ 60;
+        final m = mins % 60;
+        final tempo = h > 0 ? '${h}h ${m}min' : '${m}min';
+        return '$kcal kcal queimadas · $tempo';
+      },
+      loading: () => 'Carregando...',
+      error: (_, __) => 'Toque para abrir',
+    );
+
+    final detalhe = diaAsync.when(
+      data: (dia) {
+        final exercicios = (dia['exercicios'] as List?)?.length ?? 0;
+        if (exercicios == 0) return 'Adicione seu primeiro treino';
+        return '$exercicios exercício${exercicios != 1 ? 's' : ''} registrado${exercicios != 1 ? 's' : ''}';
+      },
+      loading: () => 'Calorias, histórico e progresso',
+      error: (_, __) => 'Calorias, histórico e progresso',
+    );
+
+    return _ModuloCard(
+      emoji: '🏋️',
+      titulo: 'EXERCÍCIO FÍSICO',
+      cor: AppColors.org,
+      onTap: onTap,
+      resumo: resumo,
+      detalhe: detalhe,
     );
   }
 }
