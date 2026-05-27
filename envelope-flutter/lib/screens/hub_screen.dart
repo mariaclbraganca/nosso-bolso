@@ -13,6 +13,7 @@ import 'notification_settings_screen.dart';
 import 'main_navigation_screen.dart';
 import 'saude/saude_navigation_screen.dart';
 import 'exercicio/exercicio_navigation_screen.dart';
+import 'insights_screen.dart';
 
 class HubScreen extends ConsumerWidget {
   const HubScreen({super.key});
@@ -94,6 +95,20 @@ class HubScreen extends ConsumerWidget {
             ],
           ),
           Row(children: [
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const InsightsScreen())),
+              child: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.pur.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.pur.withOpacity(0.4), width: 0.5),
+                ),
+                child: const Center(child: Text('🦄', style: TextStyle(fontSize: 18))),
+              ),
+            ),
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const NotificationSettingsScreen())),

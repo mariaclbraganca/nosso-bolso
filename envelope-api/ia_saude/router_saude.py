@@ -637,6 +637,35 @@ def _parse_quantity(quantity_str: str) -> float | None:
     return None
 
 
+# ── Astrix Insights ───────────────────────────────────────────────────────────
+
+@router.get("/insights")
+async def astrix_insights(
+    membro_id:  str = Query(...),
+    familia_id: str = Query(...),
+):
+    """Relatório semanal com IA correlacionando finanças, nutrição e exercício."""
+    from ia_saude.agente_insights import (
+        gerar_insights_semanais,
+        resumir_semana_financeira,
+        resumir_semana_nutricional,
+        resumir_semana_exercicio,
+    )
+
+    dados = {
+        "financeiro": resumir_semana_financeira(familia_id),
+        "nutricao":   resumir_semana_nutricional(membro_id),
+        "exercicio":  resumir_semana_exercicio(membro_id),
+    }
+
+    try:
+        resultado = await gerar_insights_semanais(dados)
+        resultado["dados_semana"] = dados
+        return resultado
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar insights: {exc}")
+
+
 # ── Hidratação ────────────────────────────────────────────────────────────────
 
 @router.post("/hidratacao")
