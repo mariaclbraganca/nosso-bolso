@@ -5,6 +5,7 @@ import '../../providers/usuarios_provider.dart';
 import '../../providers/exercicio_provider.dart';
 import '../../providers/saude_provider.dart';
 import '../../services/saude_api_service.dart';
+import '../../providers/unicorn_team.dart';
 
 class RegistrarTreinoSheet extends ConsumerStatefulWidget {
   final String data; // YYYY-MM-DD
@@ -297,6 +298,7 @@ class _RegistrarTreinoSheetState extends ConsumerState<RegistrarTreinoSheet> {
         'met':         ex['met'],
         'duracao_min': _duracaoMin,
       });
+      ref.happy('Treino registrado! Você está ficando mais forte! Orgulho! ⭐', mood: UnicornMood.celebrate);
       if (mounted) Navigator.of(context).pop();
       widget.onSaved();
     } catch (e) {

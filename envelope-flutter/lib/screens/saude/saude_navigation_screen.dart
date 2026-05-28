@@ -8,6 +8,8 @@ import 'dashboard_diario_screen.dart';
 import 'historico_screen.dart';
 import 'perfil_metabolico_screen.dart';
 import 'registrar_refeicao_sheet.dart';
+import '../../providers/unicorn_team.dart';
+import '../../widgets/mascote/unicorn_screen_guard.dart';
 
 class SaudeNavigationScreen extends ConsumerStatefulWidget {
   const SaudeNavigationScreen({super.key});
@@ -18,6 +20,17 @@ class SaudeNavigationScreen extends ConsumerStatefulWidget {
 
 class _SaudeNavigationScreenState extends ConsumerState<SaudeNavigationScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (UnicornScreenGuard.shouldShow('saude')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.sweet('Cuidar de você é o investimento mais importante que existe! 💖');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

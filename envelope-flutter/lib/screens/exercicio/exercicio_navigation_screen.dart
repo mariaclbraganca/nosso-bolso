@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
 import '../hub_screen.dart';
+import '../../providers/unicorn_team.dart';
+import '../../widgets/mascote/unicorn_screen_guard.dart';
 import 'dashboard_exercicio_screen.dart';
 import 'historico_exercicio_screen.dart';
 
@@ -20,6 +22,12 @@ class _ExercicioNavigationScreenState extends ConsumerState<ExercicioNavigationS
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    if (UnicornScreenGuard.shouldShow('exercicio')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.happy('Hora de suar! Cada treino te aproxima da melhor versão de você! 💪');
+      });
+    }
   }
 
   @override

@@ -2,6 +2,7 @@ import '../providers/usuarios_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/envelopes_provider.dart';
+import '../providers/unicorn_team.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants.dart';
@@ -70,6 +71,7 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
         'comprovante_url': imageUrl,
       });
 
+      ref.geronimo('Gasto registrado! Cada centavo anotado é um passo à frente! 💸');
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {

@@ -11,6 +11,8 @@ import '../widgets/relatorios/user_spending_bars.dart';
 import '../widgets/relatorios/budget_comparison_chart.dart';
 import '../widgets/relatorios/spending_trend_chart.dart';
 import '../widgets/relatorios/top_expenses_card.dart';
+import '../widgets/mascote/unicorn_screen_guard.dart';
+import '../providers/unicorn_team.dart';
 
 class RelatoriosScreen extends ConsumerWidget {
   const RelatoriosScreen({super.key});
@@ -20,7 +22,8 @@ class RelatoriosScreen extends ConsumerWidget {
     final envelopesAsync = ref.watch(envelopesProvider);
     final mesAtu = ref.watch(mesAtualProvider);
 
-    return envelopesAsync.when(
+    return Stack(children: [
+    envelopesAsync.when(
       data: (envelopes) {
         final transacoes = ref.watch(transacoesComDetalhesProvider);
         final mesAntVal = mesAnterior(mesAtu);
@@ -127,7 +130,14 @@ class RelatoriosScreen extends ConsumerWidget {
       error: (e, stack) => Scaffold(
         body: Center(child: Text('Erro ao carregar gráficos: $e', style: const TextStyle(color: AppColors.red))),
       ),
-    );
+    ),
+    UnicornScreenGuard(
+      screenId: 'relatorios',
+      onFirstMount: (r) => r.happy(
+        'Hora de analisar! Os números contam a história do seu sucesso financeiro.',
+      ),
+    ),
+    ]);
   }
 
   List<Widget> _gerarSugestoes(

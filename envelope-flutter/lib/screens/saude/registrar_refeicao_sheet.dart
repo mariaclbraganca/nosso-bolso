@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/saude_provider.dart';
+import '../../providers/unicorn_team.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/saude_api_service.dart';
 import '../../services/streak_service.dart';
@@ -722,6 +723,7 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
         ref.invalidate(streakProvider);
       });
 
+      ref.sweet('Refeição registrada! Nutrição é amor próprio. Continue assim! 🌸');
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() => _loading = false);

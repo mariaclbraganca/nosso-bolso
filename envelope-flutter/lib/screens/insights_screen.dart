@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../providers/insights_provider.dart';
+import '../providers/astrix_provider.dart';
+import '../widgets/mascote/astrix_painter.dart' show AstrixMood;
+import '../widgets/mascote/unicorn_screen_guard.dart';
 
 class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({super.key});
@@ -10,7 +13,8 @@ class InsightsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final insightsAsync = ref.watch(astrixInsightsProvider);
 
-    return Scaffold(
+    return Stack(children: [
+    Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: AppColors.surf,
@@ -38,7 +42,15 @@ class InsightsScreen extends ConsumerWidget {
         error: (e, _) => _Error(error: '$e', onRetry: () => ref.invalidate(astrixInsightsProvider)),
         data: (data) => data.isEmpty ? _Empty() : _InsightsContent(data: data),
       ),
-    );
+    ),
+    UnicornScreenGuard(
+      screenId: 'insights',
+      onFirstMount: (r) => r.astrix(
+        'Deixa eu compartilhar insights especiais sobre seu dinheiro...',
+        mood: AstrixMood.thinking,
+      ),
+    ),
+    ]);
   }
 }
 

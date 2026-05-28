@@ -7,6 +7,9 @@ import '../services/api_service.dart';
 import '../providers/usuarios_provider.dart';
 import '../providers/fixos_provider.dart';
 import 'form_fixo_sheet.dart';
+import '../providers/astrix_provider.dart';
+import '../widgets/mascote/astrix_painter.dart' show AstrixMood;
+import '../widgets/mascote/unicorn_screen_guard.dart';
 
 class FixosScreen extends ConsumerStatefulWidget {
   const FixosScreen({super.key});
@@ -16,6 +19,20 @@ class FixosScreen extends ConsumerStatefulWidget {
 }
 
 class _FixosScreenState extends ConsumerState<FixosScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (UnicornScreenGuard.shouldShow('fixos')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.astrix(
+          'Suas despesas fixas — o alicerce do seu orçamento mensal. Vamos verificar!',
+          mood: AstrixMood.wave,
+        );
+      });
+    }
+  }
+
   Future<void> _togglePago(String id, bool val) async {
     try {
       // REGRA SPEC-01/02: Usar o backend para gerenciar o toggle e o saldo atômico

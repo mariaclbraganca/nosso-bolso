@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../providers/astrix_provider.dart';
+import '../../widgets/mascote/astrix_painter.dart' show AstrixMood;
+import '../../widgets/mascote/unicorn_screen_guard.dart';
 import 'contas_screen.dart';
 import 'metas_screen.dart';
 
@@ -29,6 +32,13 @@ class _PlanosScreenState extends State<PlanosScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Column(
       children: [
+        UnicornScreenGuard(
+          screenId: 'planos',
+          onFirstMount: (r) => r.astrix(
+            'Metas e contas planejadas. O futuro começa com um bom plano!',
+            mood: AstrixMood.thinking,
+          ),
+        ),
         Container(
           color: AppColors.surf,
           child: TabBar(

@@ -12,6 +12,8 @@ import '../widgets/dashboard/envelope_health_summary.dart';
 import '../widgets/dashboard/envelope_grid_item.dart';
 import 'envelope_detail_sheet.dart';
 import 'abastecer_sheet.dart';
+import '../widgets/mascote/unicorn_screen_guard.dart';
+import '../providers/unicorn_team.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -28,6 +30,14 @@ class DashboardScreen extends ConsumerWidget {
         color: AppColors.acc,
         child: CustomScrollView(
           slivers: [
+            SliverToBoxAdapter(
+              child: UnicornScreenGuard(
+                screenId: 'dashboard',
+                onFirstMount: (r) => r.happy(
+                  'Seus envelopes estão esperando! Controle cada centavo com inteligência.',
+                ),
+              ),
+            ),
             const SliverToBoxAdapter(child: DashboardHeader()),
 
             // 🚨 Alert banner (envelopes negativos)

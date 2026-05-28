@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import '../providers/usuarios_provider.dart';
 import '../providers/transacoes_provider.dart';
+import '../providers/unicorn_team.dart';
+import '../widgets/mascote/unicorn_screen_guard.dart';
 import '../providers/mes_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants.dart';
@@ -41,6 +43,12 @@ class _ExtratoScreenState extends ConsumerState<ExtratoScreen> {
         ref.read(pagedTransacoesProvider.notifier).fetchNextPage();
       }
     });
+    if (UnicornScreenGuard.shouldShow('extrato')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.geronimo('Que extrato rico em histórias! Cada gasto conta sua jornada financeira! 💸');
+      });
+    }
   }
 
   @override
