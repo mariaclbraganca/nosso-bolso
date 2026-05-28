@@ -57,15 +57,31 @@ class ContasScreen extends ConsumerWidget {
                       children: contas.map((c) => _ContaTile(
                         conta: c,
                         onPagar: () async {
-                          final pago = !(c['pago'] as bool? ?? false);
-                          await FinanceiroExtService.marcarPaga(c['_id'] as String, pago: pago);
-                          ref.invalidate(contasMesProvider);
-                          ref.invalidate(resumoContasProvider);
+                          try {
+                            final pago = !(c['pago'] as bool? ?? false);
+                            await FinanceiroExtService.marcarPaga(c['_id'] as String, pago: pago);
+                            ref.invalidate(contasMesProvider);
+                            ref.invalidate(resumoContasProvider);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+                              );
+                            }
+                          }
                         },
                         onDeletar: () async {
-                          await FinanceiroExtService.deletarConta(c['_id'] as String);
-                          ref.invalidate(contasMesProvider);
-                          ref.invalidate(resumoContasProvider);
+                          try {
+                            await FinanceiroExtService.deletarConta(c['_id'] as String);
+                            ref.invalidate(contasMesProvider);
+                            ref.invalidate(resumoContasProvider);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+                              );
+                            }
+                          }
                         },
                       )).toList(),
                     ),
@@ -77,12 +93,6 @@ class ContasScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.blu,
-        foregroundColor: Colors.white,
-        onPressed: () => _abrirAdicionar(context, ref),
-        child: const Icon(Icons.add_rounded),
       ),
     );
   }

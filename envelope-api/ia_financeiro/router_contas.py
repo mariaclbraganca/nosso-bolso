@@ -71,7 +71,9 @@ def criar_conta(payload: dict):
 
 
 @router_contas.patch("/contas-pagar/{conta_id}/pagar")
-def marcar_paga(conta_id: str, payload: dict = {}):
+def marcar_paga(conta_id: str, payload: dict = None):
+    if payload is None:
+        payload = {}
     col  = get_contas_pagar_col()
     pago = payload.get("pago", True)
     col.update_one(

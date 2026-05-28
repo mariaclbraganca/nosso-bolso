@@ -191,9 +191,11 @@ class _AdicionarMetaSheetState extends ConsumerState<AdicionarMetaSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() => _salvando = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+        );
+      }
     }
   }
 }

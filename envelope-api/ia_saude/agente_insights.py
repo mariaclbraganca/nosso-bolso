@@ -43,14 +43,30 @@ async def gerar_insights_semanais(dados: dict) -> dict:
 
     raw = await chamar_gemini({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 800},
+        "generationConfig": {
+            "temperature": 0.3,
+            "maxOutputTokens": 1500,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     })
 
     raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+
+    # Remove markdown fences em qualquer formato (```json, ```, etc.)
+    if "```" in raw:
+        for part in raw.split("```"):
+            part = part.strip()
+            if part.startswith("json"):
+                part = part[4:].strip()
+            if part.startswith("{"):
+                raw = part
+                break
+
+    # Extrai o primeiro objeto JSON da string, caso haja texto antes/depois
+    start = raw.find("{")
+    end   = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        raw = raw[start : end + 1]
 
     try:
         return json.loads(raw)
@@ -68,21 +84,23 @@ async def gerar_insights_semanais(dados: dict) -> dict:
 
 
 def resumir_semana_financeira(familia_id: str) -> dict:
-    """Busca resumo financeiro dos últimos 7 dias (envelopes + transações)."""
+    """Busca resumo financeiro dos últimos 7 dias via Supabase (PostgreSQL)."""
     try:
-        from ia_compras.mongo_client import get_sync_db
-        db = get_sync_db()
-        hoje = datetime.now()
-        inicio = (hoje - timedelta(days=7)).strftime("%Y-%m-%d")
-
-        transacoes = list(db["transacoes"].find(
-            {"familia_id": familia_id, "data": {"$gte": inicio}},
-            {"valor": 1, "tipo": 1, "categoria": 1},
-        ).limit(50))
-
-        total_gastos = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "gasto")
+        from database import get_supabase
+        inicio = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        sb = get_supabase()
+        res = (
+            sb.table("transacoes")
+            .select("valor, tipo")
+            .eq("familia_id", familia_id)
+            .gte("data", inicio)
+            .is_("deleted_at", "null")
+            .limit(50)
+            .execute()
+        )
+        transacoes = res.data or []
+        total_gastos  = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "gasto")
         total_receita = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "receita")
-
         return {
             "total_gastos_7d":  round(total_gastos, 2),
             "total_receita_7d": round(total_receita, 2),

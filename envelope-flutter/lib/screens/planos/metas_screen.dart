@@ -23,24 +23,41 @@ class MetasScreen extends ConsumerWidget {
               ? _EmptyState(onAdd: () => _abrirAdicionar(context, ref))
               : ListView(
                   padding: const EdgeInsets.all(16),
-                  children: metas.map((m) => _MetaCard(
-                    meta: m,
-                    onContribuir: () => _contribuir(context, ref, m),
-                    onDeletar: () async {
-                      await FinanceiroExtService.deletarMeta(m['_id'] as String);
-                      ref.invalidate(metasProvider);
-                    },
-                  )).toList(),
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('METAS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mu, letterSpacing: 1.2)),
+                        TextButton.icon(
+                          onPressed: () => _abrirAdicionar(context, ref),
+                          icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.acc),
+                          label: const Text('Adicionar', style: TextStyle(color: AppColors.acc, fontSize: 13)),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...metas.map((m) => _MetaCard(
+                      meta: m,
+                      onContribuir: () => _contribuir(context, ref, m),
+                      onDeletar: () async {
+                        try {
+                          await FinanceiroExtService.deletarMeta(m['_id'] as String);
+                          ref.invalidate(metasProvider);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+                            );
+                          }
+                        }
+                      },
+                    )),
+                  ],
                 ),
           loading: () => const Center(child: CircularProgressIndicator(color: AppColors.acc)),
           error: (e, _) => Center(child: Text('Erro: $e', style: const TextStyle(color: AppColors.red))),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.acc,
-        foregroundColor: Colors.black,
-        onPressed: () => _abrirAdicionar(context, ref),
-        child: const Icon(Icons.add_rounded),
       ),
     );
   }
@@ -262,9 +279,11 @@ class _ContribuirSheetState extends ConsumerState<_ContribuirSheet> {
       widget.onSaved();
     } catch (e) {
       setState(() => _salvando = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+        );
+      }
     }
   }
 }

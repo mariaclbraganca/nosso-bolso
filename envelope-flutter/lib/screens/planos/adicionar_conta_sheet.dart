@@ -233,7 +233,7 @@ class _AdicionarContaSheetState extends ConsumerState<AdicionarContaSheet> {
 
       // Agenda notificação 2 dias antes
       await NotificationService.agendarAlertaConta(
-        contaId:   doc['_id'].hashCode,
+        contaId:   doc['_id'].hashCode.abs(),
         nomeConta: nome,
         valor:     valor,
         vencimento: _vencimento!,
@@ -242,9 +242,11 @@ class _AdicionarContaSheetState extends ConsumerState<AdicionarContaSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() => _salvando = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
+        );
+      }
     }
   }
 }

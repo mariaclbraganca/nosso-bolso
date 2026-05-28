@@ -128,7 +128,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     final hidraAsync     = ref.watch(hidratacaoDiaProvider((membroId: widget.membroId, data: _hoje)));
     final streakAsync    = ref.watch(streakProvider(widget.membroId));
     final exercicioAsync = ref.watch(exercicioDiaProvider((membroId: widget.membroId, data: _hoje)));
-    final kcalExercicio  = (exercicioAsync.asData?.value?['total_calorias_kcal'] as num?)?.toInt() ?? 0;
+    final kcalExercicio  = (exercicioAsync.asData?.value['total_calorias_kcal'] as num?)?.toInt() ?? 0;
 
     // ── Astrix triggers ──────────────────────────────────────────────────────
     ref.listen(extratoDiarioProvider((membroId: widget.membroId, data: _hoje)), (_, next) {

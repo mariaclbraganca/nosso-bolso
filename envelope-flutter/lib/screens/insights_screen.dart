@@ -8,7 +8,7 @@ class InsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final insightsAsync = ref.watch(insightsProvider);
+    final insightsAsync = ref.watch(astrixInsightsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -29,13 +29,13 @@ class InsightsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.mu, size: 20),
-            onPressed: () => ref.invalidate(insightsProvider),
+            onPressed: () => ref.invalidate(astrixInsightsProvider),
           ),
         ],
       ),
       body: insightsAsync.when(
         loading: () => _Loading(),
-        error: (e, _) => _Error(error: '$e', onRetry: () => ref.invalidate(insightsProvider)),
+        error: (e, _) => _Error(error: '$e', onRetry: () => ref.invalidate(astrixInsightsProvider)),
         data: (data) => data.isEmpty ? _Empty() : _InsightsContent(data: data),
       ),
     );
