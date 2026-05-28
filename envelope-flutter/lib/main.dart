@@ -10,7 +10,7 @@ import 'package:envelope_flutter/screens/onboarding_screen.dart';
 import 'package:envelope_flutter/providers/auth_provider.dart';
 import 'package:envelope_flutter/providers/usuarios_provider.dart';
 import 'package:envelope_flutter/services/notification_service.dart';
-import 'package:envelope_flutter/widgets/mascote/astrix_overlay.dart';
+import 'package:envelope_flutter/widgets/mascote/unicorn_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +42,7 @@ class NossoBolsoApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       builder: (context, child) =>
-          AstrixOverlay(child: child ?? const SizedBox.shrink()),
+          UnicornOverlay(child: child ?? const SizedBox.shrink()),
       home: authState.when(
         data: (state) {
           if (state.session != null) {
