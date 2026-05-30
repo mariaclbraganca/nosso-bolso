@@ -45,7 +45,7 @@ class _UnicornSplashScreenState extends State<UnicornSplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     )..forward();
-    _navTimer = Timer(const Duration(milliseconds: 5800), _navigate);
+    _navTimer = Timer(const Duration(milliseconds: 9000), _navigate);
   }
 
   @override
