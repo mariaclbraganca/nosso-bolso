@@ -85,7 +85,7 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
     return fixosAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Erro: $e'))),
-      data: (fixos) => _buildBody(fixos),
+      data: (_) => _buildBody(ref.watch(fixosMesAtualProvider)),
     );
   }
 
