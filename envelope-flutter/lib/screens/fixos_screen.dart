@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import '../providers/usuarios_provider.dart';
 import '../providers/fixos_provider.dart';
+import '../providers/mes_provider.dart';
 import 'form_fixo_sheet.dart';
 import '../providers/astrix_provider.dart';
 import '../widgets/mascote/astrix_painter.dart' show AstrixMood;
@@ -98,11 +99,23 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('GASTOS FIXOS', style: TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.5)),
-            Text('Separados dos envelopes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => ref.read(mesAtualProvider.notifier).state = mesAnterior(ref.read(mesAtualProvider)),
+                  child: const Icon(Icons.chevron_left, size: 18, color: AppColors.mu),
+                ),
+                Text(mesLabel(ref.watch(mesAtualProvider)), style: const TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.5)),
+                GestureDetector(
+                  onTap: () => ref.read(mesAtualProvider.notifier).state = mesProximo(ref.read(mesAtualProvider)),
+                  child: const Icon(Icons.chevron_right, size: 18, color: AppColors.mu),
+                ),
+              ],
+            ),
+            const Text('Gastos Fixos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
