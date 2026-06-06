@@ -77,36 +77,29 @@ class NfceScraper {
                 var xhrIframe = new XMLHttpRequest();
                 xhrIframe.open('GET', urlIframe, true);
                 xhrIframe.onload = function() {
+                  var iframeStatus = xhrIframe.status;
+                  var iframePreview = xhrIframe.responseText.substring(0, 100);
                   // Passo 2: agora busca o XML da DANFE
                   var xhr = new XMLHttpRequest();
                   xhr.open('GET', urlDados, true);
                   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                   xhr.setRequestHeader('Referer', urlIframe);
                   xhr.onload = function() {
-                    if (xhr.status === 200) { resolve(xhr.responseText); }
-                    else { reject('DANFE HTTP ' + xhr.status + ' body=' + xhr.responseText.substring(0,200)); }
+                    var body = xhr.responseText;
+                    var diag = 'iframe=' + iframeStatus + ' preview=[' + iframePreview + '] | danfe=' + xhr.status + ' len=' + body.length + ' preview=[' + body.substring(0, 200) + ']';
+                    if (xhr.status === 200 && body.length > 10) { resolve(body); }
+                    else { reject('DIAG: ' + diag); }
                   };
-                  xhr.onerror = function() { reject('DANFE network error'); };
+                  xhr.onerror = function() { reject('DANFE onerror. iframe_status=' + iframeStatus); };
                   xhr.timeout = 25000;
-                  xhr.ontimeout = function() { reject('DANFE timeout'); };
+                  xhr.ontimeout = function() { reject('DANFE timeout. iframe_status=' + iframeStatus); };
                   xhr.send();
                 };
                 xhrIframe.onerror = function() {
-                  // Iframe falhou, tenta DANFE direto mesmo assim
-                  var xhr = new XMLHttpRequest();
-                  xhr.open('GET', urlDados, true);
-                  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                  xhr.onload = function() {
-                    if (xhr.status === 200) { resolve(xhr.responseText); }
-                    else { reject('DANFE direct HTTP ' + xhr.status); }
-                  };
-                  xhr.onerror = function() { reject('DANFE direct network error'); };
-                  xhr.timeout = 25000;
-                  xhr.ontimeout = function() { reject('DANFE direct timeout'); };
-                  xhr.send();
+                  reject('iframe onerror — CORS ou rede bloqueando XHR para ' + urlIframe);
                 };
                 xhrIframe.timeout = 10000;
-                xhrIframe.ontimeout = function() { xhrIframe.onerror(); };
+                xhrIframe.ontimeout = function() { reject('iframe timeout'); };
                 xhrIframe.send();
               });
             })()
