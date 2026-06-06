@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+_GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
 
 
 def _carregar_chaves() -> list[str]:

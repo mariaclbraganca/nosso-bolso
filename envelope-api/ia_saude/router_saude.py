@@ -803,7 +803,7 @@ Retorne APENAS JSON:
     import os as _os
     api_key = _os.environ.get("GEMINI_API_KEY", "")
     model   = _os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    url     = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    url     = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
     body    = {
         "contents": [{"parts": [
             {"inline_data": {"mime_type": mime_type, "data": imagem_b64}},

@@ -111,7 +111,7 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
     prompt = _montar_prompt_extracao(html_bruto, schema)
     _logger.info("Gemini prompt len=%d chaves=%d", len(prompt), len(todas_chaves))
     modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+    url = f"https://generativelanguage.googleapis.com/v1/models/{modelo}:generateContent"
     last_err: Exception | None = None
 
     for api_key in todas_chaves:

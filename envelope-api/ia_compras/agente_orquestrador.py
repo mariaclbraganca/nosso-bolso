@@ -16,7 +16,7 @@ def _chamar_gemini(prompt: str) -> str:
     model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent"
     with httpx.Client(timeout=45.0) as client:
         resp = client.post(
             url,
