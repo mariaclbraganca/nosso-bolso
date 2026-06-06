@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from ia_compras.models_compras import (
-    IngestaoRequest, CompraExtraida, FeedbackItemRequest,
+    IngestaoRequest, IngestaoExtraidaRequest, CompraExtraida, FeedbackItemRequest,
     ConfirmarCompraRequest, MergeProdutoRequest, ListaComprasGerada, ItemExtraido,
     AtualizarPerfilRequest,
 )
@@ -78,6 +78,70 @@ def _processar_background(qr_url: str, familia_id: str, html_payload: str | None
             })
         except Exception as inner:
             logger.error(f"Falha ao registrar erro no Mongo: {inner}")
+
+
+@router.post("/salvar_extraido", status_code=201)
+def salvar_extraido(
+    payload: IngestaoExtraidaRequest,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Recebe JSON já extraído pelo Gemini no mobile e salva no MongoDB.
+
+    Usado quando o app chama o Gemini diretamente (IP residencial do usuário
+    — sem bloqueio geo do Google) e envia o resultado estruturado para o backend
+    apenas gravar.
+    """
+    from ia_compras.agente_extrator import _resolver_produto, _parse_data
+    from ia_compras.models_compras import CategoriaItem
+    from ia_compras.shelf_life import calcular_data_feedback
+    from uuid import uuid4
+
+    fam = assert_mesma_familia(user, payload.familia_id)
+    data_compra = _parse_data(payload.data_compra) or datetime.now()
+
+    itens_validados = []
+    for item in payload.itens:
+        try:
+            cat = CategoriaItem(item.categoria)
+        except ValueError:
+            cat = CategoriaItem.OUTROS
+
+        produto_ref_id = _resolver_produto(item.nome_padronizado, cat, fam, item.valor_unitario)
+        data_fb = calcular_data_feedback(data_compra, cat)
+
+        itens_validados.append({
+            "nome_original": item.nome_original or item.nome_padronizado,
+            "nome_padronizado": item.nome_padronizado,
+            "produto_ref_id": produto_ref_id,
+            "categoria": cat.value,
+            "quantidade": item.quantidade,
+            "unidade": item.unidade,
+            "valor_unitario": item.valor_unitario,
+            "valor_total_item": item.valor_total_item,
+            "status_consumo": "ativo",
+            "data_feedback_estimada": data_fb.isoformat(),
+        })
+
+    if not itens_validados or payload.valor_total <= 0:
+        raise HTTPException(422, "JSON extraído inválido: sem itens ou valor_total zerado")
+
+    compra_id = str(uuid4())
+    doc = {
+        "compra_id": compra_id,
+        "familia_id": fam,
+        "data_compra": data_compra.isoformat(),
+        "supermercado": payload.supermercado or "Desconhecido",
+        "valor_total": payload.valor_total,
+        "qr_code_url": payload.qr_code_url,
+        "status_integracao": "pendente",
+        "transacao_supabase_id": None,
+        "itens": itens_validados,
+        "created_at": datetime.now().isoformat(),
+        "llm_provider": "gemini_mobile",
+    }
+    get_compras_collection().insert_one(doc)
+    logger.info("salvar_extraido: compra_id=%s familia=%s itens=%d", compra_id, fam, len(itens_validados))
+    return {"compra_id": compra_id, "status": "pendente"}
 
 
 @router.get("/pendentes", response_model=list[CompraExtraida])

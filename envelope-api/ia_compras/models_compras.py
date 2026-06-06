@@ -77,6 +77,27 @@ class PlanejamentoRequest(BaseModel):
         return v
 
 
+class ItemExtraidoInput(BaseModel):
+    nome_original: str = ""
+    nome_padronizado: str
+    categoria: str
+    quantidade: float = 1.0
+    unidade: str = "un"
+    valor_unitario: float = 0.0
+    valor_total_item: float = 0.0
+
+
+class IngestaoExtraidaRequest(BaseModel):
+    """Payload quando o cliente (mobile) já rodou o Gemini localmente e envia
+    o JSON extraído pronto — o backend só salva no MongoDB sem chamar LLM."""
+    familia_id: UUID
+    qr_code_url: str
+    supermercado: str = "Desconhecido"
+    data_compra: str  # YYYY-MM-DD
+    valor_total: float
+    itens: list[ItemExtraidoInput]
+
+
 class MergeProdutoRequest(BaseModel):
     produto_manter_id: str
     produto_remover_id: str

@@ -13,6 +13,7 @@ import 'configuracao_ia_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'qr_scanner_screen.dart';
 import '../services/nfce_scraper.dart';
+import '../services/gemini_nfce_service.dart';
 
 class ComprasPendentesScreen extends ConsumerStatefulWidget {
   const ComprasPendentesScreen({super.key});
@@ -265,10 +266,8 @@ class _ComprasPendentesScreenState
 
   Future<void> _enviarIngestao(String familiaId, String qrUrl) async {
     try {
-      // Raspagem local: o backend (Render AWS US-East) é bloqueado pela
-      // SEFAZ-GO, então fazemos do celular (IP residencial BR) e mandamos
-      // o HTML pronto. Se o scrape local falhar (ex: SEFAZ não suportada),
-      // segue sem html_payload e o backend tenta como fallback.
+      // Passo 1: raspa o HTML da SEFAZ no celular (IP residencial BR — SEFAZ e
+      // Google Gemini bloqueiam o IP do Render/AWS US-East)
       String? htmlPayload;
       try {
         if (mounted) {
@@ -280,51 +279,66 @@ class _ComprasPendentesScreenState
         }
         htmlPayload = await NfceScraper.raspar(qrUrl);
       } catch (e) {
-        // segue sem html — backend tenta baixar (pode falhar)
-        debugPrint('Scrape local falhou, deixando o backend tentar: $e');
+        debugPrint('Scrape local falhou: $e');
       }
 
-      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/ingestao');
+      if (htmlPayload == null) {
+        // Sem HTML não há como chamar o Gemini — usa fluxo legado (pode falhar no Render)
+        await _enviarIngestaoLegado(familiaId, qrUrl, null);
+        return;
+      }
+
+      // Passo 2: chama o Gemini diretamente do celular para extrair os dados
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Analisando nota com IA...'),
+          backgroundColor: AppColors.acc,
+          duration: Duration(seconds: 10),
+        ));
+      }
+
+      Map<String, dynamic> extraido;
+      try {
+        extraido = await GeminiNfceService.extrairDaNota(htmlPayload);
+      } on GeminiNfceException catch (e) {
+        debugPrint('Gemini mobile falhou ($e) — tentando via backend');
+        await _enviarIngestaoLegado(familiaId, qrUrl, htmlPayload);
+        return;
+      }
+
+      // Passo 3: envia o JSON extraído para o backend salvar (sem chamar LLM lá)
+      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/salvar_extraido');
       final resp = await http.post(uri,
           headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'familia_id': familiaId,
             'qr_code_url': qrUrl,
-            if (htmlPayload != null) 'html_payload': htmlPayload,
+            'supermercado': extraido['loja'] ?? extraido['supermercado'] ?? 'Desconhecido',
+            'data_compra': extraido['data_compra'] ?? DateTime.now().toIso8601String().substring(0, 10),
+            'valor_total': (extraido['valor_total'] ?? 0).toDouble(),
+            'itens': (extraido['itens'] as List? ?? []).map((item) => {
+              'nome_original': item['nome_original'] ?? item['nome_padronizado'] ?? '',
+              'nome_padronizado': item['nome_padronizado'] ?? item['nome_original'] ?? '',
+              'categoria': _mapearCategoria(item['categoria'] as String? ?? ''),
+              'quantidade': (item['quantidade'] ?? 1).toDouble(),
+              'unidade': item['unidade'] ?? 'un',
+              'valor_unitario': (item['valor_unitario'] ?? 0).toDouble(),
+              'valor_total_item': (item['valor_total_item'] ?? 0).toDouble(),
+            }).toList(),
           }));
-      if (resp.statusCode == 202) {
+
+      if (resp.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('NFC-e enviada! Processando... aguarde.'),
+            content: Text('✅ Compra processada! Escolha o envelope.'),
             backgroundColor: AppColors.grn,
             duration: Duration(seconds: 5),
           ));
-          // Polling: tenta 6x com 5s de intervalo (30s total)
-          for (int i = 0; i < 6; i++) {
-            await Future.delayed(const Duration(seconds: 5));
-            if (!mounted) return;
-            ref.invalidate(comprasPendentesProvider);
-            ref.invalidate(comprasFalhasProvider);
-            final pendentes = await ref.read(comprasPendentesProvider.future);
-            if (pendentes.isNotEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('✅ Compra processada! Escolha o envelope.'),
-                backgroundColor: AppColors.acc,
-              ));
-              return;
-            }
-          }
-          // Se não apareceu após polling, avisar
-          if (mounted) {
-            ref.invalidate(comprasFalhasProvider);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Processamento demorou. Verifique falhas ou tente novamente.'),
-              backgroundColor: AppColors.org,
-            ));
-          }
+          ref.invalidate(comprasPendentesProvider);
+          ref.invalidate(comprasFalhasProvider);
         }
       } else {
-        throw Exception(resp.body);
+        throw Exception('Backend retornou ${resp.statusCode}: ${resp.body}');
       }
     } catch (e) {
       if (mounted) {
@@ -332,6 +346,78 @@ class _ComprasPendentesScreenState
           SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
         );
       }
+    }
+  }
+
+  /// Mapeamento das categorias do Gemini para o enum do backend.
+  String _mapearCategoria(String cat) {
+    const mapa = {
+      'ALIMENTACAO': 'Outros',
+      'LIMPEZA': 'Limpeza',
+      'HIGIENE': 'Higiene Pessoal',
+      'BEBIDAS': 'Bebidas',
+      'OUTROS': 'Outros',
+      // Categorias já no formato do backend (enviadas por versões anteriores)
+      'Proteínas': 'Proteínas',
+      'Carboidratos': 'Carboidratos',
+      'Hortifrúti': 'Hortifrúti',
+      'Laticínios': 'Laticínios',
+      'Padaria': 'Padaria',
+      'Bebidas': 'Bebidas',
+      'Lanches': 'Lanches',
+      'Temperos e Condimentos': 'Temperos e Condimentos',
+      'Limpeza': 'Limpeza',
+      'Higiene Pessoal': 'Higiene Pessoal',
+      'Congelados': 'Congelados',
+      'Grãos e Cereais': 'Grãos e Cereais',
+      'Outros': 'Outros',
+    };
+    return mapa[cat] ?? 'Outros';
+  }
+
+  /// Fluxo legado: envia html_payload ao Render que chama Gemini no servidor.
+  /// Mantido como fallback quando o Gemini mobile não está disponível.
+  Future<void> _enviarIngestaoLegado(String familiaId, String qrUrl, String? htmlPayload) async {
+    final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/ingestao');
+    final resp = await http.post(uri,
+        headers: ApiService.authHeaders(json: true),
+        body: jsonEncode({
+          'familia_id': familiaId,
+          'qr_code_url': qrUrl,
+          if (htmlPayload != null) 'html_payload': htmlPayload,
+        }));
+    if (resp.statusCode == 202) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('NFC-e enviada! Processando... aguarde.'),
+          backgroundColor: AppColors.grn,
+          duration: Duration(seconds: 5),
+        ));
+        for (int i = 0; i < 6; i++) {
+          await Future.delayed(const Duration(seconds: 5));
+          if (!mounted) return;
+          ref.invalidate(comprasPendentesProvider);
+          ref.invalidate(comprasFalhasProvider);
+          final pendentes = await ref.read(comprasPendentesProvider.future);
+          if (pendentes.isNotEmpty) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('✅ Compra processada! Escolha o envelope.'),
+              backgroundColor: AppColors.acc,
+            ));
+            return;
+          }
+        }
+        if (mounted) {
+          ref.invalidate(comprasFalhasProvider);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Processamento demorou. Verifique falhas ou tente novamente.'),
+            backgroundColor: AppColors.org,
+          ));
+        }
+      }
+    } else {
+      throw Exception(resp.body);
     }
   }
 }
