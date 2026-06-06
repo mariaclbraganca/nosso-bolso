@@ -30,16 +30,18 @@ class GeminiNfceService {
   /// Busca a chave Gemini da tabela configuracoes_app do Supabase.
   static Future<String?> _buscarChave() async {
     try {
-      final row = await supabase
+      final rows = await supabase
           .from('configuracoes_app')
           .select('valor')
           .eq('chave', 'GEMINI_API_KEY')
-          .maybeSingle();
-      if (row != null && (row['valor'] as String?)?.isNotEmpty == true) {
-        return row['valor'] as String;
+          .limit(1);
+      if (rows.isNotEmpty) {
+        final valor = rows.first['valor'] as String?;
+        if (valor != null && valor.isNotEmpty) return valor;
       }
     } catch (e) {
-      debugPrint('GeminiNfce: erro ao buscar chave Supabase: $e');
+      // Relança como GeminiNfceException para que o chamador mostre ao usuário
+      throw GeminiNfceException('Erro ao buscar chave Gemini: $e');
     }
     return null;
   }

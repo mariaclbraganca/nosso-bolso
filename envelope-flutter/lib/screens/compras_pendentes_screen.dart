@@ -301,9 +301,9 @@ class _ComprasPendentesScreenState
       try {
         extraido = await GeminiNfceService.extrairDaNota(htmlPayload);
       } on GeminiNfceException catch (e) {
-        debugPrint('Gemini mobile falhou ($e) — tentando via backend');
-        await _enviarIngestaoLegado(familiaId, qrUrl, htmlPayload);
-        return;
+        // Chave não configurada ou erro da API — mostra erro direto, não tenta
+        // via backend (o Render tem bloqueio geo do Google que não tem solução)
+        throw Exception(e.message);
       }
 
       // Passo 3: envia o JSON extraído para o backend salvar (sem chamar LLM lá)
