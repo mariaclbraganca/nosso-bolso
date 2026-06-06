@@ -62,6 +62,29 @@ def health():
     return {"status": "ok", "version": "2.0", "docs": "/docs"}
 
 
+@app.get("/debug/sefaz")
+def debug_sefaz(chave: str = "52260627289076000305652140001007211479511937"):
+    """Testa se o Render consegue acessar a SEFAZ-GO."""
+    try:
+        from ia_compras.scraper_http import criar_sessao, _DEFAULT_TIMEOUT
+        sess = criar_sessao()
+        base = "https://nfeweb.sefaz.go.gov.br"
+        qr_url = f"{base}/nfeweb/sites/nfce/danfeNFCe?p={chave}|3|1"
+        r1 = sess.get(qr_url, timeout=_DEFAULT_TIMEOUT)
+        url_iframe = f"{base}/nfeweb/sites/nfce/render/danfeNFCe?chNFe={chave}"
+        url_html = f"{base}/nfeweb/sites/nfce/render/html/danfeNFCe?chNFe={chave}"
+        r2 = sess.get(url_iframe, timeout=_DEFAULT_TIMEOUT)
+        r3 = sess.get(url_html, headers={"Referer": url_iframe, "X-Requested-With": "XMLHttpRequest"}, timeout=_DEFAULT_TIMEOUT)
+        return {
+            "step1_status": r1.status_code,
+            "step2_status": r2.status_code,
+            "step3_status": r3.status_code,
+            "step3_preview": r3.text[:300],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/debug/keys")
 def debug_keys():
     import os
