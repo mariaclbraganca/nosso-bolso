@@ -19,22 +19,9 @@ class ConfiguracaoResponse(BaseModel):
 
 
 def _get_chave_familia(familia_id: str, chave: str) -> str:
-    """Lê uma chave da tabela configuracoes_app para a família, com fallback para global."""
+    """Lê chave: Supabase global > env numeradas (_1/_2/_3) > env simples."""
     try:
         db = get_supabase()
-        # Tenta chave específica da família (se a coluna familia_id existir)
-        try:
-            row = db.table("configuracoes_app") \
-                .select("valor") \
-                .eq("chave", chave) \
-                .eq("familia_id", familia_id) \
-                .maybe_single() \
-                .execute()
-            if row.data and row.data.get("valor"):
-                return row.data["valor"]
-        except Exception:
-            pass
-        # Fallback: chave global (sem familia_id — tabela original ou nova com NULL)
         row = db.table("configuracoes_app") \
             .select("valor") \
             .eq("chave", chave) \
@@ -44,8 +31,12 @@ def _get_chave_familia(familia_id: str, chave: str) -> str:
             return row.data["valor"]
     except Exception:
         pass
-    # Último fallback: variável de ambiente do servidor (Render dashboard)
-    return os.environ.get(chave, "")
+    # Variáveis de ambiente: tenta KEY_1, KEY_2, KEY_3 e KEY sem sufixo
+    for sufixo in ("_1", "_2", "_3", ""):
+        v = os.environ.get(f"{chave}{sufixo}", "").strip()
+        if v:
+            return v
+    return ""
 
 
 def get_gemini_key(familia_id: str) -> str:
