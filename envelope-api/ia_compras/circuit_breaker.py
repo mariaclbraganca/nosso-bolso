@@ -34,15 +34,26 @@ async def extrair_com_fallback(html_bruto: str, schema: dict, familia_id: str = 
         return resultado, LLMProvider.GEMINI
 
 
+def _sanitizar_texto(texto: str) -> str:
+    """Remove caracteres de controle e substitui sequências que quebram JSON no Gemini."""
+    # Remove caracteres de controle exceto newline/tab
+    import re
+    texto = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', texto)
+    # Garante que é UTF-8 válido
+    texto = texto.encode('utf-8', errors='replace').decode('utf-8')
+    return texto
+
+
 def _montar_prompt_extracao(html_bruto: str, schema: dict) -> str:
     import json
+    texto_limpo = _sanitizar_texto(html_bruto[:10000])
     return (
         "Extrator NFC-e. Schema:\n"
         f"{json.dumps(schema, ensure_ascii=False)}\n\n"
         "Regras: data_compra=YYYY-MM-DD | valor_total=explícito na nota (não some) | "
         "decimais com ponto | nome_padronizado=sem abreviações | "
         "categoria=enum exato | todos os itens | retorne APENAS JSON sem markdown.\n\n"
-        f"FONTE:\n{html_bruto[:10000]}"
+        f"FONTE:\n{texto_limpo}"
     )
 
 
