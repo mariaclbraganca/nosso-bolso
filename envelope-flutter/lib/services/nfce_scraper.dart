@@ -1,125 +1,203 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-/// Raspa o conteúdo de uma NFC-e a partir do celular do usuário (IP residencial
-/// brasileiro). Necessário porque a SEFAZ-GO bloqueia IPs de data center
-/// (AWS US-East do Render), então não dá pra fazer no backend.
+/// Raspa o conteúdo de uma NFC-e usando o WebView real do Android (Chromium).
+///
+/// Por que WebView e não http.Client:
+///   A SEFAZ-GO usa WAF com TLS fingerprinting (JA3) — detecta que o
+///   Dart HttpClient não é um browser real e retorna 403. O WebView do
+///   sistema usa o mesmo engine do Chrome, passando pelo WAF sem bloqueio.
 class NfceScraper {
   static const _ua =
-      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) '
-      'Chrome/124.0.0.0 Mobile Safari/537.36';
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
 
-  static const _timeout = Duration(seconds: 30);
+  static const _timeout = Duration(seconds: 40);
 
-  static Map<String, String> _baseHeaders({String? referer, String? cookies}) => {
-        'User-Agent': _ua,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0',
-        if (referer != null) 'Referer': referer,
-        if (cookies != null && cookies.isNotEmpty) 'Cookie': cookies,
-      };
-
-  /// Extrai os 44 dígitos da chave de acesso da URL do QR code.
   static String? extrairChave(String qrUrl) {
     final match = RegExp(r'\d{44}').firstMatch(qrUrl);
     return match?.group(0);
   }
 
-  /// Cria um HttpClient que segue redirects e acumula cookies entre eles.
-  static Future<_SessaoHttp> _criarSessao() async {
-    final httpClient = HttpClient()
-      ..badCertificateCallback = (_, __, ___) => true;
-    return _SessaoHttp(IOClient(httpClient));
-  }
-
-  /// Fluxo completo SEFAZ-GO com sessão que segue redirects e preserva cookies.
+  /// Raspa a SEFAZ-GO via HeadlessInAppWebView (TLS real do Chrome).
   static Future<String> rasparSefazGo(String qrUrl) async {
     final chave = extrairChave(qrUrl);
     if (chave == null) {
       throw Exception('URL não contém chave de acesso (44 dígitos)');
     }
 
-    final sessao = await _criarSessao();
+    final completer = Completer<String>();
 
-    // Passo 1: abre a URL do QR (pode redirecionar várias vezes) para obter sessão
-    final r1 = await sessao.get(qrUrl);
-    debugPrint('NfceScraper GO step1: ${r1.statusCode} url=$qrUrl');
+    late HeadlessInAppWebView webView;
 
-    if (r1.statusCode == 403) {
-      throw Exception(
-        'SEFAZ-GO bloqueou o acesso (403). Tente novamente em alguns minutos.',
-      );
-    }
-    if (r1.statusCode != 200) {
-      throw Exception('SEFAZ-GO recusou a página principal (HTTP ${r1.statusCode})');
-    }
-
-    // Passo 2: busca o iframe que carrega a DANFE
-    final urlIframe =
-        'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/danfeNFCe?chNFe=$chave';
-    final r2 = await sessao.get(urlIframe, referer: qrUrl);
-    debugPrint('NfceScraper GO step2: ${r2.statusCode} url=$urlIframe');
-
-    // Passo 3: busca o HTML da DANFE via endpoint AJAX
-    final urlDados =
-        'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/html/danfeNFCe?chNFe=$chave';
-    final r3 = await sessao.get(
-      urlDados,
-      referer: urlIframe,
-      extraHeaders: {'X-Requested-With': 'XMLHttpRequest'},
-    );
-    debugPrint('NfceScraper GO step3: ${r3.statusCode} url=$urlDados body_len=${r3.body.length}');
-
-    if (r3.statusCode != 200) {
-      throw Exception('SEFAZ-GO devolveu HTTP ${r3.statusCode} ao buscar a DANFE');
-    }
-
-    final body = r3.body;
-    final lower = body.toLowerCase();
-    if (lower.contains('acesso negado') || lower.contains('forbidden')) {
-      throw Exception('SEFAZ-GO bloqueou a consulta. Aguarde alguns minutos e tente de novo.');
-    }
-    if (!body.contains('<STATUS>SUCCESS</STATUS>')) {
-      if (body.contains('<STATUS>FAILURE</STATUS>')) {
-        throw Exception(
-          'NFC-e ainda não disponível no portal da SEFAZ-GO. '
-          'Notas recém-emitidas levam alguns minutos. Tente de novo mais tarde.',
-        );
+    void disposeAndError(Object e) {
+      if (!completer.isCompleted) {
+        try { webView.dispose(); } catch (_) {}
+        completer.completeError(e);
       }
-      // Retorna o body para diagnóstico
-      throw Exception('SEFAZ-GO não retornou dados válidos. Preview: ${body.length > 200 ? body.substring(0, 200) : body}');
     }
-    if (!body.contains('<DANFE_NFCE_HTML>')) {
-      throw Exception('Resposta da SEFAZ-GO não contém o conteúdo da nota');
+
+    void disposeAndComplete(String value) {
+      if (!completer.isCompleted) {
+        try { webView.dispose(); } catch (_) {}
+        completer.complete(value);
+      }
     }
-    return body;
+
+    webView = HeadlessInAppWebView(
+      initialUrlRequest: URLRequest(url: WebUri(qrUrl)),
+      initialSettings: InAppWebViewSettings(
+        userAgent: _ua,
+        javaScriptEnabled: true,
+        clearCache: false,
+        clearSessionCache: false,
+        thirdPartyCookiesEnabled: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+      ),
+      onLoadStop: (controller, url) async {
+        if (completer.isCompleted) return;
+        try {
+          debugPrint('NfceScraper GO: onLoadStop url=$url');
+
+          // Após a página principal carregar com cookies de sessão,
+          // faz XHR para o endpoint AJAX da DANFE (mesmo domínio = sem CORS)
+          final result = await controller.evaluateJavascript(source: '''
+            (function() {
+              return new Promise(function(resolve, reject) {
+                var urlDados = 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/html/danfeNFCe?chNFe=$chave';
+                var urlIframe = 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/danfeNFCe?chNFe=$chave';
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', urlDados, true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.onload = function() {
+                  if (xhr.status === 200) { resolve(xhr.responseText); }
+                  else { reject('HTTP ' + xhr.status); }
+                };
+                xhr.onerror = function() { reject('network error'); };
+                xhr.timeout = 25000;
+                xhr.ontimeout = function() { reject('timeout'); };
+                xhr.send();
+              });
+            })()
+          ''');
+
+          final xml = result?.toString() ?? '';
+          debugPrint('NfceScraper GO: xml len=${xml.length}');
+
+          if (xml.isEmpty) {
+            disposeAndError(Exception('SEFAZ-GO não retornou dados'));
+          } else if (xml.toLowerCase().contains('acesso negado') ||
+              xml.toLowerCase().contains('forbidden')) {
+            disposeAndError(Exception('SEFAZ-GO bloqueou a consulta. Tente novamente.'));
+          } else if (xml.contains('<STATUS>FAILURE</STATUS>')) {
+            disposeAndError(Exception(
+              'NFC-e ainda não disponível na SEFAZ-GO. '
+              'Notas recém-emitidas levam alguns minutos. Tente mais tarde.',
+            ));
+          } else if (!xml.contains('<STATUS>SUCCESS</STATUS>')) {
+            disposeAndError(Exception(
+              'SEFAZ-GO retornou resposta inesperada: '
+              '${xml.length > 200 ? xml.substring(0, 200) : xml}',
+            ));
+          } else if (!xml.contains('<DANFE_NFCE_HTML>')) {
+            disposeAndError(Exception('Resposta da SEFAZ-GO não contém o conteúdo da nota'));
+          } else {
+            disposeAndComplete(xml);
+          }
+        } catch (e) {
+          disposeAndError(Exception('Erro ao extrair dados: $e'));
+        }
+      },
+      onReceivedHttpError: (controller, request, response) {
+        if (completer.isCompleted || request.isForMainFrame != true) return;
+        final status = response.statusCode ?? 0;
+        debugPrint('NfceScraper GO: HTTP error $status');
+        if (status == 403) {
+          disposeAndError(Exception(
+            'SEFAZ-GO bloqueou o acesso (403). '
+            'Aguarde 10 minutos após a emissão da nota e tente novamente.',
+          ));
+        }
+      },
+      onReceivedError: (controller, request, error) {
+        if (completer.isCompleted || request.isForMainFrame != true) return;
+        debugPrint('NfceScraper GO: error ${error.description}');
+        disposeAndError(Exception('Erro ao carregar SEFAZ-GO: ${error.description}'));
+      },
+    );
+
+    await webView.run();
+
+    return completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        try { webView.dispose(); } catch (_) {}
+        throw Exception(
+          'Timeout ao acessar SEFAZ-GO (${_timeout.inSeconds}s). '
+          'Verifique sua conexão e tente novamente.',
+        );
+      },
+    );
   }
 
-  /// SEFAZ-BA serve os dados diretamente na URL pública (sem iframe/AJAX).
+  /// SEFAZ-BA — página HTML direta, também via WebView para consistência.
   static Future<String> rasparSefazBa(String qrUrl) async {
-    final sessao = await _criarSessao();
-    final r = await sessao.get(qrUrl);
-    if (r.statusCode != 200) {
-      throw Exception('SEFAZ-BA recusou a URL (HTTP ${r.statusCode})');
+    final completer = Completer<String>();
+    late HeadlessInAppWebView webView;
+
+    void disposeAndError(Object e) {
+      if (!completer.isCompleted) {
+        try { webView.dispose(); } catch (_) {}
+        completer.completeError(e);
+      }
     }
-    final body = r.body;
-    final lower = body.toLowerCase();
-    if (lower.contains('acesso negado') || lower.contains('forbidden')) {
-      throw Exception('SEFAZ-BA bloqueou a consulta (Acesso Negado).');
-    }
-    if (!lower.contains('qtde') && !lower.contains('valor a pagar')) {
-      throw Exception('SEFAZ-BA não retornou os dados da nota.');
-    }
-    return body;
+
+    webView = HeadlessInAppWebView(
+      initialUrlRequest: URLRequest(url: WebUri(qrUrl)),
+      initialSettings: InAppWebViewSettings(
+        userAgent: _ua,
+        javaScriptEnabled: true,
+      ),
+      onLoadStop: (controller, url) async {
+        if (completer.isCompleted) return;
+        try {
+          final html = await controller.evaluateJavascript(
+            source: 'document.documentElement.outerHTML',
+          ) as String?;
+          final body = html ?? '';
+          final lower = body.toLowerCase();
+          if (lower.contains('acesso negado') || lower.contains('forbidden')) {
+            disposeAndError(Exception('SEFAZ-BA bloqueou a consulta.'));
+          } else if (!lower.contains('qtde') && !lower.contains('valor a pagar')) {
+            disposeAndError(Exception('SEFAZ-BA não retornou os dados da nota.'));
+          } else {
+            try { webView.dispose(); } catch (_) {}
+            completer.complete(body);
+          }
+        } catch (e) {
+          disposeAndError(e);
+        }
+      },
+      onReceivedError: (controller, request, error) {
+        if (completer.isCompleted || request.isForMainFrame != true) return;
+        disposeAndError(Exception('Erro SEFAZ-BA: ${error.description}'));
+      },
+    );
+
+    await webView.run();
+
+    return completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        try { webView.dispose(); } catch (_) {}
+        throw Exception('Timeout ao acessar SEFAZ-BA.');
+      },
+    );
   }
 
-  /// Roteador: detecta a SEFAZ pelo host e chama o scraper específico.
+  /// Roteador: detecta a SEFAZ pelo host da URL do QR.
   static Future<String> raspar(String qrUrl) async {
     final host = Uri.tryParse(qrUrl)?.host.toLowerCase() ?? '';
     if (host.contains('sefaz.go.gov.br')) {
@@ -129,55 +207,5 @@ class NfceScraper {
       return rasparSefazBa(qrUrl);
     }
     throw Exception('SEFAZ do estado "$host" ainda não é suportada pelo app.');
-  }
-}
-
-/// Sessão HTTP que acumula cookies entre requisições (simula browser).
-class _SessaoHttp {
-  final http.Client _client;
-  final Map<String, String> _cookies = {};
-
-  _SessaoHttp(this._client);
-
-  void _atualizarCookies(Map<String, String> headers) {
-    final setCookie = headers['set-cookie'];
-    if (setCookie == null || setCookie.isEmpty) return;
-    for (final raw in setCookie.split(RegExp(r',(?=[^;]+=)'))) {
-      final pair = raw.split(';').first.trim();
-      if (pair.contains('=')) {
-        final idx = pair.indexOf('=');
-        final name = pair.substring(0, idx).trim();
-        final value = pair.substring(idx + 1).trim();
-        if (name.isNotEmpty) _cookies[name] = value;
-      }
-    }
-  }
-
-  String get _cookieHeader =>
-      _cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
-
-  Future<http.Response> get(
-    String url, {
-    String? referer,
-    Map<String, String>? extraHeaders,
-  }) async {
-    final headers = {
-      'User-Agent': NfceScraper._ua,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9',
-      'Accept-Encoding': 'gzip, deflate',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      if (referer != null) 'Referer': referer,
-      if (_cookies.isNotEmpty) 'Cookie': _cookieHeader,
-      ...?extraHeaders,
-    };
-
-    final resp = await _client
-        .get(Uri.parse(url), headers: headers)
-        .timeout(NfceScraper._timeout);
-
-    _atualizarCookies(resp.headers);
-    return resp;
   }
 }
