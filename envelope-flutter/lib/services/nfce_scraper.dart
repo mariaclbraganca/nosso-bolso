@@ -59,35 +59,64 @@ class NfceScraper {
       onLoadStop: (controller, url) async {
         if (completer.isCompleted) return;
         try {
-          debugPrint('NfceScraper GO: onLoadStop url=$url');
+          final urlStr = url?.toString() ?? '';
+          debugPrint('NfceScraper GO: onLoadStop url=$urlStr');
 
-          // Após a página principal carregar com cookies de sessão,
-          // faz XHR para o endpoint AJAX da DANFE (mesmo domínio = sem CORS)
+          // Aguarda 2s para que a sessão/cookies sejam consolidados
+          await Future.delayed(const Duration(seconds: 2));
+          if (completer.isCompleted) return;
+
+          // Faz dois passos via JS: carrega o iframe e depois busca o XML
           final result = await controller.evaluateJavascript(source: '''
             (function() {
               return new Promise(function(resolve, reject) {
-                var urlDados = 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/html/danfeNFCe?chNFe=$chave';
                 var urlIframe = 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/danfeNFCe?chNFe=$chave';
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', urlDados, true);
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                xhr.onload = function() {
-                  if (xhr.status === 200) { resolve(xhr.responseText); }
-                  else { reject('HTTP ' + xhr.status); }
+                var urlDados  = 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/render/html/danfeNFCe?chNFe=$chave';
+
+                // Passo 1: carrega o iframe para estabelecer sessão naquele path
+                var xhrIframe = new XMLHttpRequest();
+                xhrIframe.open('GET', urlIframe, true);
+                xhrIframe.onload = function() {
+                  // Passo 2: agora busca o XML da DANFE
+                  var xhr = new XMLHttpRequest();
+                  xhr.open('GET', urlDados, true);
+                  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                  xhr.setRequestHeader('Referer', urlIframe);
+                  xhr.onload = function() {
+                    if (xhr.status === 200) { resolve(xhr.responseText); }
+                    else { reject('DANFE HTTP ' + xhr.status + ' body=' + xhr.responseText.substring(0,200)); }
+                  };
+                  xhr.onerror = function() { reject('DANFE network error'); };
+                  xhr.timeout = 25000;
+                  xhr.ontimeout = function() { reject('DANFE timeout'); };
+                  xhr.send();
                 };
-                xhr.onerror = function() { reject('network error'); };
-                xhr.timeout = 25000;
-                xhr.ontimeout = function() { reject('timeout'); };
-                xhr.send();
+                xhrIframe.onerror = function() {
+                  // Iframe falhou, tenta DANFE direto mesmo assim
+                  var xhr = new XMLHttpRequest();
+                  xhr.open('GET', urlDados, true);
+                  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                  xhr.onload = function() {
+                    if (xhr.status === 200) { resolve(xhr.responseText); }
+                    else { reject('DANFE direct HTTP ' + xhr.status); }
+                  };
+                  xhr.onerror = function() { reject('DANFE direct network error'); };
+                  xhr.timeout = 25000;
+                  xhr.ontimeout = function() { reject('DANFE direct timeout'); };
+                  xhr.send();
+                };
+                xhrIframe.timeout = 10000;
+                xhrIframe.ontimeout = function() { xhrIframe.onerror(); };
+                xhrIframe.send();
               });
             })()
           ''');
 
           final xml = result?.toString() ?? '';
-          debugPrint('NfceScraper GO: xml len=${xml.length}');
+          debugPrint('NfceScraper GO: xml len=${xml.length} preview=${xml.length > 150 ? xml.substring(0, 150) : xml}');
 
-          if (xml.isEmpty) {
-            disposeAndError(Exception('SEFAZ-GO não retornou dados'));
+          if (xml.isEmpty || xml == '{}' || xml == 'null') {
+            disposeAndError(Exception('SEFAZ-GO não retornou dados (resposta vazia). Tente novamente.'));
           } else if (xml.toLowerCase().contains('acesso negado') ||
               xml.toLowerCase().contains('forbidden')) {
             disposeAndError(Exception('SEFAZ-GO bloqueou a consulta. Tente novamente.'));
