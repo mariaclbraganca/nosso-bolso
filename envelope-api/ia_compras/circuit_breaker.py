@@ -7,7 +7,10 @@ OLLAMA_TIMEOUT = 5.0
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
-def _get_gemini_key() -> str:
+def _get_gemini_key(familia_id: str = "") -> str:
+    if familia_id:
+        from routes.configuracoes import get_gemini_key
+        return get_gemini_key(familia_id)
     return os.environ.get("GEMINI_API_KEY", "")
 
 
@@ -16,7 +19,7 @@ class LLMProvider(str, Enum):
     GEMINI = "gemini"
 
 
-async def extrair_com_fallback(html_bruto: str, schema: dict) -> tuple[dict, LLMProvider]:
+async def extrair_com_fallback(html_bruto: str, schema: dict, familia_id: str = "") -> tuple[dict, LLMProvider]:
     try:
         async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
             resp = await client.post(OLLAMA_URL, json={
@@ -27,7 +30,7 @@ async def extrair_com_fallback(html_bruto: str, schema: dict) -> tuple[dict, LLM
             resp.raise_for_status()
             return _parse_response(resp.json()), LLMProvider.OLLAMA
     except (httpx.TimeoutException, httpx.ConnectError, httpx.HTTPStatusError, ValueError):
-        resultado = await _chamar_gemini_flash(html_bruto, schema)
+        resultado = await _chamar_gemini_flash(html_bruto, schema, familia_id)
         return resultado, LLMProvider.GEMINI
 
 
@@ -56,10 +59,10 @@ def _parse_response(raw: dict) -> dict:
         raise ValueError("Nao foi possivel extrair JSON da resposta")
 
 
-async def _chamar_gemini_flash(html_bruto: str, schema: dict) -> dict:
+async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = "") -> dict:
     import json
     import asyncio
-    api_key = _get_gemini_key()
+    api_key = _get_gemini_key(familia_id)
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada")
     prompt = _montar_prompt_extracao(html_bruto, schema)

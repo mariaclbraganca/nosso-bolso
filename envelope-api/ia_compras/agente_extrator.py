@@ -83,7 +83,7 @@ async def processar_nota(
     else:
         html = raspar_nfce(qr_code_url)
     texto = extrair_texto_nota(html)
-    raw, provider = await extrair_com_fallback(texto, EXTRACTION_SCHEMA)
+    raw, provider = await extrair_com_fallback(texto, EXTRACTION_SCHEMA, familia_id)
     raw = _validar_grounding(raw, texto)
 
     # Guarda anti-alucinação do LLM: se Gemini não extraiu itens nem valor

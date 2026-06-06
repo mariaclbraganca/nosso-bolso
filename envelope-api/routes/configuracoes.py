@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from auth import AuthUser, get_current_user
 from database import get_supabase
@@ -10,6 +10,7 @@ router = APIRouter()
 class ConfiguracaoRequest(BaseModel):
     gemini_api_key: str = ""
     mongo_uri: str = ""
+    familia_id: str = ""
 
 
 class ConfiguracaoResponse(BaseModel):
@@ -17,43 +18,90 @@ class ConfiguracaoResponse(BaseModel):
     mongo_uri_configurada: bool
 
 
+def _get_chave_familia(familia_id: str, chave: str) -> str:
+    """Lê uma chave da tabela configuracoes_app para a família, com fallback para global."""
+    try:
+        db = get_supabase()
+        # Tenta chave específica da família (se a coluna familia_id existir)
+        try:
+            row = db.table("configuracoes_app") \
+                .select("valor") \
+                .eq("chave", chave) \
+                .eq("familia_id", familia_id) \
+                .maybe_single() \
+                .execute()
+            if row.data and row.data.get("valor"):
+                return row.data["valor"]
+        except Exception:
+            pass
+        # Fallback: chave global (sem familia_id — tabela original ou nova com NULL)
+        row = db.table("configuracoes_app") \
+            .select("valor") \
+            .eq("chave", chave) \
+            .maybe_single() \
+            .execute()
+        if row.data and row.data.get("valor"):
+            return row.data["valor"]
+    except Exception:
+        pass
+    # Último fallback: variável de ambiente do servidor (Render dashboard)
+    return os.environ.get(chave, "")
+
+
+def get_gemini_key(familia_id: str) -> str:
+    return _get_chave_familia(familia_id, "GEMINI_API_KEY")
+
+
+def get_mongo_uri(familia_id: str) -> str:
+    return _get_chave_familia(familia_id, "MONGO_URI")
+
+
 @router.post("/configurar", response_model=ConfiguracaoResponse)
 def configurar(
     payload: ConfiguracaoRequest,
     user: AuthUser = Depends(get_current_user),
 ):
-    if user.role != "admin":
-        raise HTTPException(403, "Apenas admin pode alterar as chaves de IA")
-
+    familia_id = user.familia_id or payload.familia_id
     db = get_supabase()
 
     if payload.gemini_api_key:
-        os.environ["GEMINI_API_KEY"] = payload.gemini_api_key
-        db.table("configuracoes_app").upsert(
-            {"chave": "GEMINI_API_KEY", "valor": payload.gemini_api_key},
-            on_conflict="chave",
-        ).execute()
+        _upsert_chave(db, "GEMINI_API_KEY", payload.gemini_api_key, familia_id)
 
     if payload.mongo_uri:
-        os.environ["MONGO_URI"] = payload.mongo_uri
-        db.table("configuracoes_app").upsert(
-            {"chave": "MONGO_URI", "valor": payload.mongo_uri},
-            on_conflict="chave",
-        ).execute()
+        _upsert_chave(db, "MONGO_URI", payload.mongo_uri, familia_id)
         _reconectar_mongo()
 
     return ConfiguracaoResponse(
-        gemini_api_key_configurada=bool(os.environ.get("GEMINI_API_KEY")),
-        mongo_uri_configurada=bool(os.environ.get("MONGO_URI")),
+        gemini_api_key_configurada=bool(get_gemini_key(familia_id)),
+        mongo_uri_configurada=bool(get_mongo_uri(familia_id)),
     )
 
 
 @router.get("/configurar", response_model=ConfiguracaoResponse)
-def status_configuracao(user: AuthUser = Depends(get_current_user)):
+def status_configuracao(
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    fid = familia_id or user.familia_id or ""
     return ConfiguracaoResponse(
-        gemini_api_key_configurada=bool(os.environ.get("GEMINI_API_KEY")),
-        mongo_uri_configurada=bool(os.environ.get("MONGO_URI")),
+        gemini_api_key_configurada=bool(get_gemini_key(fid)),
+        mongo_uri_configurada=bool(get_mongo_uri(fid)),
     )
+
+
+def _upsert_chave(db, chave: str, valor: str, familia_id: str):
+    """Grava chave por família quando a coluna existir; cai para global caso contrário."""
+    try:
+        db.table("configuracoes_app").upsert(
+            {"chave": chave, "valor": valor, "familia_id": familia_id},
+            on_conflict="chave,familia_id",
+        ).execute()
+    except Exception:
+        # Coluna familia_id ainda não existe — usa índice global
+        db.table("configuracoes_app").upsert(
+            {"chave": chave, "valor": valor},
+            on_conflict="chave",
+        ).execute()
 
 
 def _reconectar_mongo():
@@ -66,14 +114,13 @@ def _reconectar_mongo():
 
 
 def carregar_config_do_supabase() -> None:
-    """Startup: carrega chaves dinâmicas do Supabase para os.environ.
-
-    Variáveis já definidas no ambiente (ex: via Render dashboard) têm
-    prioridade — setdefault não sobrescreve valores existentes.
-    """
+    """Startup: carrega chaves globais (sem familia_id) para os.environ como fallback."""
     try:
         db = get_supabase()
-        rows = db.table("configuracoes_app").select("chave,valor").execute().data
+        rows = db.table("configuracoes_app") \
+            .select("chave,valor") \
+            .is_("familia_id", "null") \
+            .execute().data
         for row in rows:
             chave, valor = row.get("chave"), row.get("valor")
             if chave and valor:
