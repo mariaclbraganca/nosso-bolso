@@ -111,16 +111,22 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
     prompt = _montar_prompt_extracao(html_bruto, schema)
     _logger.info("Gemini prompt len=%d chaves=%d", len(prompt), len(todas_chaves))
     modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1/models/{modelo}:generateContent"
+    # Usa endpoint OpenAI-compatível do Gemini — sem restrição geográfica
+    url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     last_err: Exception | None = None
 
     for api_key in todas_chaves:
         for tentativa in range(2):
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
-                    resp = await client.post(url, params={"key": api_key}, json={
-                        "contents": [{"parts": [{"text": prompt}]}],
-                    })
+                    resp = await client.post(
+                        url,
+                        headers={"Authorization": f"Bearer {api_key}"},
+                        json={
+                            "model": modelo,
+                            "messages": [{"role": "user", "content": prompt}],
+                        },
+                    )
                     if resp.status_code in (429, 500, 502, 503, 504):
                         last_err = httpx.HTTPStatusError(
                             f"{resp.status_code}", request=resp.request, response=resp
@@ -129,17 +135,14 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
                         continue
                     if resp.status_code == 400:
                         err_body = resp.text[:300]
-                        import logging as _log
-                        _log.getLogger(__name__).error(
-                            "Gemini 400 key=%s... body=%s", api_key[:8], err_body
-                        )
+                        _logger.error("Gemini 400 key=%s... body=%s", api_key[:8], err_body)
                         last_err = httpx.HTTPStatusError(
                             f"400 key={api_key[:8]}... body={err_body[:120]}", request=resp.request, response=resp
                         )
                         break
                     resp.raise_for_status()
                     data = resp.json()
-                    text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    text = data["choices"][0]["message"]["content"]
                     try:
                         return json.loads(text)
                     except json.JSONDecodeError:
