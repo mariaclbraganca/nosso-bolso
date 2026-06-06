@@ -60,3 +60,13 @@ app.include_router(configuracoes.router, prefix="/api/v1", tags=["configuracoes"
 @app.get("/")
 def health():
     return {"status": "ok", "version": "2.0", "docs": "/docs"}
+
+
+@app.get("/debug/keys")
+def debug_keys():
+    import os
+    chaves = {}
+    for sufixo in ("", "_1", "_2", "_3"):
+        k = os.environ.get(f"GEMINI_API_KEY{sufixo}", "")
+        chaves[f"GEMINI_API_KEY{sufixo}"] = f"{k[:8]}...{k[-4:]}" if len(k) > 12 else ("(vazio)" if not k else k)
+    return {"chaves": chaves, "model": os.environ.get("GEMINI_MODEL", "(não set)")}
