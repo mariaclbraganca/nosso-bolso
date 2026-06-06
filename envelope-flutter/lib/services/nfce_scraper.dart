@@ -7,8 +7,17 @@ import 'package:http/http.dart' as http;
 /// Devolve o XML/HTML pronto pro backend extrair com a LLM.
 class NfceScraper {
   static const _ua =
-      'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) '
-      'Chrome/120.0.0.0 Mobile Safari/537.36';
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/124.0.0.0 Mobile Safari/537.36';
+
+  static const _headersBase = {
+    'User-Agent': _ua,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+  };
   static const _timeout = Duration(seconds: 20);
 
   /// Extrai os 44 dígitos da chave de acesso da URL do QR code.
@@ -32,8 +41,14 @@ class NfceScraper {
     // usado com IOClient + CookieJar, mas pra simplicidade vou capturar o
     // Set-Cookie e enviar de volta no segundo request.
     final principal = await http
-        .get(Uri.parse(qrUrl), headers: {'User-Agent': _ua})
+        .get(Uri.parse(qrUrl), headers: _headersBase)
         .timeout(_timeout);
+    if (principal.statusCode == 403) {
+      throw Exception(
+        'SEFAZ-GO bloqueou o acesso (403). O link do QR code pode ter expirado — '
+        'tente escanear novamente o cupom físico.',
+      );
+    }
     if (principal.statusCode != 200) {
       throw Exception(
         'SEFAZ-GO recusou a página principal (HTTP ${principal.statusCode})',
@@ -49,7 +64,7 @@ class NfceScraper {
     final resp = await http.get(
       Uri.parse(urlDados),
       headers: {
-        'User-Agent': _ua,
+        ..._headersBase,
         'Referer': urlIframe,
         'X-Requested-With': 'XMLHttpRequest',
         if (cookies.isNotEmpty) 'Cookie': cookies,
@@ -91,7 +106,7 @@ class NfceScraper {
   /// Basta um GET e devolver o HTML como veio.
   static Future<String> rasparSefazBa(String qrUrl) async {
     final r =
-        await http.get(Uri.parse(qrUrl), headers: {'User-Agent': _ua}).timeout(_timeout);
+        await http.get(Uri.parse(qrUrl), headers: _headersBase).timeout(_timeout);
     if (r.statusCode != 200) {
       throw Exception('SEFAZ-BA recusou a URL (HTTP ${r.statusCode})');
     }
