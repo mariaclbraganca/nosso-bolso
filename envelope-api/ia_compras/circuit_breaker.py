@@ -105,7 +105,11 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
     if not todas_chaves:
         raise RuntimeError("GEMINI_API_KEY não configurada")
 
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
     prompt = _montar_prompt_extracao(html_bruto, schema)
+    _logger.info("Gemini prompt len=%d chaves=%d", len(prompt), len(todas_chaves))
     modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
     last_err: Exception | None = None
@@ -124,9 +128,13 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
                         await asyncio.sleep(2 ** tentativa)
                         continue
                     if resp.status_code == 400:
-                        # Chave inválida — tenta a próxima sem retry
+                        err_body = resp.text[:300]
+                        import logging as _log
+                        _log.getLogger(__name__).error(
+                            "Gemini 400 key=%s... body=%s", api_key[:8], err_body
+                        )
                         last_err = httpx.HTTPStatusError(
-                            f"400 key={api_key[:8]}...", request=resp.request, response=resp
+                            f"400 key={api_key[:8]}... body={err_body[:120]}", request=resp.request, response=resp
                         )
                         break
                     resp.raise_for_status()

@@ -83,6 +83,8 @@ async def processar_nota(
     else:
         html = raspar_nfce(qr_code_url)
     texto = extrair_texto_nota(html)
+    logger.info("processar_nota: html_len=%d texto_len=%d texto_preview=%r",
+                len(html), len(texto), texto[:200])
     raw, provider = await extrair_com_fallback(texto, EXTRACTION_SCHEMA, familia_id)
     raw = _validar_grounding(raw, texto)
 
