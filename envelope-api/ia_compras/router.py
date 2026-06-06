@@ -15,6 +15,29 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.get("/scrape")
+def scrape_nfce(
+    qr_code_url: str,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Faz o scraping da NFC-e no servidor e retorna o HTML/XML bruto.
+
+    O celular chama este endpoint, recebe o HTML, processa com Gemini localmente
+    (IP residencial do usuário, sem bloqueio geo) e envia o resultado para
+    /salvar_extraido. Separação de responsabilidades:
+      - Render: scraping (não bloqueado pela SEFAZ)
+      - Celular: Gemini (não bloqueado pelo Google)
+    """
+    from ia_compras.scraper_sefaz import raspar_nfce, SefazIndisponivelError
+    try:
+        html = raspar_nfce(qr_code_url)
+        return {"html": html, "comprimento": len(html)}
+    except SefazIndisponivelError as e:
+        raise HTTPException(503, str(e))
+    except Exception as e:
+        raise HTTPException(422, f"Erro ao acessar SEFAZ: {e}")
+
+
 @router.post("/ingestao", status_code=202)
 async def ingestao_nota(
     payload: IngestaoRequest,
