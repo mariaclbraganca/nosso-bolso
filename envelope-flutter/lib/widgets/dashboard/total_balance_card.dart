@@ -5,6 +5,8 @@ import '../../theme/app_theme.dart';
 import '../../screens/abastecer_sheet.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../providers/fixos_provider.dart';
+import '../../providers/mes_provider.dart';
+import '../../providers/transacoes_provider.dart';
 
 class TotalBalanceCard extends ConsumerWidget {
   final double saldo;
@@ -17,7 +19,9 @@ class TotalBalanceCard extends ConsumerWidget {
     final totalGasto = stats['spent'] ?? 0.0;
     final totalDisponivel = stats['available'] ?? 0.0;
     final reservado = ref.watch(totalReservadoProvider);
-    final livre = saldo - reservado;
+    final mes = ref.watch(mesAtualProvider);
+    final receitaMes = ref.watch(statsPorMesProvider(mes)).totalReceita;
+    final livre = ref.watch(saldoLivreProvider);
 
     final pctRestante = totalPlanejado > 0 ? (totalDisponivel / totalPlanejado).clamp(0.0, 1.0) : 0.0;
     final pgC = pctRestante > 0.5 ? AppColors.grn : pctRestante > 0.2 ? AppColors.org : AppColors.red;
@@ -38,28 +42,31 @@ class TotalBalanceCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('SALDO GERAL', style: TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.8)),
+          const Text('DISPONÍVEL PARA ENVELOPES', style: TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.8)),
           const SizedBox(height: 4),
-          Text(fmt.format(saldo), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.acc, letterSpacing: -1)),
+          Text(fmt.format(livre > 0 ? livre : 0), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.acc, letterSpacing: -1)),
 
-          // Reservado + Livre
-          if (reservado > 0) ...[
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(children: [
-                  const Text('🔒 ', style: TextStyle(fontSize: 12)),
-                  Text('Reservado fixos: ', style: TextStyle(fontSize: 11, color: AppColors.org.withOpacity(0.8))),
-                  Text(fmt.format(reservado), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.org)),
-                ]),
-              ],
-            ),
-            const SizedBox(height: 4),
+          const SizedBox(height: 10),
+          // Composição do cálculo
+          Row(children: [
+            const Text('🏦 ', style: TextStyle(fontSize: 12)),
+            Text('Saldo acumulado: ', style: TextStyle(fontSize: 11, color: AppColors.mu)),
+            Text(fmt.format(saldo), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.tx)),
+          ]),
+          const SizedBox(height: 4),
+          if (receitaMes > 0) ...[
             Row(children: [
-              const Text('⚡ ', style: TextStyle(fontSize: 12)),
-              const Text('Livre p/ envelopes: ', style: TextStyle(fontSize: 11, color: AppColors.acc)),
-              Text(fmt.format(livre > 0 ? livre : 0), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.acc)),
+              const Text('💰 ', style: TextStyle(fontSize: 12)),
+              Text('Receita do mês: ', style: TextStyle(fontSize: 11, color: AppColors.grn.withOpacity(0.9))),
+              Text('+ ${fmt.format(receitaMes)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.grn)),
+            ]),
+            const SizedBox(height: 4),
+          ],
+          if (reservado > 0) ...[
+            Row(children: [
+              const Text('🔒 ', style: TextStyle(fontSize: 12)),
+              Text('Reservado fixos: ', style: TextStyle(fontSize: 11, color: AppColors.org.withOpacity(0.8))),
+              Text('- ${fmt.format(reservado)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.org)),
             ]),
           ],
 

@@ -6,20 +6,21 @@ import httpx
 from ia_compras.models_compras import ListaComprasGerada, ItemLista, CategoriaItem
 
 logger = logging.getLogger(__name__)
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 def _chamar_gemini(prompt: str) -> str:
     """Chamada síncrona ao Gemini via REST (sem o SDK google-genai, que não é
     dependência obrigatória)."""
-    if not GEMINI_API_KEY:
+    # Lê em runtime para pegar o valor carregado pelo carregar_config_do_supabase()
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     with httpx.Client(timeout=45.0) as client:
         resp = client.post(
             url,
-            params={"key": GEMINI_API_KEY},
+            params={"key": api_key},
             json={"contents": [{"parts": [{"text": prompt}]}]},
         )
         resp.raise_for_status()

@@ -3,6 +3,7 @@ import 'package:envelope_flutter/providers/usuarios_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants.dart';
 import 'mes_provider.dart';
+import 'transacoes_provider.dart';
 
 /// Stream bruto — todos os fixos da família (necessário pois .stream() aceita só 1 .eq()).
 final fixosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
@@ -35,9 +36,11 @@ final totalReservadoProvider = Provider<double>((ref) {
   return total;
 });
 
-/// Saldo livre para envelopes = saldo_geral - reservado
+/// Saldo livre para envelopes = saldo_geral + receita_do_mes - reservado
 final saldoLivreProvider = Provider<double>((ref) {
-  final saldoGeral = ref.watch(saldoGeralProvider).value ?? 0.0;
-  final reservado = ref.watch(totalReservadoProvider);
-  return saldoGeral - reservado;
+  final saldoGeral  = ref.watch(saldoGeralProvider).value ?? 0.0;
+  final reservado   = ref.watch(totalReservadoProvider);
+  final mes         = ref.watch(mesAtualProvider);
+  final receitaMes  = ref.watch(statsPorMesProvider(mes)).totalReceita;
+  return saldoGeral + receitaMes - reservado;
 });

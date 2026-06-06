@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
+import '../providers/compras_provider.dart';
 
-class SpeedDialFab extends StatefulWidget {
+class SpeedDialFab extends ConsumerStatefulWidget {
   final VoidCallback onGastei;
   final VoidCallback onRecebi;
   final VoidCallback onNovoEnvelope;
+  final VoidCallback onComprasIA;
 
   const SpeedDialFab({
     super.key,
     required this.onGastei,
     required this.onRecebi,
     required this.onNovoEnvelope,
+    required this.onComprasIA,
   });
 
   @override
-  State<SpeedDialFab> createState() => _SpeedDialFabState();
+  ConsumerState<SpeedDialFab> createState() => _SpeedDialFabState();
 }
 
-class _SpeedDialFabState extends State<SpeedDialFab>
+class _SpeedDialFabState extends ConsumerState<SpeedDialFab>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _rotation;
@@ -56,13 +60,15 @@ class _SpeedDialFabState extends State<SpeedDialFab>
 
   @override
   Widget build(BuildContext context) {
+    final pendentesAsync = ref.watch(comprasPendentesProvider);
+    final pendentesCount = pendentesAsync.value?.length ?? 0;
+
     return SizedBox(
-      width: 200,
-      height: 320,
+      width: 220,
+      height: 380,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          // Overlay tap-to-close
           if (_isOpen)
             Positioned.fill(
               child: GestureDetector(
@@ -72,7 +78,17 @@ class _SpeedDialFabState extends State<SpeedDialFab>
               ),
             ),
 
-          // Option 3 — Novo Envelope (top)
+          // Option 4 — Compras IA (topo)
+          _buildOption(
+            offset: 250,
+            label: '🤖 Compras IA',
+            color: const Color(0xFFD4A017),
+            icon: Icons.qr_code_scanner,
+            onTap: () => _onOption(widget.onComprasIA),
+            badge: pendentesCount > 0 ? pendentesCount : null,
+          ),
+
+          // Option 3 — Novo Envelope
           _buildOption(
             offset: 190,
             label: '📦 Novo Envelope',
@@ -81,7 +97,7 @@ class _SpeedDialFabState extends State<SpeedDialFab>
             onTap: () => _onOption(widget.onNovoEnvelope),
           ),
 
-          // Option 2 — Recebi (middle)
+          // Option 2 — Recebi
           _buildOption(
             offset: 130,
             label: '💰 Recebi',
@@ -90,7 +106,7 @@ class _SpeedDialFabState extends State<SpeedDialFab>
             onTap: () => _onOption(widget.onRecebi),
           ),
 
-          // Option 1 — Gastei (closest)
+          // Option 1 — Gastei
           _buildOption(
             offset: 70,
             label: '💸 Gastei',
@@ -99,20 +115,47 @@ class _SpeedDialFabState extends State<SpeedDialFab>
             onTap: () => _onOption(widget.onGastei),
           ),
 
-          // Main FAB
-          RotationTransition(
-            turns: _rotation,
-            child: FloatingActionButton(
-              onPressed: _toggle,
-              elevation: 10,
-              backgroundColor: AppColors.acc,
-              shape: const CircleBorder(),
-              child: Icon(
-                _isOpen ? Icons.close : Icons.add,
-                color: AppColors.bg,
-                size: 28,
+          // Main FAB com badge quando fechado
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              RotationTransition(
+                turns: _rotation,
+                child: FloatingActionButton(
+                  onPressed: _toggle,
+                  elevation: 10,
+                  backgroundColor: AppColors.acc,
+                  shape: const CircleBorder(),
+                  child: Icon(
+                    _isOpen ? Icons.close : Icons.add,
+                    color: AppColors.bg,
+                    size: 28,
+                  ),
+                ),
               ),
-            ),
+              if (!_isOpen && pendentesCount > 0)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD4A017),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$pendentesCount',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -125,6 +168,7 @@ class _SpeedDialFabState extends State<SpeedDialFab>
     required Color color,
     required IconData icon,
     required VoidCallback onTap,
+    int? badge,
   }) {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 220),
@@ -148,12 +192,39 @@ class _SpeedDialFabState extends State<SpeedDialFab>
                 child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               const SizedBox(width: 10),
-              FloatingActionButton.small(
-                heroTag: label,
-                onPressed: onTap,
-                backgroundColor: color,
-                shape: const CircleBorder(),
-                child: Icon(icon, color: Colors.white, size: 20),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: label,
+                    onPressed: onTap,
+                    backgroundColor: color,
+                    shape: const CircleBorder(),
+                    child: Icon(icon, color: Colors.white, size: 20),
+                  ),
+                  if (badge != null)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$badge',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
