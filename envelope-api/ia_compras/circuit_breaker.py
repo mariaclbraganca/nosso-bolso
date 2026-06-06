@@ -7,11 +7,25 @@ OLLAMA_TIMEOUT = 5.0
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
+def _get_gemini_keys_disponiveis() -> list[str]:
+    """Retorna todas as chaves Gemini configuradas no ambiente (KEY, KEY_1, KEY_2, KEY_3)."""
+    chaves = []
+    for sufixo in ("", "_1", "_2", "_3"):
+        k = os.environ.get(f"GEMINI_API_KEY{sufixo}", "").strip()
+        if k and k not in chaves:
+            chaves.append(k)
+    return chaves
+
+
 def _get_gemini_key(familia_id: str = "") -> str:
+    """Retorna a primeira chave disponível: família > env numeradas > env simples."""
     if familia_id:
         from routes.configuracoes import get_gemini_key
-        return get_gemini_key(familia_id)
-    return os.environ.get("GEMINI_API_KEY", "")
+        chave_familia = get_gemini_key(familia_id)
+        if chave_familia:
+            return chave_familia
+    chaves = _get_gemini_keys_disponiveis()
+    return chaves[0] if chaves else ""
 
 
 class LLMProvider(str, Enum):
@@ -73,18 +87,31 @@ def _parse_response(raw: dict) -> dict:
 async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = "") -> dict:
     import json
     import asyncio
-    api_key = _get_gemini_key(familia_id)
-    if not api_key:
+
+    # Monta pool de chaves: família tem prioridade, depois as do Render
+    chave_familia = ""
+    if familia_id:
+        from routes.configuracoes import get_gemini_key
+        chave_familia = get_gemini_key(familia_id)
+    chaves_env = _get_gemini_keys_disponiveis()
+    # Deduplicar mantendo ordem: família primeiro
+    todas_chaves: list[str] = []
+    if chave_familia and chave_familia not in todas_chaves:
+        todas_chaves.append(chave_familia)
+    for k in chaves_env:
+        if k not in todas_chaves:
+            todas_chaves.append(k)
+
+    if not todas_chaves:
         raise RuntimeError("GEMINI_API_KEY não configurada")
+
     prompt = _montar_prompt_extracao(html_bruto, schema)
-    # tenta o modelo principal e cai para gemini-flash-latest se a quota/zona estiver fora
-    modelos = [GEMINI_MODEL]
-    if "gemini-flash-latest" not in modelos:
-        modelos.append("gemini-flash-latest")
+    modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
     last_err: Exception | None = None
-    for modelo in modelos:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-        for tentativa in range(3):
+
+    for api_key in todas_chaves:
+        for tentativa in range(2):
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
                     resp = await client.post(url, params={"key": api_key}, json={
@@ -96,6 +123,12 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
                         )
                         await asyncio.sleep(2 ** tentativa)
                         continue
+                    if resp.status_code == 400:
+                        # Chave inválida — tenta a próxima sem retry
+                        last_err = httpx.HTTPStatusError(
+                            f"400 key={api_key[:8]}...", request=resp.request, response=resp
+                        )
+                        break
                     resp.raise_for_status()
                     data = resp.json()
                     text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -108,4 +141,5 @@ async def _chamar_gemini_flash(html_bruto: str, schema: dict, familia_id: str = 
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_err = e
                 await asyncio.sleep(2 ** tentativa)
-    raise RuntimeError(f"Gemini falhou após retries: {last_err}")
+
+    raise RuntimeError(f"Gemini falhou com todas as chaves: {last_err}")
