@@ -279,13 +279,15 @@ class _ComprasPendentesScreenState
         }
         htmlPayload = await NfceScraper.raspar(qrUrl);
       } catch (e) {
-        debugPrint('Scrape local falhou: $e');
+        // Propaga o erro para o usuário — não há fallback viável no Render
+        throw Exception('Erro ao baixar nota: $e');
       }
 
       if (htmlPayload == null) {
-        // Sem HTML não há como chamar o Gemini — usa fluxo legado (pode falhar no Render)
-        await _enviarIngestaoLegado(familiaId, qrUrl, null);
-        return;
+        throw Exception(
+          'Não foi possível baixar os dados da nota. '
+          'Verifique se a SEFAZ do seu estado está disponível e tente novamente.',
+        );
       }
 
       // Passo 2: chama o Gemini diretamente do celular para extrair os dados
