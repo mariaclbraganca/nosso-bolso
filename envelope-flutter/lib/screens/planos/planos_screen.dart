@@ -5,6 +5,7 @@ import '../../widgets/mascote/astrix_painter.dart' show AstrixMood;
 import '../../widgets/mascote/unicorn_screen_guard.dart';
 import 'contas_screen.dart';
 import 'metas_screen.dart';
+import '../fixos_screen.dart';
 
 class PlanosScreen extends StatefulWidget {
   const PlanosScreen({super.key});
@@ -19,7 +20,7 @@ class _PlanosScreenState extends State<PlanosScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -50,6 +51,7 @@ class _PlanosScreenState extends State<PlanosScreen> with SingleTickerProviderSt
             tabs: const [
               Tab(text: '🧾  Contas'),
               Tab(text: '🎯  Metas'),
+              Tab(text: '📌  Fixos'),
             ],
           ),
         ),
@@ -59,6 +61,7 @@ class _PlanosScreenState extends State<PlanosScreen> with SingleTickerProviderSt
             children: const [
               ContasScreen(),
               MetasScreen(),
+              FixosScreen(),
             ],
           ),
         ),
