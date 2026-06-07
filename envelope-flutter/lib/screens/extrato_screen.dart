@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../constants.dart';
 import '../widgets/transacao_item.dart';
 import '../widgets/seletor_usuario.dart';
+import 'relatorios_screen.dart';
 
 class ExtratoScreen extends ConsumerStatefulWidget {
   const ExtratoScreen({super.key});
@@ -121,9 +122,9 @@ class _ExtratoScreenState extends ConsumerState<ExtratoScreen> {
     final pagedAsync = ref.watch(pagedTransacoesProvider);
     final allTransacoes = pagedAsync.value ?? [];
     final isLoading = pagedAsync.isLoading;
-    
+
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text(mesLabelLongo(ref.watch(mesAtualProvider)), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -146,32 +147,47 @@ class _ExtratoScreenState extends ConsumerState<ExtratoScreen> {
             const SizedBox(width: 8),
           ],
           bottom: TabBar(
-            onTap: (index) => setState(() => _tipoAba = index == 0 ? 'despesa' : 'receita'),
-            indicatorColor: _tipoAba == 'despesa' ? AppColors.red : AppColors.grn,
-            labelColor: _tipoAba == 'despesa' ? AppColors.red : AppColors.grn,
+            onTap: (index) {
+              setState(() => _tipoAba = index == 1 ? 'despesa' : index == 2 ? 'receita' : 'relatorios');
+            },
+            indicatorColor: _tipoAba == 'relatorios' ? AppColors.acc : _tipoAba == 'despesa' ? AppColors.red : AppColors.grn,
+            labelColor: _tipoAba == 'relatorios' ? AppColors.acc : _tipoAba == 'despesa' ? AppColors.red : AppColors.grn,
             unselectedLabelColor: AppColors.mu,
             tabs: const [
-              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_downward, size: 16), SizedBox(width: 8), Text('Despesas')])),
-              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_upward, size: 16), SizedBox(width: 8), Text('Receitas')])),
+              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.bar_chart_rounded, size: 16), SizedBox(width: 6), Text('Relatórios')])),
+              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_downward, size: 16), SizedBox(width: 6), Text('Despesas')])),
+              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.arrow_upward, size: 16), SizedBox(width: 6), Text('Receitas')])),
             ],
           ),
         ),
-        body: Column(
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(),
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: SizedBox(height: 50, child: SeletorUsuario()),
+            // Aba 0 — Relatórios / Gráficos
+            const RelatoriosBody(),
+
+            // Abas 1 e 2 — Despesas / Receitas
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SizedBox(height: 50, child: SeletorUsuario()),
+                ),
+                _buildSearchBar(),
+                if (_showFilters) _buildFiltersPanel(),
+                Expanded(child: _buildLista(tipo: 'despesa', user: selectedUser, transacoes: allTransacoes, loading: isLoading)),
+              ],
             ),
-            _buildSearchBar(),
-            if (_showFilters) _buildFiltersPanel(),
-            Expanded(
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildLista(tipo: 'despesa', user: selectedUser, transacoes: allTransacoes, loading: isLoading),
-                  _buildLista(tipo: 'receita', user: selectedUser, transacoes: allTransacoes, loading: isLoading),
-                ],
-              ),
+            Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SizedBox(height: 50, child: SeletorUsuario()),
+                ),
+                _buildSearchBar(),
+                if (_showFilters) _buildFiltersPanel(),
+                Expanded(child: _buildLista(tipo: 'receita', user: selectedUser, transacoes: allTransacoes, loading: isLoading)),
+              ],
             ),
           ],
         ),

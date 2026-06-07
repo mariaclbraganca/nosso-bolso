@@ -14,8 +14,9 @@ import '../widgets/relatorios/top_expenses_card.dart';
 import '../widgets/mascote/unicorn_screen_guard.dart';
 import '../providers/unicorn_team.dart';
 
-class RelatoriosScreen extends ConsumerWidget {
-  const RelatoriosScreen({super.key});
+/// Widget embeddable sem Scaffold — usado dentro do ExtratoScreen (TabBarView).
+class RelatoriosBody extends ConsumerWidget {
+  const RelatoriosBody({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,17 +72,7 @@ class RelatoriosScreen extends ConsumerWidget {
           )),
         ];
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('RELATÓRIOS', style: TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.5)),
-                Text(mesLabelLongo(mesAtu), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          body: ListView(
+        return ListView(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
             children: [
               StatCardRow(
@@ -92,44 +83,26 @@ class RelatoriosScreen extends ConsumerWidget {
                 saldoEnvelopes: saldoEnvelopes,
               ),
               const SizedBox(height: 14),
-
-              // 🍩 Pizza por envelope (layout protótipo: horizontal)
               EnvelopePieChartCard(envelopes: envelopes, totGasto: totGasto, gastosPorEnvelope: gastosPorEnvelope),
               const SizedBox(height: 12),
-
-              // 👥 Gastos por pessoa
               const UserSpendingBars(),
               const SizedBox(height: 12),
-
-              // 📈 Evolução de gastos no mês (NOVO)
               const SpendingTrendChart(),
               const SizedBox(height: 12),
-
-              // 📊 Planejado vs Gasto (NOVO)
               BudgetComparisonChart(envelopes: envelopes, gastosPorEnvelope: gastosPorEnvelope),
               const SizedBox(height: 12),
-
-              // 🏆 Top 5 maiores gastos (NOVO)
               const TopExpensesCard(),
               const SizedBox(height: 20),
-
-              // 💡 Sugestões inteligentes
               if (todasSugestoes.isNotEmpty) ...[
                 const Text('💡 Sugestões', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 ...todasSugestoes,
               ],
             ],
-          ),
-        );
+          );
       },
-      loading: () => Scaffold(
-        appBar: AppBar(title: const Text('CARREGANDO...')),
-        body: const Center(child: CircularProgressIndicator(color: AppColors.acc)),
-      ),
-      error: (e, stack) => Scaffold(
-        body: Center(child: Text('Erro ao carregar gráficos: $e', style: const TextStyle(color: AppColors.red))),
-      ),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.acc)),
+      error: (e, stack) => Center(child: Text('Erro ao carregar gráficos: $e', style: const TextStyle(color: AppColors.red))),
     ),
     UnicornScreenGuard(
       screenId: 'relatorios',
@@ -223,6 +196,22 @@ class RelatoriosScreen extends ConsumerWidget {
           Expanded(child: Text(text, style: const TextStyle(fontSize: 12, height: 1.5))),
         ],
       ),
+    );
+  }
+}
+
+/// Wrapper standalone — mantido para compatibilidade (não está na nav principal).
+class RelatoriosScreen extends ConsumerWidget {
+  const RelatoriosScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mesAtu = ref.watch(mesAtualProvider);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(mesLabelLongo(mesAtu), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ),
+      body: const RelatoriosBody(),
     );
   }
 }
