@@ -12,6 +12,7 @@ import '../providers/astrix_provider.dart';
 import '../widgets/mascote/astrix_painter.dart' show AstrixMood;
 import '../widgets/mascote/unicorn_screen_guard.dart';
 
+/// Widget embeddable sem Scaffold — usado dentro do PlanosScreen (TabBarView).
 class FixosScreen extends ConsumerStatefulWidget {
   const FixosScreen({super.key});
 
@@ -36,9 +37,7 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
 
   Future<void> _togglePago(String id, bool val) async {
     try {
-      // REGRA SPEC-01/02: Usar o backend para gerenciar o toggle e o saldo atômico
       await ApiService.patch('/fixos/$id', {'pago': val});
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(val ? '✅ Marcado como pago' : '↩ Desfeito'),
@@ -76,7 +75,6 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
     }
   }
 
-  // Mesma lógica de deleção simplificada
   Future<void> _deletarFixoPago(String id, String nome) => _liberarFixo(id, nome);
 
   @override
@@ -84,91 +82,108 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
     final fixosAsync = ref.watch(fixosStreamProvider);
 
     return fixosAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: Center(child: Text('Erro: $e'))),
-      data: (_) => _buildBody(ref.watch(fixosMesAtualProvider)),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.acc)),
+      error: (e, _) => Center(child: Text('Erro: $e', style: const TextStyle(color: AppColors.red))),
+      data: (_) => _buildContent(ref.watch(fixosMesAtualProvider)),
     );
   }
 
-  Widget _buildBody(List<Map<String, dynamic>> fixos) {
+  Widget _buildContent(List<Map<String, dynamic>> fixos) {
     final fmt = NumberFormat.simpleCurrency(locale: 'pt_BR');
     final fmtS = NumberFormat.simpleCurrency(locale: 'pt_BR', decimalDigits: 0);
-    double totalVal = fixos.fold(0.0, (s, f) => s + (f['valor'] as num).toDouble());
-    double paidVal = fixos.where((f) => f['pago'] == true).fold(0.0, (s, f) => s + (f['valor'] as num).toDouble());
-    double pendVal = totalVal - paidVal;
+    final totalVal = fixos.fold(0.0, (s, f) => s + (f['valor'] as num).toDouble());
+    final paidVal = fixos.where((f) => f['pago'] == true).fold(0.0, (s, f) => s + (f['valor'] as num).toDouble());
+    final pendVal = totalVal - paidVal;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
           children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => ref.read(mesAtualProvider.notifier).state = mesAnterior(ref.read(mesAtualProvider)),
-                  child: const Icon(Icons.chevron_left, size: 18, color: AppColors.mu),
-                ),
-                Text(mesLabel(ref.watch(mesAtualProvider)), style: const TextStyle(fontSize: 11, color: AppColors.mu, letterSpacing: 0.5)),
-                GestureDetector(
-                  onTap: () => ref.read(mesAtualProvider.notifier).state = mesProximo(ref.read(mesAtualProvider)),
-                  child: const Icon(Icons.chevron_right, size: 18, color: AppColors.mu),
-                ),
-              ],
+            // Seletor de mês
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => ref.read(mesAtualProvider.notifier).state = mesAnterior(ref.read(mesAtualProvider)),
+                    child: const Icon(Icons.chevron_left, size: 22, color: AppColors.mu),
+                  ),
+                  const SizedBox(width: 8),
+                  Consumer(builder: (_, r, __) => Text(
+                    mesLabelLongo(r.watch(mesAtualProvider)),
+                    style: const TextStyle(fontSize: 13, color: AppColors.mu, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                  )),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => ref.read(mesAtualProvider.notifier).state = mesProximo(ref.read(mesAtualProvider)),
+                    child: const Icon(Icons.chevron_right, size: 22, color: AppColors.mu),
+                  ),
+                ],
+              ),
             ),
-            const Text('Gastos Fixos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+            // Summary cards
+            Row(children: [
+              _miniCard('TOTAL/MÊS', fmtS.format(totalVal), AppColors.tx),
+              const SizedBox(width: 8),
+              _miniCard('✓ PAGO', fmtS.format(paidVal), AppColors.grn),
+              const SizedBox(width: 8),
+              _miniCard('🔒 RESERVADO', fmtS.format(pendVal), AppColors.org),
+            ]),
+            const SizedBox(height: 14),
+
+            if (fixos.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Text('Nenhum gasto fixo cadastrado', style: TextStyle(color: AppColors.mu)),
+                ),
+              )
+            else
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: fixos.asMap().entries.map((entry) {
+                    return _buildFixoItem(entry.value, entry.key > 0, fmt);
+                  }).toList(),
+                ),
+              ),
+
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.acc.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.acc.withOpacity(0.2)),
+              ),
+              child: const Text(
+                '💡 Fixos pendentes ficam reservados do saldo geral. Ao marcar como pago, o valor é debitado. Deslize para a esquerda para liberar.',
+                style: TextStyle(fontSize: 12, color: AppColors.acc, height: 1.6),
+              ),
+            ),
           ],
         ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-        children: [
-          // Summary cards
-          Row(children: [
-            _miniCard('TOTAL/MÊS', fmtS.format(totalVal), AppColors.tx),
-            const SizedBox(width: 8),
-            _miniCard('✓ PAGO', fmtS.format(paidVal), AppColors.grn),
-            const SizedBox(width: 8),
-            _miniCard('🔒 RESERVADO', fmtS.format(pendVal), AppColors.org),
-          ]),
-          const SizedBox(height: 14),
 
-          // List
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(children: fixos.asMap().entries.map((entry) {
-              final i = entry.key;
-              final f = entry.value;
-              return _buildFixoItem(f, i > 0, fmt);
-            }).toList()),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Info card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.acc.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.acc.withOpacity(0.2)),
+        // FAB posicionado dentro do Stack para não conflitar com Scaffold externo
+        Positioned(
+          bottom: 24,
+          right: 16,
+          child: FloatingActionButton(
+            heroTag: 'fixos_fab',
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const FormFixoSheet(),
             ),
-            child: const Text(
-              '💡 Fixos pendentes ficam reservados do saldo geral. Ao marcar como pago, o valor é debitado. Deslize para a esquerda para liberar.',
-              style: TextStyle(fontSize: 12, color: AppColors.acc, height: 1.6),
-            ),
+            backgroundColor: AppColors.acc,
+            child: const Icon(Icons.add, color: AppColors.bg),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => const FormFixoSheet(),
         ),
-        backgroundColor: AppColors.acc,
-        child: const Icon(Icons.add, color: AppColors.bg),
-      ),
+      ],
     );
   }
 
@@ -193,7 +208,10 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
           color: isPago ? AppColors.red.withOpacity(0.1) : AppColors.acc.withOpacity(0.1),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
-          child: Text(isPago ? 'Excluir 🗑️' : 'Liberar ⚡', style: TextStyle(color: isPago ? AppColors.red : AppColors.acc, fontWeight: FontWeight.bold)),
+          child: Text(
+            isPago ? 'Excluir 🗑️' : 'Liberar ⚡',
+            style: TextStyle(color: isPago ? AppColors.red : AppColors.acc, fontWeight: FontWeight.bold),
+          ),
         ),
         child: InkWell(
           onTap: () => showModalBottomSheet(
@@ -245,13 +263,15 @@ class _FixosScreenState extends ConsumerState<FixosScreen> {
   }
 
   Widget _miniCard(String label, String val, Color color) => Expanded(
-    child: Card(child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Column(children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.mu)),
-        const SizedBox(height: 4),
-        Text(val, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color)),
-      ]),
-    )),
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.mu)),
+          const SizedBox(height: 4),
+          Text(val, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color)),
+        ]),
+      ),
+    ),
   );
 }
