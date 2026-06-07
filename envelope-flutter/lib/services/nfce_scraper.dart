@@ -16,9 +16,9 @@ class NfceScraper {
 
     if (resp.statusCode == 200) {
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final html = data['html'] as String? ?? '';
-      if (html.isEmpty) throw Exception('Servidor retornou HTML vazio');
-      return html;
+      final texto = data['texto_limpo'] as String? ?? '';
+      if (texto.isEmpty) throw Exception('Servidor retornou texto vazio');
+      return texto;
     }
 
     String detail;

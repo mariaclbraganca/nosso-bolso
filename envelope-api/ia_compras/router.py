@@ -28,10 +28,11 @@ def scrape_nfce(
       - Render: scraping (não bloqueado pela SEFAZ)
       - Celular: Gemini (não bloqueado pelo Google)
     """
-    from ia_compras.scraper_sefaz import raspar_nfce, SefazIndisponivelError
+    from ia_compras.scraper_sefaz import raspar_nfce, extrair_texto_nota, SefazIndisponivelError
     try:
         html = raspar_nfce(qr_code_url)
-        return {"html": html, "comprimento": len(html)}
+        texto_limpo = extrair_texto_nota(html)
+        return {"texto_limpo": texto_limpo, "comprimento": len(texto_limpo)}
     except SefazIndisponivelError as e:
         raise HTTPException(503, str(e))
     except Exception as e:

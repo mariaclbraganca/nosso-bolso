@@ -266,31 +266,23 @@ class _ComprasPendentesScreenState
 
   Future<void> _enviarIngestao(String familiaId, String qrUrl) async {
     try {
-      // Passo 1: raspa o HTML da SEFAZ no celular (IP residencial BR — SEFAZ e
-      // Google Gemini bloqueiam o IP do Render/AWS US-East)
-      String? htmlPayload;
+      // Passo 1: backend faz o scraping (Render não é bloqueado pela SEFAZ-GO)
+      // e retorna texto_limpo já processado com BeautifulSoup (sem JS/CSS)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Baixando dados da nota...'),
+          backgroundColor: AppColors.acc,
+          duration: Duration(seconds: 3),
+        ));
+      }
+      String textoLimpo;
       try {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Baixando dados da nota...'),
-            backgroundColor: AppColors.acc,
-            duration: Duration(seconds: 3),
-          ));
-        }
-        htmlPayload = await NfceScraper.raspar(qrUrl);
+        textoLimpo = await NfceScraper.raspar(qrUrl);
       } catch (e) {
-        // Propaga o erro para o usuário — não há fallback viável no Render
         throw Exception('Erro ao baixar nota: $e');
       }
 
-      if (htmlPayload == null) {
-        throw Exception(
-          'Não foi possível baixar os dados da nota. '
-          'Verifique se a SEFAZ do seu estado está disponível e tente novamente.',
-        );
-      }
-
-      // Passo 2: chama o Gemini diretamente do celular para extrair os dados
+      // Passo 2: Gemini no celular (IP residencial, sem bloqueio geo do Google)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Analisando nota com IA...'),
@@ -301,21 +293,19 @@ class _ComprasPendentesScreenState
 
       Map<String, dynamic> extraido;
       try {
-        extraido = await GeminiNfceService.extrairDaNota(htmlPayload);
+        extraido = await GeminiNfceService.extrairDaNota(textoLimpo);
       } on GeminiNfceException catch (e) {
-        // Chave não configurada ou erro da API — mostra erro direto, não tenta
-        // via backend (o Render tem bloqueio geo do Google que não tem solução)
         throw Exception(e.message);
       }
 
-      // Passo 3: envia o JSON extraído para o backend salvar (sem chamar LLM lá)
+      // Passo 3: envia JSON extraído para o backend salvar (sem chamar LLM lá)
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/salvar_extraido');
       final resp = await http.post(uri,
           headers: ApiService.authHeaders(json: true),
           body: jsonEncode({
             'familia_id': familiaId,
             'qr_code_url': qrUrl,
-            'supermercado': extraido['loja'] ?? extraido['supermercado'] ?? 'Desconhecido',
+            'supermercado': extraido['supermercado'] ?? 'Desconhecido',
             'data_compra': extraido['data_compra'] ?? DateTime.now().toIso8601String().substring(0, 10),
             'valor_total': (extraido['valor_total'] ?? 0).toDouble(),
             'itens': (extraido['itens'] as List? ?? []).map((item) => {
