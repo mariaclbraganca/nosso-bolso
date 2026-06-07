@@ -73,7 +73,7 @@ class _SpeedDialFabState extends ConsumerState<SpeedDialFab>
             Positioned.fill(
               child: GestureDetector(
                 onTap: _close,
-                behavior: HitTestBehavior.opaque,
+                behavior: HitTestBehavior.translucent,
                 child: const SizedBox.expand(),
               ),
             ),
@@ -174,59 +174,62 @@ class _SpeedDialFabState extends ConsumerState<SpeedDialFab>
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       bottom: _isOpen ? offset : 8,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 180),
-        opacity: _isOpen ? 1.0 : 0.0,
-        child: GestureDetector(
-          onTap: onTap,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
-                ),
-                child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              const SizedBox(width: 10),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: label,
-                    onPressed: onTap,
-                    backgroundColor: color,
-                    shape: const CircleBorder(),
-                    child: Icon(icon, color: Colors.white, size: 20),
+      child: IgnorePointer(
+        ignoring: !_isOpen,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 180),
+          opacity: _isOpen ? 1.0 : 0.0,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
                   ),
-                  if (badge != null)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$badge',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                  child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+                const SizedBox(width: 10),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    FloatingActionButton.small(
+                      heroTag: label,
+                      onPressed: onTap,
+                      backgroundColor: color,
+                      shape: const CircleBorder(),
+                      child: Icon(icon, color: Colors.white, size: 20),
+                    ),
+                    if (badge != null)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$badge',
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

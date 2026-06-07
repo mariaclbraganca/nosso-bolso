@@ -81,7 +81,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _currentIndex = index),
-        behavior: HitTestBehavior.opaque,
+        behavior: HitTestBehavior.translucent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -106,7 +106,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _currentIndex = index),
-        behavior: HitTestBehavior.opaque,
+        behavior: HitTestBehavior.translucent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
