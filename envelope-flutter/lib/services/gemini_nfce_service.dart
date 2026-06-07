@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
+import 'api_service.dart';
 
 /// Chama o Gemini diretamente do celular (IP residencial BR, sem bloqueio geo).
 /// Usa a chave configurada na tabela `configuracoes_app` do Supabase.
@@ -27,8 +29,23 @@ class GeminiNfceService {
     ],
   };
 
-  /// Busca a chave Gemini da tabela configuracoes_app do Supabase.
+  /// Busca a chave Gemini: primeiro tenta SharedPreferences (salva pela tela de config),
+  /// depois consulta o backend como fallback.
   static Future<String?> _buscarChave() async {
+    // 1) SharedPreferences — a tela de Configurações de IA salva localmente
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final local = prefs.getString('ia_gemini_api_key') ?? '';
+      if (local.isNotEmpty) {
+        debugPrint('GeminiNfce: chave encontrada no SharedPreferences');
+        return local;
+      }
+    } catch (e) {
+      debugPrint('GeminiNfce: erro SharedPreferences: $e');
+    }
+
+    // 2) Backend: GET /api/v1/configurar retorna gemini_api_key_configurada
+    //    mas não expõe a chave. Tenta Supabase direto como último recurso.
     try {
       final rows = await supabase
           .from('configuracoes_app')
@@ -37,12 +54,15 @@ class GeminiNfceService {
           .limit(1);
       if (rows.isNotEmpty) {
         final valor = rows.first['valor'] as String?;
-        if (valor != null && valor.isNotEmpty) return valor;
+        if (valor != null && valor.isNotEmpty) {
+          debugPrint('GeminiNfce: chave encontrada no Supabase');
+          return valor;
+        }
       }
     } catch (e) {
-      // Relança como GeminiNfceException para que o chamador mostre ao usuário
-      throw GeminiNfceException('Erro ao buscar chave Gemini: $e');
+      debugPrint('GeminiNfce: erro Supabase: $e');
     }
+
     return null;
   }
 
