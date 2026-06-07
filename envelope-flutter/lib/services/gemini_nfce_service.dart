@@ -74,17 +74,14 @@ class GeminiNfceService {
       throw GeminiNfceException('Chave Gemini não configurada. Configure em Configurações de IA.');
     }
 
-    final textoLimpo = _sanitizar(htmlBruto.length > 12000
-        ? htmlBruto.substring(0, 12000)
-        : htmlBruto);
+    final textoLimpo = _extrairTextoRelevante(htmlBruto);
 
     final prompt =
-        'Extrator NFC-e. Schema esperado:\n'
-        '${jsonEncode(_schema)}\n\n'
-        'Regras: data_compra=YYYY-MM-DD | valor_total=explícito na nota (NÃO some itens) | '
-        'decimais com ponto | nome_padronizado=sem abreviações | '
-        'categoria=enum exato | todos os itens | retorne APENAS JSON sem markdown.\n\n'
-        'FONTE:\n$textoLimpo';
+        'Extrator NFC-e. Retorne APENAS JSON, sem markdown.\n'
+        'Schema: ${jsonEncode(_schema)}\n'
+        'Regras: data_compra=YYYY-MM-DD | valor_total=explícito (campo "Valor a pagar") | '
+        'decimais com ponto | categoria=enum exato | todos os itens.\n\n'
+        'NOTA:\n$textoLimpo';
 
     final body = {
       'contents': [
@@ -101,7 +98,7 @@ class GeminiNfceService {
         .post(uri,
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body))
-        .timeout(const Duration(seconds: 60));
+        .timeout(const Duration(seconds: 90));
 
     if (resp.statusCode == 400) {
       final body = resp.body.length > 300 ? resp.body.substring(0, 300) : resp.body;
@@ -142,8 +139,42 @@ class GeminiNfceService {
     }
   }
 
+  /// Extrai só o texto relevante do XML/HTML da SEFAZ para reduzir o payload.
+  /// O XML da SEFAZ-GO tem HTML escapado dentro de <DANFE_NFCE_HTML> —
+  /// extraímos e limpamos as tags para mandar só texto puro ao Gemini.
+  static String _extrairTextoRelevante(String xmlBruto) {
+    String texto = xmlBruto;
+
+    // Extrai o conteúdo de <DANFE_NFCE_HTML> se existir
+    final match = RegExp(r'<DANFE_NFCE_HTML>(.*?)</DANFE_NFCE_HTML>', dotAll: true)
+        .firstMatch(texto);
+    if (match != null) {
+      texto = match.group(1) ?? texto;
+      // Decodifica entidades HTML (&lt; → <, &gt; → >, &amp; → &, etc.)
+      texto = texto
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&amp;', '&')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#039;', "'")
+          .replaceAll(RegExp(r'&[A-Za-z]+;'), ' '); // outras entidades
+    }
+
+    // Remove todas as tags HTML, mantendo só o texto
+    texto = texto.replaceAll(RegExp(r'<[^>]+>'), ' ');
+
+    // Colapsa espaços múltiplos e linhas em branco
+    texto = texto.replaceAll(RegExp(r'[ \t]+'), ' ');
+    texto = texto.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    texto = _sanitizar(texto).trim();
+
+    // Limita a 6000 chars — suficiente para qualquer nota fiscal
+    if (texto.length > 6000) texto = texto.substring(0, 6000);
+
+    return texto;
+  }
+
   static String _sanitizar(String texto) {
-    // Remove caracteres de controle que quebram o Gemini (exceto \n e \t)
     return texto.replaceAll(RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]'), '');
   }
 }
