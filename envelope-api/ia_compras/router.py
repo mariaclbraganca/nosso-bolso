@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from ia_compras.models_compras import (
     IngestaoRequest, IngestaoExtraidaRequest, CompraExtraida, FeedbackItemRequest,
     ConfirmarCompraRequest, MergeProdutoRequest, ListaComprasGerada, ItemExtraido,
-    AtualizarPerfilRequest,
+    AtualizarPerfilRequest, NotificacaoIfoodRequest,
 )
 from ia_compras.agente_extrator import processar_nota
 from ia_compras.mongo_client import get_compras_collection, get_dicionario_collection, get_perfis_collection
@@ -235,12 +235,19 @@ def confirmar_compra(
         raise HTTPException(400, f"Compra ja esta com status {compra['status_integracao']}")
 
     db = get_supabase()
+    fonte = compra.get("fonte", "nfce")
+    num_itens = len(compra.get("itens", []))
+    if fonte == "ifood":
+        descricao = f"{compra['supermercado']} (iFood Benefícios)"
+    else:
+        descricao = f"{compra['supermercado']} — {num_itens} itens"
+
     transacao = {
         "valor": compra["valor_total"],
         "tipo": "despesa",
         "usuario_id": usr,
         "envelope_id": str(payload.envelope_id),
-        "descricao": f"{compra['supermercado']} — {len(compra['itens'])} itens",
+        "descricao": descricao,
         "data": compra["data_compra"][:10],
         "familia_id": fam,
     }
@@ -416,6 +423,65 @@ def atualizar_perfil(
     return doc
 
 
+@router.post("/notificacao-ifood", status_code=201)
+def registrar_notificacao_ifood(
+    payload: NotificacaoIfoodRequest,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Recebe compra capturada via notificação do iFood Benefícios e salva
+    como compra pendente sem itens, aguardando confirmação do usuário."""
+    from uuid import uuid4
+
+    fam = assert_mesma_familia(user, str(payload.familia_id))
+    data_compra = payload.data or datetime.now().strftime("%Y-%m-%d")
+
+    compra_id = str(uuid4())
+    doc = {
+        "compra_id": compra_id,
+        "familia_id": fam,
+        "data_compra": f"{data_compra}T00:00:00",
+        "supermercado": payload.estabelecimento,
+        "valor_total": payload.valor,
+        "fonte": "ifood",
+        "status_integracao": "pendente",
+        "transacao_supabase_id": None,
+        "itens": [],
+        "created_at": datetime.now().isoformat(),
+    }
+    get_compras_collection().insert_one(doc)
+    logger.info("ifood: compra_id=%s familia=%s valor=%.2f", compra_id, fam, payload.valor)
+    return {"compra_id": compra_id, "status": "pendente"}
+
+
+@router.post("/notificacao-nubank", status_code=201)
+def registrar_notificacao_nubank(
+    payload: NotificacaoIfoodRequest,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Recebe compra/Pix capturado via notificação do Nubank e salva como compra pendente."""
+    from uuid import uuid4
+
+    fam = assert_mesma_familia(user, str(payload.familia_id))
+    data_compra = payload.data or datetime.now().strftime("%Y-%m-%d")
+
+    compra_id = str(uuid4())
+    doc = {
+        "compra_id": compra_id,
+        "familia_id": fam,
+        "data_compra": f"{data_compra}T00:00:00",
+        "supermercado": payload.estabelecimento,
+        "valor_total": payload.valor,
+        "fonte": "nubank",
+        "status_integracao": "pendente",
+        "transacao_supabase_id": None,
+        "itens": [],
+        "created_at": datetime.now().isoformat(),
+    }
+    get_compras_collection().insert_one(doc)
+    logger.info("nubank: compra_id=%s familia=%s valor=%.2f", compra_id, fam, payload.valor)
+    return {"compra_id": compra_id, "status": "pendente"}
+
+
 @router.post("/produtos/merge")
 def merge_produtos(
     payload: MergeProdutoRequest,
@@ -460,6 +526,7 @@ def _doc_to_compra(doc: dict) -> CompraExtraida:
         data_compra=datetime.fromisoformat(doc["data_compra"]),
         itens=itens,
         status_integracao=doc.get("status_integracao", "pendente"),
+        fonte=doc.get("fonte"),
     )
 
 
