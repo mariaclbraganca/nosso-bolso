@@ -5,3 +5,7 @@
 !envelope-api/**
 !envelope-flutter/
 !envelope-flutter/**
+!envelope-flutter-v2/
+!envelope-flutter-v2/**
+!.github/
+!.github/**

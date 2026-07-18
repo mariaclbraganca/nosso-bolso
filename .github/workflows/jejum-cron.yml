@@ -1,0 +1,28 @@
+name: Jejum — processar motivações (cron horário)
+
+on:
+  schedule:
+    # Executa a cada hora (minuto 0)
+    - cron: '0 * * * *'
+  workflow_dispatch: # permite rodar manualmente pelo GitHub Actions
+
+jobs:
+  processar-motivacoes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Chamar endpoint processar-motivacoes
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_API_URL }}/api/v1/saude/jejum/processar-motivacoes" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP $HTTP_STATUS"
+          cat /tmp/resp.json
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Erro: status $HTTP_STATUS"
+            exit 1
+          fi

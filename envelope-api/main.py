@@ -9,6 +9,7 @@ from ia_compras.router import router as compras_router
 from ia_compras.mongo_client import ensure_indexes
 from ia_saude.router_saude import router as saude_router
 from ia_saude.router_exercicio import router_exercicio
+from ia_saude.router_jejum import router as jejum_router
 from ia_saude.mongo_client_saude import ensure_saude_indexes
 from ia_financeiro.router_contas import router_contas
 from ia_financeiro.router_metas import router_metas
@@ -53,6 +54,7 @@ app.include_router(notificacoes.router, prefix="/notificacoes", tags=["notificac
 app.include_router(compras_router, prefix="/api/v1/compras", tags=["ia-compras"])
 app.include_router(saude_router,     prefix="/api/v1/saude",   tags=["ia-saude"])
 app.include_router(router_exercicio,  prefix="/api/v1/saude",       tags=["ia-exercicio"])
+app.include_router(jejum_router,      prefix="/api/v1/saude",       tags=["jejum"])
 app.include_router(router_contas,     prefix="/api/v1/financeiro",   tags=["ia-financeiro"])
 app.include_router(router_metas,      prefix="/api/v1/financeiro",   tags=["ia-financeiro"])
 app.include_router(configuracoes.router, prefix="/api/v1", tags=["configuracoes"])
