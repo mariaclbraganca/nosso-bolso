@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jejum Intermitente — Wireframes Nosso Bolso</title>
+<style>
+  @import url('data:text/css,');
+
+  :root {
+    --bg: #080A06;
+    --surf: #111408;
+    --card: #181C12;
+    --bord: #1E2419;
+    --acc: #9ED465;
+    --gold: #F5C542;
+    --tx: #EFF5E1;
+    --mu: #5A6450;
+    --grn: #4CAF50;
+    --red: #EF4444;
+    --org: #FF9800;
+    --blue: #60A5FA;
+    --purple: #A78BFA;
+    --page: 20px;
+    --radius-card: 16px;
+    --radius-btn: 12px;
+    --radius-chip: 20px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0D0F0A;
+    color: var(--tx);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    padding: 40px 20px 80px;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .page-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--acc);
+    letter-spacing: -0.5px;
+  }
+  .page-header p {
+    color: var(--mu);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 64px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--mu);
+    margin-bottom: 20px;
+    padding-left: 4px;
+    border-left: 3px solid var(--acc);
+    padding-left: 10px;
+  }
+
+  /* SCREENS GRID */
+  .screens-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* PHONE FRAME */
+  .phone {
+    width: 320px;
+    background: var(--bg);
+    border-radius: 36px;
+    border: 2px solid var(--bord);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-label {
+    font-size: 11px;
+    color: var(--mu);
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .phone-notch {
+    width: 90px;
+    height: 24px;
+    background: var(--bg);
+    border-radius: 0 0 16px 16px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+  .phone-content {
+    padding: 0 0 24px;
+    min-height: 580px;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 20px 4px;
+    font-size: 11px;
+    color: var(--mu);
+  }
+
+  /* NAV BAR */
+  .bottom-nav {
+    display: flex;
+    background: var(--surf);
+    border-top: 1px solid var(--bord);
+    padding: 8px 0 12px;
+    position: sticky;
+    bottom: 0;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    color: var(--mu);
+  }
+  .nav-item.active { color: var(--acc); }
+  .nav-icon { font-size: 18px; }
+  .nav-fab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .nav-fab-circle {
+    width: 44px;
+    height: 44px;
+    background: var(--acc);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-top: -20px;
+    border: 3px solid var(--bg);
+    font-weight: bold;
+    color: var(--bg);
+  }
+
+  /* TOP BAR */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px 12px;
+  }
+  .top-bar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--tx);
+  }
+  .top-bar-sub {
+    font-size: 11px;
+    color: var(--mu);
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius-card);
+    border: 1px solid var(--bord);
+    margin: 0 var(--page) 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-sm {
+    padding: 12px;
+  }
+  .card-gold {
+    border-color: rgba(245,197,66,0.3);
+    background: linear-gradient(135deg, rgba(245,197,66,0.08) 0%, var(--card) 60%);
+  }
+  .card-acc {
+    border-color: rgba(158,212,101,0.3);
+    background: linear-gradient(135deg, rgba(158,212,101,0.08) 0%, var(--card) 60%);
+  }
+  .card-purple {
+    border-color: rgba(167,139,250,0.3);
+    background: linear-gradient(135deg, rgba(167,139,250,0.08) 0%, var(--card) 60%);
+  }
+
+  /* CHIP */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--radius-chip);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .chip-acc { background: rgba(158,212,101,0.15); color: var(--acc); }
+  .chip-gold { background: rgba(245,197,66,0.15); color: var(--gold); }
+  .chip-org { background: rgba(255,152,0,0.15); color: var(--org); }
+  .chip-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .chip-blue { background: rgba(96,165,250,0.15); color: var(--blue); }
+  .chip-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .chip-mu { background: rgba(90,100,80,0.2); color: var(--mu); }
+
+  /* BUTTON */
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: var(--radius-btn);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 12px 16px;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+  }
+  .btn-acc { background: var(--acc); color: var(--bg); }
+  .btn-gold { background: var(--gold); color: var(--bg); }
+  .btn-outline { background: transparent; border: 1px solid var(--bord); color: var(--tx); }
+  .btn-outline-acc { background: rgba(158,212,101,0.08); border: 1px solid rgba(158,212,101,0.4); color: var(--acc); }
+  .btn-outline-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.4); color: var(--red); }
+  .btn-sm { padding: 8px 14px; font-size: 11px; }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--bord); margin: 0 var(--page); }
+
+  /* TEXT UTILS */
+  .tx-acc { color: var(--acc); }
+  .tx-gold { color: var(--gold); }
+  .tx-mu { color: var(--mu); }
+  .tx-red { color: var(--red); }
+  .tx-org { color: var(--org); }
+  .tx-blue { color: var(--blue); }
+  .tx-purple { color: var(--purple); }
+  .tx-sm { font-size: 11px; }
+  .tx-xs { font-size: 10px; }
+  .tx-lg { font-size: 20px; }
+  .tx-xl { font-size: 28px; }
+  .tx-bold { font-weight: 700; }
+  .tx-semi { font-weight: 600; }
+  .mono { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+  /* LAYOUT */
+  .row { display: flex; align-items: center; }
+  .row-between { display: flex; align-items: center; justify-content: space-between; }
+  .col { display: flex; flex-direction: column; }
+  .gap-4 { gap: 4px; }
+  .gap-6 { gap: 6px; }
+  .gap-8 { gap: 8px; }
+  .gap-10 { gap: 10px; }
+  .gap-12 { gap: 12px; }
+  .mt-4 { margin-top: 4px; }
+  .mt-6 { margin-top: 6px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-10 { margin-top: 10px; }
+  .mt-12 { margin-top: 12px; }
+  .px { padding: 0 var(--page); }
+  .px-sm { padding: 0 12px; }
+  .center { text-align: center; }
+
+  /* SCROLL AREA HINT */
+  .scroll-hint {
+    font-size: 9px;
+    color: var(--mu);
+    text-align: center;
+    padding: 4px;
+    opacity: 0.5;
+  }
+
+  /* TIMER CIRCLE */
+  .timer-ring {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .timer-ring-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(var(--acc) 0deg 237deg, var(--bord) 237deg 360deg);
+  }
+  .timer-ring-inner {
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: var(--card);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  /* PHASE BAR */
+  .phase-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    gap: 2px;
+    margin: 0 var(--page);
+  }
+  .phase-seg {
+    border-radius: 3px;
+    flex: 1;
+  }
+
+  /* PROGRESS BAR */
+  .prog-bar-wrap {
+    background: var(--bord);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .prog-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--acc);
+  }
+
+  /* UNICORN */
+  .unicorn {
+    font-size: 48px;
+    line-height: 1;
+  }
+  .unicorn-sm { font-size: 28px; }
+  .unicorn-xs { font-size: 20px; }
+  .unicorn-bubble {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    margin: 0 var(--page) 12px;
+    background: var(--surf);
+    border-radius: var(--radius-btn);
+    padding: 3px;
+    gap: 2px;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 7px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mu);
+    border-radius: 10px;
+  }
+  .tab.active {
+    background: var(--card);
+    color: var(--tx);
+  }
+
+  /* AVATAR */
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .avatar-acc { background: rgba(158,212,101,0.2); color: var(--acc); border: 1.5px solid var(--acc); }
+  .avatar-gold { background: rgba(245,197,66,0.2); color: var(--gold); border: 1.5px solid var(--gold); }
+  .avatar-mu { background: var(--surf); color: var(--mu); border: 1.5px solid var(--bord); }
+
+  /* TOGGLE */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--bord);
+  }
+  .toggle {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--acc);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    top: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  .toggle.off { background: var(--bord); }
+  .toggle.off::after { right: auto; left: 2px; }
+
+  /* INPUT */
+  .input-field {
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: var(--radius-btn);
+    padding: 12px 14px;
+    color: var(--tx);
+    font-size: 13px;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* SLIDER VISUAL */
+  .slider-track {
+    height: 4px;
+    background: var(--bord);
+    border-radius: 2px;
+    position: relative;
+    margin: 16px 0 6px;
+  }
+  .slider-fill {
+    height: 100%;
+    background: var(--acc);
+    border-radius: 2px;
+  }
+  .slider-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--acc);
+    border: 3px solid var(--bg);
+    position: absolute;
+    top: -7px;
+  }
+
+  /* SPARKLINE */
+  .sparkline {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 32px;
+  }
+  .spark-bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* INSIGHT CARD */
+  .insight-card {
+    background: var(--surf);
+    border-radius: 12px;
+    border: 1px solid var(--bord);
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .insight-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* FASE METAB */
+  .fase-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bord);
+  }
+  .fase-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fase-line {
+    width: 2px;
+    height: 16px;
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* BOTTOM SHEET */
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--bord);
+    border-radius: 2px;
+    margin: 12px auto 16px;
+  }
+
+  /* BADGE */
+  .badge {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--red);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  /* ANNOTATION */
+  .annotation {
+    font-size: 10px;
+    color: var(--mu);
+    background: rgba(90,100,80,0.15);
+    border: 1px dashed var(--bord);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin: 8px var(--page) 0;
+    line-height: 1.5;
+  }
+  .annotation b { color: var(--acc); }
+
+  /* FLOW ARROW */
+  .flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--mu);
+    font-size: 20px;
+    padding: 4px 0;
+  }
+  .flow-arrow span { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* KPI ROW */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 var(--page);
+    margin-bottom: 12px;
+  }
+  .kpi-box {
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  /* NOTIF PREVIEW */
+  .notif {
+    background: var(--surf);
+    border-radius: 12px;
+    border: 1px solid var(--bord);
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .notif-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(158,212,101,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* WATERFALL / TIMELINE */
+  .timeline-item {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0;
+  }
+  .timeline-dot-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    width: 16px;
+  }
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--acc);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .timeline-dot.filled { background: var(--acc); }
+  .timeline-line {
+    width: 2px;
+    flex: 1;
+    background: var(--bord);
+    min-height: 20px;
+  }
+
+  /* SEGMENTO SWITCHER */
+  .seg-switch {
+    display: flex;
+    gap: 8px;
+    padding: 0 var(--page);
+    margin-bottom: 16px;
+  }
+  .seg-pill {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid var(--bord);
+    color: var(--mu);
+  }
+  .seg-pill.active-grn { border-color: var(--acc); color: var(--acc); background: rgba(158,212,101,0.08); }
+  .seg-pill.active-org { border-color: var(--org); color: var(--org); background: rgba(255,152,0,0.08); }
+  .seg-pill.active-purple { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.08); }
+
+  /* HOME CHIP */
+  .home-chip {
+    background: var(--surf);
+    border: 1px solid var(--bord);
+    border-radius: 20px;
+    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  /* REFLECTION */
+  .reflection-opt {
+    background: var(--surf);
+    border: 1.5px solid var(--bord);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--tx);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .reflection-opt.selected { border-color: var(--acc); color: var(--acc); background: rgba(158,212,101,0.08); }
+
+  /* RING SVG */
+  .ring-wrap {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto;
+  }
+  .ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (prefers-color-scheme: light) {
+    body { background: #f0f2ed; }
+    .phone { border-color: #d0d4c8; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>🦄 Jejum Intermitente — Nosso Bolso</h1>
+  <p>Wireframes completos · Todas as telas e fluxos · Design System v2</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 1: ENTRY POINTS                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">01 · Entry Points — onde o jejum aparece no app</div>
+  <div class="screens-row">
+
+    <!-- HOME SCREEN com chip -->
+    <div>
+      <div class="phone-label">Home · chip de jejum ativo</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="col gap-4">
+              <div class="tx-sm tx-mu">Bom dia, Kris ✨</div>
+              <div style="font-size:16px; font-weight:700">Nosso Bolso</div>
+            </div>
+            <div class="unicorn-xs">🦄</div>
+          </div>
+
+          <!-- Chip de jejum -->
+          <div class="px" style="margin-bottom:12px">
+            <div style="background:rgba(158,212,101,0.08); border:1.5px solid rgba(158,212,101,0.3); border-radius:16px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between;">
+              <div class="row gap-8">
+                <span style="font-size:20px">🔥</span>
+                <div class="col gap-4">
+                  <div style="font-size:12px; font-weight:700; color:var(--acc)">Jejum ativo · 14h 23min</div>
+                  <div class="tx-xs tx-mu">Fase: Queima de gordura · 1h37 restante</div>
+                </div>
+              </div>
+              <div style="font-size:18px; color:var(--mu)">›</div>
+            </div>
+          </div>
+
+          <!-- Saldo card -->
+          <div class="card card-acc" style="margin-bottom:10px">
+            <div class="tx-xs tx-mu" style="margin-bottom:4px">SALDO DISPONÍVEL</div>
+            <div class="mono tx-xl tx-acc">R$ 1.420,00</div>
+            <div class="tx-xs tx-mu mt-4">Para distribuir nos envelopes</div>
+          </div>
+
+          <!-- Envelopes mini -->
+          <div class="px">
+            <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">ENVELOPES</div>
+          </div>
+          <div class="card card-sm">
+            <div class="row-between"><span class="tx-sm">🛒 Mercado</span><span class="mono tx-sm tx-acc">R$ 320</span></div>
+          </div>
+          <div class="card card-sm">
+            <div class="row-between"><span class="tx-sm">🍽️ Alimentação</span><span class="mono tx-sm tx-org">R$ 45</span></div>
+          </div>
+          <div class="card card-sm">
+            <div class="row-between"><span class="tx-sm">💊 Saúde</span><span class="mono tx-sm tx-acc">R$ 180</span></div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon">🏠</div><span>Home</span></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><span>Extrato</span></div>
+          <div class="nav-fab"><div class="nav-fab-circle">+</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><span>Planos</span></div>
+          <div class="nav-item"><div class="nav-icon">🌿</div><span>Minha Vida</span></div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Chip sempre visível na Home</b> quando há jejum ativo.<br>
+        Mostra hora atual + fase metabólica. Tap → abre timer completo.
+      </div>
+    </div>
+
+    <!-- MINHA VIDA com aba Jejum -->
+    <div>
+      <div class="phone-label">Minha Vida · aba Jejum</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="col gap-4">
+              <div class="tx-sm tx-mu">Minha Vida</div>
+              <div style="font-size:16px; font-weight:700">Kris · Maria</div>
+            </div>
+            <div style="background:var(--surf); border:1px solid var(--bord); border-radius:20px; padding:5px 10px; font-size:11px; color:var(--mu)">Kris ▾</div>
+          </div>
+
+          <!-- Segmento switcher -->
+          <div class="seg-switch">
+            <div class="seg-pill active-grn">🌿 Saúde</div>
+            <div class="seg-pill active-org">💪 Exercício</div>
+            <div class="seg-pill active-purple">⏱ Jejum</div>
+          </div>
+
+          <!-- Aba Jejum ativa -->
+          <div class="tabs">
+            <div class="tab active">Timer</div>
+            <div class="tab">Histórico</div>
+            <div class="tab">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- Timer preview -->
+          <div class="ring-wrap" style="margin-bottom:12px; margin-top:8px">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#1E2419" stroke-width="12"/>
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#9ED465" stroke-width="12"
+                stroke-dasharray="503" stroke-dashoffset="127" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-center">
+              <div class="tx-xs tx-mu">EM JEJUM</div>
+              <div class="mono tx-xl tx-acc">14:23</div>
+              <div class="tx-xs tx-mu">de 16h</div>
+              <div class="chip chip-acc mt-4" style="font-size:9px">🔥 Queima de gordura</div>
+            </div>
+          </div>
+
+          <!-- Fase atual -->
+          <div class="card card-sm" style="margin-bottom:8px">
+            <div class="row gap-8">
+              <span style="font-size:20px">🔥</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">Fase atual: Queima de gordura</div>
+                <div class="tx-xs tx-mu">Insulina baixa · Lipólise ativa · +1h37 para autofagia</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:0 var(--page)">
+            <div class="btn btn-outline-red btn-sm">⏹ Encerrar jejum</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><span>Home</span></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><span>Extrato</span></div>
+          <div class="nav-fab"><div class="nav-fab-circle">+</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><span>Planos</span></div>
+          <div class="nav-item active"><div class="nav-icon">🌿</div><span>Minha Vida</span></div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Novo segmento ⏱ Jejum</b> ao lado de Saúde e Exercício.<br>
+        4 abas: Timer · Histórico · Insights IA · Configurar.
+      </div>
+    </div>
+
+    <!-- ONGOIN NOTIF no dashboard diário -->
+    <div>
+      <div class="phone-label">Saúde · Hoje · card de jejum integrado</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Hoje · Kris</div>
+            <div class="chip chip-acc">🔥 Dia 8</div>
+          </div>
+
+          <!-- Card jejum integrado no dashboard de saúde -->
+          <div class="card" style="border-color:rgba(158,212,101,0.3); margin-bottom:10px">
+            <div class="row-between" style="margin-bottom:8px">
+              <div class="tx-sm tx-bold">⏱ Jejum · 16:8</div>
+              <div class="chip chip-acc" style="font-size:9px">14h23 · ativo</div>
+            </div>
+            <div class="prog-bar-wrap" style="margin-bottom:6px">
+              <div class="prog-bar-fill" style="width:90%"></div>
+            </div>
+            <div class="row-between">
+              <div class="tx-xs tx-mu">Janela abre às 12:00</div>
+              <div class="tx-xs tx-acc tx-bold">1h37 restante</div>
+            </div>
+          </div>
+
+          <!-- Anel calórico -->
+          <div class="card card-sm">
+            <div class="row gap-12">
+              <div style="width:56px;height:56px;border-radius:50%;background:conic-gradient(var(--acc) 0deg 194deg, var(--bord) 194deg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <div style="width:40px;height:40px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;flex-direction:column">
+                  <div class="mono" style="font-size:12px;color:var(--acc)">54%</div>
+                </div>
+              </div>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">1.134 <span class="tx-mu tx-xs">/ 2.100 kcal</span></div>
+                <div class="tx-xs tx-mu">Proteína 68g · Carbo 124g · Gord 42g</div>
+                <div class="chip chip-org" style="font-size:9px;margin-top:2px">⚠️ Proteína abaixo da meta</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Unicorn bubble -->
+          <div class="unicorn-bubble">🦄</div>
+          <div class="scroll-hint">↓ refeições do dia</div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><span>Home</span></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><span>Extrato</span></div>
+          <div class="nav-fab"><div class="nav-fab-circle">+</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><span>Planos</span></div>
+          <div class="nav-item active"><div class="nav-icon">🌿</div><span>Minha Vida</span></div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Card de jejum</b> no topo do dashboard de saúde (aba Hoje).<br>
+        Integrado ao progresso calórico. Alerta de proteína baixa na janela.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 2: CONFIGURAÇÃO DO PROTOCOLO                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">02 · Configurar Protocolo — onboarding e ajuste</div>
+  <div class="screens-row">
+
+    <!-- Escolha do protocolo -->
+    <div>
+      <div class="phone-label">Configurar · Escolher protocolo</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div style="padding:16px 20px 8px">
+            <div class="tx-sm tx-mu" style="margin-bottom:4px">Configure seu jejum</div>
+            <div style="font-size:18px; font-weight:700">Escolha seu protocolo</div>
+            <div class="tx-xs tx-mu mt-4">Sugerido pelo seu perfil metabólico</div>
+          </div>
+
+          <!-- Protocolo sugerido pela IA -->
+          <div class="card card-acc" style="margin-bottom:8px">
+            <div class="row-between" style="margin-bottom:6px">
+              <div class="chip chip-acc" style="font-size:9px">✨ SUGERIDO PELA IA</div>
+              <span style="font-size:16px">🦄</span>
+            </div>
+            <div style="font-size:22px; font-weight:800; color:var(--acc); margin-bottom:4px">16:8</div>
+            <div class="tx-sm tx-mu">16h jejum · 8h janela alimentar</div>
+            <div class="tx-xs tx-mu mt-6" style="line-height:1.5">Com seu TDEE de 1.850kcal e rotina atual, o 16:8 com janela 12h–20h tem <span class="tx-acc tx-bold">87% de aderência estimada</span> para o seu perfil.</div>
+          </div>
+
+          <!-- Lista de protocolos -->
+          <div style="padding:0 var(--page)">
+            <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">TODOS OS PROTOCOLOS</div>
+          </div>
+
+          <div class="card card-sm" style="margin-bottom:6px; border-color:var(--acc)">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold tx-acc">16:8 ✓</div><div class="tx-xs tx-mu">Popular · Iniciante friendly</div></div>
+              <div class="chip chip-acc" style="font-size:9px">Selecionado</div>
+            </div>
+          </div>
+          <div class="card card-sm" style="margin-bottom:6px">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold">14:10</div><div class="tx-xs tx-mu">Mais suave · Ótimo para começar</div></div>
+              <div class="tx-mu" style="font-size:16px">›</div>
+            </div>
+          </div>
+          <div class="card card-sm" style="margin-bottom:6px">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold">18:6</div><div class="tx-xs tx-mu">Intermediário · +autofagia</div></div>
+              <div class="tx-mu" style="font-size:16px">›</div>
+            </div>
+          </div>
+          <div class="card card-sm" style="margin-bottom:6px">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold">OMAD</div><div class="tx-xs tx-mu">1 refeição/dia · Avançado</div></div>
+              <div class="tx-mu" style="font-size:16px">›</div>
+            </div>
+          </div>
+          <div class="card card-sm" style="margin-bottom:6px">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold">5:2</div><div class="tx-xs tx-mu">5 dias normal · 2 dias restrito</div></div>
+              <div class="tx-mu" style="font-size:16px">›</div>
+            </div>
+          </div>
+          <div class="card card-sm" style="margin-bottom:6px">
+            <div class="row-between">
+              <div class="col gap-4"><div class="tx-sm tx-bold tx-gold">✏️ Personalizado</div><div class="tx-xs tx-mu">Defina X horas de jejum livremente</div></div>
+              <div class="tx-mu" style="font-size:16px">›</div>
+            </div>
+          </div>
+
+          <div style="padding:0 var(--page); margin-top:12px">
+            <div class="btn btn-acc">Continuar com 16:8</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>IA sugere o protocolo</b> com base no TDEE e rotina existente.<br>
+        Protocolos fixos + livre. Card de sugestão com justificativa.
+      </div>
+    </div>
+
+    <!-- Configurar horário -->
+    <div>
+      <div class="phone-label">Configurar · Horário da janela alimentar</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div style="padding:16px 20px 8px">
+            <div class="tx-sm tx-mu">16:8 selecionado</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Quando você quer comer?</div>
+          </div>
+
+          <!-- Sugestão IA de horário -->
+          <div class="card" style="border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.05); margin-bottom:12px">
+            <div class="row gap-8">
+              <span style="font-size:20px">🦄</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold" style="color:var(--purple)">Astrix sugere: 12h às 20h</div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Seus dados mostram que você come naturalmente nesse período. Alta chance de aderência.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time picker visual -->
+          <div class="card" style="margin-bottom:12px">
+            <div class="tx-xs tx-mu" style="margin-bottom:12px; font-weight:600; letter-spacing:1px">JANELA ALIMENTAR</div>
+
+            <div class="row gap-12" style="justify-content:center; margin-bottom:16px">
+              <div style="text-align:center">
+                <div class="tx-xs tx-mu" style="margin-bottom:6px">INÍCIO</div>
+                <div style="background:var(--surf); border:1.5px solid var(--acc); border-radius:12px; padding:10px 20px">
+                  <div class="mono tx-lg tx-acc">12:00</div>
+                </div>
+              </div>
+              <div class="tx-mu" style="margin-top:20px; font-size:20px">→</div>
+              <div style="text-align:center">
+                <div class="tx-xs tx-mu" style="margin-bottom:6px">FIM</div>
+                <div style="background:var(--surf); border:1.5px solid var(--bord); border-radius:12px; padding:10px 20px">
+                  <div class="mono tx-lg">20:00</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timeline visual do dia -->
+            <div style="font-size:9px; color:var(--mu); display:flex; justify-content:space-between; margin-bottom:4px">
+              <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span>
+            </div>
+            <div style="height:16px; background:var(--bord); border-radius:8px; position:relative; overflow:hidden">
+              <!-- Jejum: 20h-24h + 00h-12h = fora da janela -->
+              <div style="position:absolute; left:0; width:50%; height:100%; background:var(--surf)"></div>
+              <!-- Janela: 12h-20h = 33% do dia -->
+              <div style="position:absolute; left:50%; width:33%; height:100%; background:var(--acc)"></div>
+              <!-- Jejum após janela -->
+              <div style="position:absolute; left:83%; right:0; height:100%; background:var(--surf)"></div>
+            </div>
+            <div class="row-between mt-4">
+              <div class="tx-xs tx-mu">🌙 16h de jejum</div>
+              <div class="tx-xs tx-acc tx-bold">🍽️ 8h janela</div>
+            </div>
+          </div>
+
+          <!-- Joker day toggle -->
+          <div class="card card-sm" style="margin-bottom:12px">
+            <div class="toggle-row" style="border:none; padding:0">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">🃏 Joker Day</div>
+                <div class="tx-xs tx-mu">1x/semana sem quebrar streak</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+          </div>
+
+          <!-- Fast Together -->
+          <div class="card card-sm" style="margin-bottom:12px">
+            <div class="toggle-row" style="border:none; padding:0">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">👭 Fast Together</div>
+                <div class="tx-xs tx-mu">Maria também vai jejuar junto</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+          </div>
+
+          <div style="padding:0 var(--page)">
+            <div class="btn btn-acc">Ativar jejum 16:8</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>IA sugere horário</b> com base nos dados de refeições históricas.<br>
+        Timeline visual mostra jejum × janela no dia. Joker Day e Fast Together configuráveis aqui.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 3: TIMER PRINCIPAL                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">03 · Timer Principal — aba Timer</div>
+  <div class="screens-row">
+
+    <!-- Timer em jejum -->
+    <div>
+      <div class="phone-label">Timer · Jejum ativo</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Jejum · 16:8</div>
+            <div class="chip chip-acc">Dia 8 🔥</div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active">Timer</div>
+            <div class="tab">Histórico</div>
+            <div class="tab">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- Anel principal -->
+          <div class="ring-wrap" style="margin:8px auto 12px">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#1E2419" stroke-width="14"/>
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#9ED465" stroke-width="14"
+                stroke-dasharray="503" stroke-dashoffset="75" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-center">
+              <div class="tx-xs tx-mu" style="letter-spacing:1px">EM JEJUM</div>
+              <div class="mono tx-xl tx-acc">14:23</div>
+              <div class="tx-xs tx-mu">de 16 horas</div>
+              <div style="margin-top:6px; font-size:9px; color:var(--mu)">Início 19:18 · ontem</div>
+            </div>
+          </div>
+
+          <!-- Fase atual com timeline -->
+          <div class="card card-acc card-sm" style="margin-bottom:8px">
+            <div class="row gap-8" style="margin-bottom:8px">
+              <span style="font-size:22px">🔥</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold tx-acc">Queima de gordura ativa</div>
+                <div class="tx-xs tx-mu">Seu corpo está usando gordura como combustível agora</div>
+              </div>
+            </div>
+            <!-- Mini fases -->
+            <div class="phase-bar" style="margin:0; margin-bottom:4px">
+              <div class="phase-seg" style="background:#60A5FA; flex:4"></div>
+              <div class="phase-seg" style="background:#9ED465; flex:4"></div>
+              <div class="phase-seg" style="background:var(--gold); flex:4; opacity:0.3"></div>
+              <div class="phase-seg" style="background:var(--purple); flex:4; opacity:0.3"></div>
+            </div>
+            <div class="row" style="gap:6px; font-size:8px; color:var(--mu); justify-content:space-between">
+              <span>Glicogênio</span><span>🔥 Gordura</span><span>Autofagia</span><span>HGH</span>
+            </div>
+          </div>
+
+          <!-- Próxima fase -->
+          <div class="card card-sm" style="margin-bottom:10px">
+            <div class="row gap-8">
+              <span style="font-size:16px">⏰</span>
+              <div class="col gap-4">
+                <div class="tx-xs tx-bold">Próxima fase em 1h37</div>
+                <div class="tx-xs tx-mu">Autofagia parcial — reparação celular começa</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidratação contextual -->
+          <div class="card" style="border-color:rgba(96,165,250,0.3); background:rgba(96,165,250,0.05); margin-bottom:10px">
+            <div class="row-between">
+              <div class="row gap-8">
+                <span>💧</span>
+                <div class="col gap-4">
+                  <div class="tx-sm tx-bold" style="color:var(--blue)">Hora de hidratar</div>
+                  <div class="tx-xs tx-mu">14h de jejum · beba 500ml agora</div>
+                </div>
+              </div>
+              <div class="btn btn-sm" style="width:auto; background:rgba(96,165,250,0.15); color:var(--blue); border:1px solid rgba(96,165,250,0.3); border-radius:10px; padding:6px 12px; font-size:11px">+500ml</div>
+            </div>
+          </div>
+
+          <div style="padding:0 var(--page)">
+            <div class="btn btn-outline-red btn-sm">⏹ Encerrar jejum agora</div>
+          </div>
+        </div>
+        <div class="unicorn-bubble">🦄</div>
+      </div>
+      <div class="annotation">
+        <b>Timer em tempo real</b> com anel de progresso.<br>
+        Fase atual com mini-timeline. Hidratação contextual por hora.<br>
+        <b>Astrix</b> como unicórnio de suporte nesta tela.
+      </div>
+    </div>
+
+    <!-- Timer na janela alimentar -->
+    <div>
+      <div class="phone-label">Timer · Janela alimentar aberta</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>12:05</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Jejum · 16:8</div>
+            <div class="chip chip-grn" style="background:rgba(76,175,80,0.15); color:var(--grn)">Completo ✓</div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active">Timer</div>
+            <div class="tab">Histórico</div>
+            <div class="tab">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- Anel completo -->
+          <div class="ring-wrap" style="margin:8px auto 12px">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#1E2419" stroke-width="14"/>
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#4CAF50" stroke-width="14"
+                stroke-dasharray="503" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-center">
+              <div style="font-size:32px">🎉</div>
+              <div class="mono tx-lg" style="color:var(--grn)">16:47</div>
+              <div class="tx-xs tx-mu">Jejum completo!</div>
+              <div class="chip" style="background:rgba(76,175,80,0.15); color:var(--grn); margin-top:6px; font-size:9px">✓ Meta superada</div>
+            </div>
+          </div>
+
+          <!-- Mensagem Astrix celebração -->
+          <div class="card" style="border-color:rgba(76,175,80,0.3); background:rgba(76,175,80,0.05); margin-bottom:10px">
+            <div class="row gap-8">
+              <span style="font-size:28px">🦄</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold" style="color:var(--grn)">Você foi além! 16h47 ✨</div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Seu corpo passou pela autofagia parcial. Isso é cuidado real com você mesma.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Janela atual -->
+          <div class="card card-sm" style="margin-bottom:8px">
+            <div class="row-between">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">🍽️ Janela aberta</div>
+                <div class="tx-xs tx-mu">Até 20:00 · 7h55 restantes</div>
+              </div>
+              <div class="prog-bar-wrap" style="width:80px">
+                <div class="prog-bar-fill" style="width:2%; background:var(--acc)"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alerta macro -->
+          <div class="card" style="border-color:rgba(255,152,0,0.3); background:rgba(255,152,0,0.05); margin-bottom:10px">
+            <div class="row gap-8">
+              <span>⚠️</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold tx-org">Priorize proteína agora</div>
+                <div class="tx-xs tx-mu">Meta: 120g · Você precisa de 120g ainda hoje. Primeira refeição é a mais importante.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:0 var(--page)">
+            <div class="btn btn-acc">🍽️ Registrar primeira refeição</div>
+          </div>
+          <div style="padding:6px var(--page) 0">
+            <div class="btn btn-outline btn-sm" style="margin-top:0">Iniciar próximo jejum às 20:00</div>
+          </div>
+        </div>
+        <div class="unicorn-bubble" style="bottom:72px">🦄</div>
+      </div>
+      <div class="annotation">
+        <b>Celebração ao completar</b> — Astrix comemora com mensagem de cuidado (não de peso).<br>
+        Alerta de macro prioridade para a janela. Iniciar próximo jejum com 1 tap.
+      </div>
+    </div>
+
+    <!-- Framing positivo ao quebrar -->
+    <div>
+      <div class="phone-label">Timer · Jejum quebrado — framing positivo</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>21:43</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Jejum · 16:8</div>
+            <div class="chip chip-mu">Interrompido</div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active">Timer</div>
+            <div class="tab">Histórico</div>
+            <div class="tab">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- Anel parcial -->
+          <div class="ring-wrap" style="margin:8px auto 12px">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#1E2419" stroke-width="14"/>
+              <circle cx="90" cy="90" r="80" fill="none" stroke="#F5C542" stroke-width="14"
+                stroke-dasharray="503" stroke-dashoffset="251" stroke-linecap="round" opacity="0.6"/>
+            </svg>
+            <div class="ring-center">
+              <div style="font-size:28px">💛</div>
+              <div class="mono tx-lg tx-gold">9:12</div>
+              <div class="tx-xs tx-mu">de 16h · ok!</div>
+            </div>
+          </div>
+
+          <!-- Mensagem de acolhimento — nunca punição -->
+          <div class="card card-gold" style="margin-bottom:10px">
+            <div class="row gap-8">
+              <span style="font-size:28px">🦄</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold tx-gold">9h já fazem diferença 💛</div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Seu corpo ficou sem insulina por 9 horas. Isso não é pouco — é progresso real. Sem pressão.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Micro reflexão -->
+          <div class="card card-sm" style="margin-bottom:8px">
+            <div class="tx-sm tx-bold" style="margin-bottom:10px">O que aconteceu? (opcional)</div>
+            <div class="reflection-opt">Fome intensa</div>
+            <div class="reflection-opt selected">Situação social</div>
+            <div class="reflection-opt">Estresse</div>
+            <div class="reflection-opt">Quis mesmo 🙂</div>
+          </div>
+
+          <!-- Joker Day option -->
+          <div class="card" style="border-color:rgba(245,197,66,0.3); background:rgba(245,197,66,0.05); margin-bottom:10px">
+            <div class="row gap-8">
+              <span>🃏</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold tx-gold">Usar Joker Day?</div>
+                <div class="tx-xs tx-mu">Preserva seu streak de 8 dias. Você tem 1 disponível esta semana.</div>
+              </div>
+            </div>
+            <div class="row gap-8 mt-8">
+              <div class="btn btn-sm btn-gold" style="flex:1">Usar Joker 🃏</div>
+              <div class="btn btn-sm btn-outline" style="flex:1">Não, tudo bem</div>
+            </div>
+          </div>
+        </div>
+        <div class="unicorn-bubble">🦄</div>
+      </div>
+      <div class="annotation">
+        <b>Zero punição</b> — 9h de jejum é celebrado, não criticado.<br>
+        Micro-reflexão coleta dados sem julgamento. <b>Joker Day</b> preserva o streak.<br>
+        <b>Astrix</b> sempre acolhendo, nunca cobrando.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 4: FASES METABÓLICAS                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">04 · Fases Metabólicas — educação contextual</div>
+  <div class="screens-row">
+
+    <div>
+      <div class="phone-label">Fases · detalhe expandido</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div style="padding:16px 20px 12px">
+            <div class="tx-sm tx-mu" style="margin-bottom:4px">O que acontece no seu corpo</div>
+            <div style="font-size:18px; font-weight:700">Fases do jejum</div>
+          </div>
+
+          <!-- Timeline de fases -->
+          <div style="padding:0 var(--page)">
+
+            <div class="fase-item">
+              <div class="col gap-0" style="width:16px; align-items:center">
+                <div class="fase-dot" style="background:#60A5FA"></div>
+                <div class="fase-line" style="background:#1E2419"></div>
+              </div>
+              <div class="col gap-4" style="flex:1">
+                <div class="row-between">
+                  <div class="tx-sm tx-bold" style="color:#60A5FA">0–4h · Absorção</div>
+                  <div class="chip chip-mu" style="font-size:8px">Passado</div>
+                </div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Insulina alta, digestão ativa. Corpo usa glicose como combustível.</div>
+              </div>
+            </div>
+
+            <div class="fase-item">
+              <div class="col gap-0" style="width:16px; align-items:center">
+                <div class="fase-dot" style="background:#9ED465"></div>
+                <div class="fase-line" style="background:#1E2419"></div>
+              </div>
+              <div class="col gap-4" style="flex:1">
+                <div class="row-between">
+                  <div class="tx-sm tx-bold" style="color:#9ED465">4–12h · Glicogênio</div>
+                  <div class="chip chip-mu" style="font-size:8px">Passado</div>
+                </div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Insulina cai. Corpo usa reservas de glicogênio no fígado e músculos.</div>
+              </div>
+            </div>
+
+            <div class="fase-item" style="background:rgba(158,212,101,0.05); border-radius:10px; padding:8px; margin:-8px">
+              <div class="col gap-0" style="width:16px; align-items:center">
+                <div class="fase-dot" style="background:var(--org); border:2px solid var(--org);"></div>
+                <div class="fase-line" style="background:#1E2419"></div>
+              </div>
+              <div class="col gap-4" style="flex:1">
+                <div class="row-between">
+                  <div class="tx-sm tx-bold tx-org">12–18h · 🔥 Queima gordura</div>
+                  <div class="chip chip-acc" style="font-size:8px">AGORA</div>
+                </div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Lipólise ativa. Seu corpo decompõe gordura em ácidos graxos para energia. Clareza mental aumenta.</div>
+              </div>
+            </div>
+
+            <div class="fase-item">
+              <div class="col gap-0" style="width:16px; align-items:center">
+                <div class="fase-dot" style="background:var(--gold); opacity:0.4"></div>
+                <div class="fase-line" style="background:#1E2419"></div>
+              </div>
+              <div class="col gap-4" style="flex:1">
+                <div class="row-between">
+                  <div class="tx-sm tx-bold tx-mu">16–24h · Autofagia</div>
+                  <div class="chip chip-mu" style="font-size:8px">Em 1h37</div>
+                </div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Células se auto-limpam, removendo componentes danificados. Processo anti-envelhecimento.</div>
+              </div>
+            </div>
+
+            <div class="fase-item">
+              <div class="col gap-0" style="width:16px; align-items:center">
+                <div class="fase-dot" style="background:var(--purple); opacity:0.4"></div>
+              </div>
+              <div class="col gap-4" style="flex:1">
+                <div class="row-between">
+                  <div class="tx-sm tx-bold tx-mu">24h+ · HGH & Cetose</div>
+                  <div class="chip chip-mu" style="font-size:8px">OMAD/5:2</div>
+                </div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Hormônio do crescimento aumenta 500–2000%. Cetose profunda. Para protocolos avançados.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="unicorn-bubble">🦄</div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Educação contextual</b> sobre o próprio corpo — não dicas genéricas.<br>
+        Fase atual destacada. Conteúdo baseado em pesquisa científica.<br>
+        Inspirado no Fastic, mas contextualizado para o jejum ativo da usuária.
+      </div>
+    </div>
+
+    <!-- Notificações push -->
+    <div>
+      <div class="phone-label">Notificações push · marcos do jejum</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div style="padding:16px 20px 12px">
+            <div style="font-size:16px; font-weight:700">Notificações</div>
+            <div class="tx-xs tx-mu mt-4">Configurar lembretes do jejum</div>
+          </div>
+
+          <!-- Notif items -->
+          <div style="padding:0 var(--page)">
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">🚀 Início do jejum</div>
+                <div class="tx-xs tx-mu">"Seu jejum começou. Você consegue!"</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">💧 Hidratação (a cada 2h)</div>
+                <div class="tx-xs tx-mu">Lembrete para beber água durante o jejum</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">🔥 Marco 12h</div>
+                <div class="tx-xs tx-mu">"Queima de gordura ativada!"</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">✨ Marco 16h</div>
+                <div class="tx-xs tx-mu">"Você chegou lá! Autofagia começando."</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">🍽️ Janela abre em 30min</div>
+                <div class="tx-xs tx-mu">Aviso antes de poder comer</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">⏰ Janela fechando</div>
+                <div class="tx-xs tx-mu">"Última hora da sua janela alimentar"</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+
+            <div class="toggle-row" style="border:none">
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">⚠️ Alerta de proteína</div>
+                <div class="tx-xs tx-mu">Se macro de proteína estiver baixo na janela</div>
+              </div>
+              <div class="toggle off"></div>
+            </div>
+
+          </div>
+
+          <!-- Preview notif -->
+          <div style="padding:0 var(--page); margin-top:12px">
+            <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">PREVIEW</div>
+            <div class="notif">
+              <div class="notif-icon">🔥</div>
+              <div class="col gap-4">
+                <div style="font-size:11px; font-weight:700">Nosso Bolso · agora</div>
+                <div class="tx-xs tx-mu">Marco: 12h de jejum atingidas! Queima de gordura ativada 💪</div>
+              </div>
+            </div>
+            <div class="notif">
+              <div class="notif-icon">💧</div>
+              <div class="col gap-4">
+                <div style="font-size:11px; font-weight:700">Nosso Bolso · há 2h</div>
+                <div class="tx-xs tx-mu">Hora 10 do jejum — beba 500ml agora. A fome vai ceder 😊</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Notificações contextuais inteligentes</b> — não são alarmes genéricos.<br>
+        Cada mensagem é personalizada para o momento do jejum.<br>
+        Funciona com app fechado via FCM.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 5: HISTÓRICO                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">05 · Histórico — progresso e consistência</div>
+  <div class="screens-row">
+
+    <div>
+      <div class="phone-label">Histórico · visão geral</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Histórico</div>
+            <div style="display:flex; gap:6px">
+              <div class="chip chip-mu" style="font-size:9px">7 dias</div>
+              <div class="chip chip-acc" style="font-size:9px">30 dias</div>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab">Timer</div>
+            <div class="tab active">Histórico</div>
+            <div class="tab">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- KPIs -->
+          <div class="kpi-grid">
+            <div class="kpi-box">
+              <div class="tx-xs tx-mu" style="margin-bottom:4px">JEJUNS COMPLETOS</div>
+              <div class="mono tx-lg tx-acc">22/30</div>
+              <div class="tx-xs tx-acc" style="margin-top:2px">73% de sucesso</div>
+            </div>
+            <div class="kpi-box">
+              <div class="tx-xs tx-mu" style="margin-bottom:4px">STREAK ATUAL</div>
+              <div class="mono tx-lg tx-gold">8 dias 🔥</div>
+              <div class="tx-xs tx-mu" style="margin-top:2px">Recorde: 12 dias</div>
+            </div>
+            <div class="kpi-box">
+              <div class="tx-xs tx-mu" style="margin-bottom:4px">MÉDIA DIÁRIA</div>
+              <div class="mono tx-lg" style="color:var(--purple)">15h48</div>
+              <div class="tx-xs tx-mu" style="margin-top:2px">Meta: 16h</div>
+            </div>
+            <div class="kpi-box">
+              <div class="tx-xs tx-mu" style="margin-bottom:4px">JOKERS USADOS</div>
+              <div class="mono tx-lg tx-gold">2/4 🃏</div>
+              <div class="tx-xs tx-mu" style="margin-top:2px">2 restantes</div>
+            </div>
+          </div>
+
+          <!-- Calendário de consistência -->
+          <div class="card" style="margin-bottom:10px">
+            <div class="tx-xs tx-mu" style="margin-bottom:10px; font-weight:600; letter-spacing:1px">JULHO 2026</div>
+            <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; text-align:center">
+              <div style="font-size:8px; color:var(--mu)">D</div><div style="font-size:8px; color:var(--mu)">S</div><div style="font-size:8px; color:var(--mu)">T</div><div style="font-size:8px; color:var(--mu)">Q</div><div style="font-size:8px; color:var(--mu)">Q</div><div style="font-size:8px; color:var(--mu)">S</div><div style="font-size:8px; color:var(--mu)">S</div>
+
+              <!-- semana 1 -->
+              <div style="height:22px;border-radius:6px;background:rgba(90,100,80,0.2);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mu)">1</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">2</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">3</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">4</div>
+              <div style="height:22px;border-radius:6px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">5🃏</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">6</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">7</div>
+
+              <!-- semana 2 -->
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">8</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">9</div>
+              <div style="height:22px;border-radius:6px;background:rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--red)">10</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">11</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);opacity:0.6;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg)">12</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">13</div>
+              <div style="height:22px;border-radius:6px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">14🃏</div>
+
+              <!-- semana 3 -->
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">15</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">16</div>
+              <div style="height:22px;border-radius:6px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--bg);font-weight:700">17</div>
+              <div style="height:22px;border-radius:6px;background:rgba(158,212,101,0.3);border:1.5px solid var(--acc);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--acc)">18</div>
+              <div style="height:22px;border-radius:6px;background:var(--bord);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mu)">19</div>
+              <div style="height:22px;border-radius:6px;background:var(--bord);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mu)">20</div>
+              <div style="height:22px;border-radius:6px;background:var(--bord);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mu)">21</div>
+            </div>
+            <div class="row gap-12 mt-8" style="font-size:9px; color:var(--mu); justify-content:center">
+              <div class="row gap-4"><div style="width:10px;height:10px;border-radius:3px;background:var(--acc)"></div> Completo</div>
+              <div class="row gap-4"><div style="width:10px;height:10px;border-radius:3px;background:var(--gold)"></div> Joker</div>
+              <div class="row gap-4"><div style="width:10px;height:10px;border-radius:3px;background:rgba(239,68,68,0.3)"></div> Parcial</div>
+            </div>
+          </div>
+
+          <div class="scroll-hint">↓ lista de jejuns</div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Calendário de consistência</b> visual — verde = completo, dourado = Joker, vermelho = parcial.<br>
+        KPIs focados em consistência e padrão, não em peso.<br>
+        Parcial nunca é "fracasso" — aparece com cor própria.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 6: INSIGHTS IA                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">06 · Insights IA — o ouro do sistema</div>
+  <div class="screens-row">
+
+    <div>
+      <div class="phone-label">Insights IA · análise pessoal</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Seus Insights</div>
+            <div style="font-size:20px">🦄</div>
+          </div>
+          <div class="tabs">
+            <div class="tab">Timer</div>
+            <div class="tab">Histórico</div>
+            <div class="tab active">Insights IA</div>
+            <div class="tab">Configurar</div>
+          </div>
+
+          <!-- Insight principal Astrix -->
+          <div class="card" style="border-color:rgba(167,139,250,0.4); background:rgba(167,139,250,0.06); margin-bottom:10px">
+            <div class="row gap-8" style="margin-bottom:8px">
+              <span style="font-size:28px">🦄</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold" style="color:var(--purple)">Astrix · análise de hoje</div>
+                <div class="tx-xs tx-mu">Baseado nos seus 30 dias</div>
+              </div>
+            </div>
+            <div class="tx-sm" style="line-height:1.6; color:var(--tx)">
+              Você tende a quebrar o jejum <span class="tx-gold tx-bold">nas quartas à noite</span>. Em 4 semanas, quebrou 3 vezes nesse dia. Pode ser o estresse do meio da semana. Que tal planejar algo leve para as quartas?
+            </div>
+          </div>
+
+          <!-- Insight: correlação sono -->
+          <div class="insight-card">
+            <div class="row gap-8" style="margin-bottom:6px">
+              <div class="insight-icon" style="background:rgba(96,165,250,0.15)">😴</div>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">Jejum melhora seu sono</div>
+                <div class="tx-xs tx-mu">Detectado nos seus registros</div>
+              </div>
+            </div>
+            <div class="tx-xs tx-mu" style="line-height:1.5">Dias com jejum completo → você registrou se sentir "leve" ou "descansada" em 78% das manhãs seguintes. Dias sem jejum: 41%.</div>
+          </div>
+
+          <!-- Insight: padrão de proteína -->
+          <div class="insight-card">
+            <div class="row gap-8" style="margin-bottom:6px">
+              <div class="insight-icon" style="background:rgba(255,152,0,0.15)">💪</div>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">Proteína baixa na janela</div>
+                <div class="tx-xs tx-mu">Oportunidade de melhora</div>
+              </div>
+            </div>
+            <div class="tx-xs tx-mu" style="line-height:1.5">Em 18 dos 22 jejuns completos, você ficou abaixo de 100g de proteína. Com 8h de janela e 120g de meta, sua primeira refeição precisa ter pelo menos 60g.</div>
+          </div>
+
+          <!-- Insight: melhor dia -->
+          <div class="insight-card">
+            <div class="row gap-8" style="margin-bottom:6px">
+              <div class="insight-icon" style="background:rgba(158,212,101,0.15)">📅</div>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">Seus melhores dias são sábados</div>
+                <div class="tx-xs tx-mu">Padrão identificado</div>
+              </div>
+            </div>
+            <div class="tx-xs tx-mu" style="line-height:1.5">100% de adesão aos sábados nos últimos 30 dias. Sua rotina mais tranquila nesse dia favorece o jejum.</div>
+          </div>
+
+          <!-- Insight: déficit real -->
+          <div class="insight-card">
+            <div class="row gap-8" style="margin-bottom:6px">
+              <div class="insight-icon" style="background:rgba(158,212,101,0.15)">⚖️</div>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold">Equilíbrio calórico</div>
+                <div class="tx-xs tx-mu">Seu perfil metabólico</div>
+              </div>
+            </div>
+            <div class="tx-xs tx-mu" style="line-height:1.5">Com TDEE de 1.850kcal e média de 1.340kcal na janela + treino 4x/semana, você está num déficit sustentável de ~300kcal. No ritmo certo, sem extremos.</div>
+          </div>
+
+          <div class="scroll-hint">↓ mais insights</div>
+        </div>
+        <div class="unicorn-bubble">🦄</div>
+      </div>
+      <div class="annotation">
+        <b>IA personalizada</b> — insights baseados nos dados reais da usuária, não dicas genéricas.<br>
+        Foco em padrões comportamentais, bem-estar e auto-conhecimento.<br>
+        Dados financeiros: <b>não aparecem aqui</b> — só no contexto financeiro do app.
+      </div>
+    </div>
+
+    <!-- Fast Together -->
+    <div>
+      <div class="phone-label">Fast Together · jejum em família</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <div class="tx-bold" style="font-size:16px">Fast Together 👭</div>
+            <div class="tx-xs tx-mu">Kris + Maria</div>
+          </div>
+
+          <!-- Ambas em jejum -->
+          <div class="card card-acc" style="margin-bottom:10px">
+            <div class="tx-sm tx-bold tx-acc" style="margin-bottom:12px">Vocês duas estão em jejum agora ✨</div>
+            <div class="row gap-12">
+              <!-- Kris -->
+              <div style="flex:1; text-align:center">
+                <div class="avatar avatar-acc" style="margin:0 auto 6px; width:40px; height:40px; font-size:16px">K</div>
+                <div class="tx-sm tx-bold">Kris</div>
+                <div class="mono tx-lg tx-acc" style="margin-top:4px">14:23</div>
+                <div class="tx-xs tx-mu">🔥 Queimando</div>
+                <div style="margin-top:8px">
+                  <div class="prog-bar-wrap">
+                    <div class="prog-bar-fill" style="width:90%"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="width:1px; background:var(--bord); margin:10px 0"></div>
+              <!-- Maria -->
+              <div style="flex:1; text-align:center">
+                <div class="avatar avatar-gold" style="margin:0 auto 6px; width:40px; height:40px; font-size:16px">M</div>
+                <div class="tx-sm tx-bold">Maria</div>
+                <div class="mono tx-lg tx-gold" style="margin-top:4px">12:05</div>
+                <div class="tx-xs tx-mu">✨ Glicogênio</div>
+                <div style="margin-top:8px">
+                  <div class="prog-bar-wrap">
+                    <div class="prog-bar-fill" style="width:75%; background:var(--gold)"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensagem de apoio -->
+          <div class="card" style="border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.05); margin-bottom:10px">
+            <div class="row gap-8">
+              <span style="font-size:20px">🦄</span>
+              <div class="col gap-4">
+                <div class="tx-sm tx-bold" style="color:var(--purple)">Força compartilhada</div>
+                <div class="tx-xs tx-mu" style="line-height:1.5">Vocês estão na semana 3 juntas. A constância de uma impacta a outra. Isso é amor próprio em família.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Histórico juntas -->
+          <div class="card card-sm" style="margin-bottom:8px">
+            <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">ESSE MÊS JUNTAS</div>
+            <div class="row-between">
+              <div class="tx-sm">Jejuns sincronizados</div>
+              <div class="mono tx-sm tx-acc">14 dias</div>
+            </div>
+            <div class="divider" style="margin:6px 0"></div>
+            <div class="row-between">
+              <div class="tx-sm">Melhor sequência juntas</div>
+              <div class="mono tx-sm tx-gold">7 dias 🔥</div>
+            </div>
+            <div class="divider" style="margin:6px 0"></div>
+            <div class="row-between">
+              <div class="tx-sm">Taxa de sucesso combinada</div>
+              <div class="mono tx-sm" style="color:var(--purple)">76%</div>
+            </div>
+          </div>
+
+          <!-- Mandar apoio -->
+          <div style="padding:0 var(--page)">
+            <div class="btn btn-outline-acc btn-sm">💌 Mandar apoio para Maria</div>
+          </div>
+        </div>
+        <div class="unicorn-bubble">🦄</div>
+      </div>
+      <div class="annotation">
+        <b>Fast Together</b> — ver a outra pessoa no mesmo timer cria accountability afetiva.<br>
+        Não é competição — é companhia. Unicórnio reforça a conexão emocional.<br>
+        Botão de apoio para enviar mensagem motivacional.
+      </div>
+    </div>
+
+    <!-- Reflexão ao encerrar -->
+    <div>
+      <div class="phone-label">Encerrar · micro-reflexão</div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-content">
+          <div class="status-bar"><span>11:58</span><span>●●●</span></div>
+          <div style="padding:16px 20px 0">
+            <div class="sheet-handle"></div>
+          </div>
+
+          <!-- Celebração -->
+          <div class="center" style="padding:0 20px 12px">
+            <div style="font-size:48px; margin-bottom:8px">🦄✨</div>
+            <div style="font-size:20px; font-weight:800; color:var(--acc); margin-bottom:6px">16h47 completados!</div>
+            <div class="tx-sm tx-mu" style="line-height:1.5">Você cuidou de você mesma hoje.<br>Isso é tudo.</div>
+          </div>
+
+          <div class="divider" style="margin-bottom:16px"></div>
+
+          <!-- Reflexão -->
+          <div style="padding:0 var(--page)">
+            <div class="tx-sm tx-bold" style="margin-bottom:4px">Como você se sentiu? (opcional)</div>
+            <div class="tx-xs tx-mu" style="margin-bottom:12px">Isso ajuda o Astrix a entender melhor você</div>
+
+            <div class="reflection-opt selected">😊 Leve e bem</div>
+            <div class="reflection-opt">😤 Com dificuldade</div>
+            <div class="reflection-opt">😴 Cansada mas firme</div>
+            <div class="reflection-opt">⚡ Com energia!</div>
+          </div>
+
+          <div style="padding:0 var(--page); margin-top:8px">
+            <div class="tx-sm tx-bold" style="margin-bottom:4px">O que te ajudou hoje?</div>
+            <div class="tx-xs tx-mu" style="margin-bottom:10px">Opcional · vai melhorar seus próximos jejuns</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px">
+              <div class="chip chip-acc" style="font-size:10px">💧 Hidratação</div>
+              <div class="chip chip-acc" style="font-size:10px">☕ Café</div>
+              <div class="chip chip-mu" style="font-size:10px">📱 App</div>
+              <div class="chip chip-acc" style="font-size:10px">👭 Maria</div>
+              <div class="chip chip-mu" style="font-size:10px">🎵 Música</div>
+              <div class="chip chip-mu" style="font-size:10px">🏃 Exercício</div>
+            </div>
+          </div>
+
+          <div style="padding:12px var(--page) 0">
+            <div class="btn btn-acc">Finalizar ✨</div>
+            <div class="btn btn-outline btn-sm" style="margin-top:8px">Pular reflexão</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <b>Micro-reflexão</b> ao encerrar — coleta dados emocionais e de apoio sem forçar.<br>
+        A IA aprende o que funciona para cada pessoa ao longo do tempo.<br>
+        Sempre opcional, nunca obrigatória.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 7: FLUXO COMPLETO                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">07 · Mapa de navegação e fluxos</div>
+  <div style="max-width:900px; margin:0 auto; background:var(--card); border-radius:var(--radius-card); border:1px solid var(--bord); padding:28px">
+
+    <div style="font-size:14px; font-weight:700; color:var(--tx); margin-bottom:20px">Fluxo principal de navegação</div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; font-size:11px">
+
+      <!-- Coluna 1: Entry points -->
+      <div>
+        <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">ENTRY POINTS</div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:8px">
+          <div class="tx-bold" style="color:var(--acc)">🏠 Home</div>
+          <div class="tx-xs tx-mu mt-4">Chip de status do jejum ativo no topo</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:8px">
+          <div class="tx-bold" style="color:var(--grn)">🌿 Saúde · Hoje</div>
+          <div class="tx-xs tx-mu mt-4">Card integrado no dashboard diário</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1.5px solid var(--purple); padding:10px">
+          <div class="tx-bold" style="color:var(--purple)">⏱ Jejum (novo)</div>
+          <div class="tx-xs tx-mu mt-4">Segmento dedicado em Minha Vida</div>
+        </div>
+      </div>
+
+      <!-- Coluna 2: Abas -->
+      <div>
+        <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">ABAS DO MÓDULO</div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold tx-acc">⏱ Timer</div>
+          <div class="tx-xs tx-mu mt-4">Anel · fase atual · hidratação · encerrar</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold tx-gold">📅 Histórico</div>
+          <div class="tx-xs tx-mu mt-4">Calendário · KPIs · lista jejuns</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">🦄 Insights IA</div>
+          <div class="tx-xs tx-mu mt-4">Padrões · bem-estar · correlações</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px">
+          <div class="tx-bold tx-mu">⚙️ Configurar</div>
+          <div class="tx-xs tx-mu mt-4">Protocolo · horário · notificações</div>
+        </div>
+      </div>
+
+      <!-- Coluna 3: Integrações -->
+      <div>
+        <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">INTEGRAÇÕES</div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold tx-acc">Refeições</div>
+          <div class="tx-xs tx-mu mt-4">Aviso se refeição fora da janela</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--blue)">Hidratação</div>
+          <div class="tx-xs tx-mu mt-4">Notificação contextual por hora</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold tx-org">Streak saúde</div>
+          <div class="tx-xs tx-mu mt-4">Jejum completo contribui para streak</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">Perfil metabólico</div>
+          <div class="tx-xs tx-mu mt-4">TDEE → protocolo sugerido + déficit</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px">
+          <div class="tx-bold tx-mu">Exercícios</div>
+          <div class="tx-xs tx-mu mt-4">Ajusta déficit calórico real do dia</div>
+        </div>
+      </div>
+
+      <!-- Coluna 4: IA -->
+      <div>
+        <div class="tx-xs tx-mu" style="margin-bottom:8px; font-weight:600; letter-spacing:1px">IA · GEMINI</div>
+        <div style="background:rgba(167,139,250,0.08); border-radius:10px; border:1px solid rgba(167,139,250,0.2); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">Protocolo sugerido</div>
+          <div class="tx-xs tx-mu mt-4">TDEE + rotina → melhor protocolo</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.08); border-radius:10px; border:1px solid rgba(167,139,250,0.2); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">Padrão de quebra</div>
+          <div class="tx-xs tx-mu mt-4">Detecta quando/por que quebra</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.08); border-radius:10px; border:1px solid rgba(167,139,250,0.2); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">Insight de bem-estar</div>
+          <div class="tx-xs tx-mu mt-4">Correlação jejum × como se sente</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.08); border-radius:10px; border:1px solid rgba(167,139,250,0.2); padding:10px; margin-bottom:6px">
+          <div class="tx-bold" style="color:var(--purple)">Alerta proteína</div>
+          <div class="tx-xs tx-mu mt-4">Déficit de macro na janela</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.08); border-radius:10px; border:1px solid rgba(167,139,250,0.2); padding:10px">
+          <div class="tx-bold" style="color:var(--purple)">Joker Day IA</div>
+          <div class="tx-xs tx-mu mt-4">Sugere usar Joker no dia certo</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Unicórnios por contexto -->
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--bord)">
+      <div class="tx-xs tx-mu" style="margin-bottom:10px; font-weight:600; letter-spacing:1px">UNICÓRNIOS POR CONTEXTO</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap">
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; flex:1; min-width:140px">
+          <div style="font-size:20px">🦄</div>
+          <div class="tx-sm tx-bold tx-purple" style="margin-top:4px">Astrix</div>
+          <div class="tx-xs tx-mu mt-4">Timer ativo · Insights IA · Suporte emocional · Reflexões</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; flex:1; min-width:140px">
+          <div style="font-size:20px">🦄</div>
+          <div class="tx-sm tx-bold" style="color:var(--grn); margin-top:4px">Sweet</div>
+          <div class="tx-xs tx-mu mt-4">Jejum completo · Marco de dias · Streak novo recorde</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; flex:1; min-width:140px">
+          <div style="font-size:20px">🦄</div>
+          <div class="tx-sm tx-bold tx-gold" style="margin-top:4px">Happy</div>
+          <div class="tx-xs tx-mu mt-4">Fast Together · Progresso consistente · Motivação diária</div>
+        </div>
+        <div style="background:var(--surf); border-radius:10px; border:1px solid var(--bord); padding:10px; flex:1; min-width:140px">
+          <div style="font-size:20px">🦄</div>
+          <div class="tx-sm tx-bold tx-org" style="margin-top:4px">Geronimo</div>
+          <div class="tx-xs tx-mu mt-4">Alerta proteína baixa · Fora da janela alimentar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

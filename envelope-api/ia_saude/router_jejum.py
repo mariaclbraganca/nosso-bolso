@@ -21,7 +21,15 @@ from ia_saude.gemini_client import chamar_gemini
 
 router = APIRouter(tags=["jejum"])
 
-PROTOCOLOS_HORAS = {"16_8": 16.0, "18_6": 18.0, "20_4": 20.0, "24h": 24.0}
+PROTOCOLOS_HORAS = {
+    "14_10": 14.0,
+    "16_8": 16.0,
+    "18_6": 18.0,
+    "20_4": 20.0,
+    "omad": 23.0,
+    "5_2": 24.0,
+    "24h": 24.0,
+}
 
 
 def _now() -> datetime:
@@ -62,8 +70,9 @@ async def put_config(usuario_id: str, payload: dict):
     """Atualiza protocolo/modalidade/preferências. Upsert."""
     db = get_supabase()
     campos_permitidos = {
-        "protocolo", "duracao_horas", "modalidade", "janela_inicio",
+        "protocolo", "duracao_horas", "modalidade", "janela_inicio", "janela_fim",
         "joker_days_mes", "together_ativo", "notif_hidratacao", "notif_fases",
+        "notif_config", "hidratacao_meta_copos",
     }
     updates = {k: v for k, v in payload.items() if k in campos_permitidos}
     if not updates:
@@ -85,6 +94,119 @@ async def put_config(usuario_id: str, payload: dict):
             "usuario_id": usuario_id, "familia_id": familia_id, **updates,
         }).execute()
     return res.data[0]
+
+
+# ── Sugestões IA (protocolo + horário de janela) ─────────────────────────────
+
+_PROTO_LABEL = {
+    "14_10": "14:10", "16_8": "16:8", "18_6": "18:6",
+    "20_4": "20:4", "omad": "OMAD", "5_2": "5:2", "24h": "24h",
+}
+
+
+async def _perfil_metabolico(db, usuario_id: str) -> dict:
+    """Busca TDEE e dados do perfil metabólico do módulo saúde (se existir)."""
+    try:
+        p = db.table("perfil_metabolico").select("tdee, objetivo, nivel_atividade") \
+            .eq("usuario_id", usuario_id).execute()
+        return p.data[0] if p.data else {}
+    except Exception:
+        return {}
+
+
+@router.get("/jejum/sugestao-protocolo/{usuario_id}")
+async def sugestao_protocolo(usuario_id: str):
+    """IA sugere o melhor protocolo com base no TDEE/rotina + % de aderência estimada."""
+    db = get_supabase()
+    perfil = await _perfil_metabolico(db, usuario_id)
+    tdee = perfil.get("tdee")
+
+    # Histórico de horários de refeição para estimar rotina (se houver)
+    refeicoes = []
+    try:
+        refeicoes = db.table("refeicoes").select("horario") \
+            .eq("usuario_id", usuario_id).order("horario", desc=True).limit(30).execute().data or []
+    except Exception:
+        pass
+
+    prompt = f"""Você é um especialista em jejum intermitente de um app de bem-estar.
+Sugira o MELHOR protocolo de jejum para este usuário.
+
+TDEE: {tdee or 'desconhecido'} kcal
+Objetivo: {perfil.get('objetivo', 'não informado')}
+Nível de atividade: {perfil.get('nivel_atividade', 'não informado')}
+Horários de refeição recentes: {json.dumps([r.get('horario') for r in refeicoes[:10]], ensure_ascii=False)}
+
+Protocolos possíveis: 14_10, 16_8, 18_6, 20_4, omad, 5_2
+
+Responda SOMENTE com JSON, sem markdown:
+{{
+  "protocolo": "16_8",
+  "janela_inicio": "12:00",
+  "janela_fim": "20:00",
+  "aderencia_pct": 87,
+  "justificativa": "frase curta explicando por que este protocolo e horário se encaixam na rotina"
+}}
+
+REGRAS:
+- aderencia_pct é uma estimativa realista de 60 a 95.
+- janela coerente com os horários de refeição do usuário quando houver.
+- Tom encorajador. Português brasileiro. Nunca mencionar peso/dieta restritiva."""
+
+    fallback = {
+        "protocolo": "16_8", "janela_inicio": "12:00", "janela_fim": "20:00",
+        "aderencia_pct": 80,
+        "justificativa": "O 16:8 é o protocolo mais equilibrado para começar — 16h de jejum com uma janela de 8h que se encaixa na maioria das rotinas.",
+    }
+    try:
+        texto = await chamar_gemini({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.6},
+        })
+        limpo = texto.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        dados = json.loads(limpo)
+        dados["label"] = _PROTO_LABEL.get(dados.get("protocolo"), "16:8")
+        return dados
+    except Exception as exc:
+        fallback["label"] = "16:8"
+        fallback["erro_ia"] = str(exc)
+        return fallback
+
+
+@router.get("/jejum/sugestao-janela/{usuario_id}")
+async def sugestao_janela(usuario_id: str, protocolo: str = Query("16_8")):
+    """IA sugere horário de janela alimentar para o protocolo escolhido."""
+    db = get_supabase()
+    refeicoes = []
+    try:
+        refeicoes = db.table("refeicoes").select("horario") \
+            .eq("usuario_id", usuario_id).order("horario", desc=True).limit(30).execute().data or []
+    except Exception:
+        pass
+
+    horas_jejum = PROTOCOLOS_HORAS.get(protocolo, 16.0)
+    horas_janela = max(1.0, 24.0 - horas_jejum)
+
+    prompt = f"""Sugira o melhor horário de janela alimentar para um jejum {_PROTO_LABEL.get(protocolo, protocolo)}.
+A janela tem {horas_janela:.0f} horas. Horários de refeição recentes do usuário: {json.dumps([r.get('horario') for r in refeicoes[:10]], ensure_ascii=False)}
+
+Responda SOMENTE com JSON:
+{{"janela_inicio": "12:00", "janela_fim": "20:00", "justificativa": "frase curta"}}
+
+Português brasileiro, tom gentil."""
+
+    fallback = {"janela_inicio": "12:00", "janela_fim": "20:00",
+                "justificativa": "Seus dados mostram que você come naturalmente nesse período. Alta chance de aderência."}
+    try:
+        texto = await chamar_gemini({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.6},
+        })
+        limpo = texto.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        return json.loads(limpo)
+    except Exception as exc:
+        fallback["erro_ia"] = str(exc)
+        return fallback
 
 
 # ── Ciclo de vida do jejum ───────────────────────────────────────────────────
@@ -160,6 +282,9 @@ async def finalizar(registro_id: str, payload: dict):
         "is_joker_day": status == "joker",
         "humor_fim": payload.get("humor_fim"),
         "reflexao": payload.get("reflexao"),
+        "sentimento": payload.get("sentimento"),
+        "o_que_ajudou": payload.get("o_que_ajudou"),
+        "motivo_interrupcao": payload.get("motivo_interrupcao"),
     }).eq("id", registro_id).execute()
     return res.data[0]
 
@@ -222,6 +347,7 @@ async def get_insights(usuario_id: str):
 
     if not registros:
         return {
+            "insight_principal": None,
             "insights": [],
             "sugestao": None,
             "mensagem_unicornio": {
@@ -238,7 +364,13 @@ Protocolo atual: {cfg.get('protocolo', '16_8')} | Sequência: {cfg.get('sequenci
 
 Responda SOMENTE com JSON, sem markdown:
 {{
-  "insights": ["frase 1", "frase 2", "frase 3"],
+  "insight_principal": "análise principal do padrão da pessoa — 1 a 2 frases, a observação mais relevante da semana",
+  "insights": [
+    {{"tipo": "sono", "icone": "😴", "titulo": "título curto", "texto": "detalhe do insight"}},
+    {{"tipo": "proteina", "icone": "💪", "titulo": "título curto", "texto": "detalhe"}},
+    {{"tipo": "melhor_dia", "icone": "📅", "titulo": "título curto", "texto": "detalhe"}},
+    {{"tipo": "padrao", "icone": "⚖️", "titulo": "título curto", "texto": "detalhe"}}
+  ],
   "sugestao": "uma sugestão gentil de ajuste (ou null se está tudo ótimo)",
   "mensagem_unicornio": {{"unicornio": "sweet ou happy", "texto": "mensagem curta e carinhosa"}}
 }}
@@ -248,7 +380,8 @@ REGRAS OBRIGATÓRIAS:
 - NUNCA mencione peso, calorias, dinheiro ou valores financeiros.
 - Jejuns interrompidos são "dias de descanso" — jamais "falha" ou "quebra".
 - "sweet" para celebrações (metas, recordes), "happy" para motivação do dia a dia.
-- Frases curtas, em português brasileiro, com no máximo 1 emoji cada."""
+- icone: um único emoji temático. tipo: um slug curto. Gere de 2 a 4 insights conforme os dados permitirem.
+- Frases curtas, em português brasileiro."""
 
     try:
         texto = await chamar_gemini({
@@ -260,6 +393,7 @@ REGRAS OBRIGATÓRIAS:
     except Exception as exc:
         # Fallback estático — o módulo nunca pode quebrar por causa da IA
         return {
+            "insight_principal": None,
             "insights": [],
             "sugestao": None,
             "mensagem_unicornio": {
@@ -345,6 +479,60 @@ async def together_estado(usuario_id: str, familia_id: str = Query(...)):
     }
 
 
+@router.get("/jejum/together/dupla/{usuario_id}")
+async def together_dupla(usuario_id: str, familia_id: str = Query(...)):
+    """Visão rica do Fast Together: timers de AMBOS + stats do mês juntas.
+
+    Só dados POSITIVOS. Usado na tela dedicada de acompanhamento mútuo.
+    """
+    db = get_supabase()
+    tg = db.table("jejum_together").select("*").eq("familia_id", familia_id) \
+        .eq("status", "ativo") \
+        .or_(f"usuario_a.eq.{usuario_id},usuario_b.eq.{usuario_id}").execute()
+    if not tg.data:
+        return None
+    vinculo = tg.data[0]
+    partner_id = vinculo["usuario_b"] if vinculo["usuario_a"] == usuario_id else vinculo["usuario_a"]
+
+    def _snapshot(uid: str) -> dict:
+        u = db.table("usuarios").select("nome").eq("id", uid).execute()
+        ativo = db.table("jejum_registros").select("iniciado_em, meta_horas") \
+            .eq("usuario_id", uid).eq("status", "em_andamento").execute()
+        c = db.table("jejum_config").select("sequencia_atual, protocolo") \
+            .eq("usuario_id", uid).execute()
+        return {
+            "id": uid,
+            "nome": u.data[0]["nome"] if u.data else "",
+            "jejum_ativo": ativo.data[0] if ativo.data else None,
+            "sequencia": c.data[0]["sequencia_atual"] if c.data else 0,
+            "protocolo": c.data[0].get("protocolo") if c.data else None,
+        }
+
+    # Stats "esse mês juntas": dias em que AMBOS completaram
+    inicio_mes = date.today().replace(day=1).isoformat()
+    def _dias_completos(uid: str) -> set:
+        rows = db.table("jejum_registros").select("iniciado_em") \
+            .eq("usuario_id", uid).in_("status", ["completo", "joker"]) \
+            .gte("iniciado_em", inicio_mes).execute().data or []
+        return {r["iniciado_em"][:10] for r in rows if r.get("iniciado_em")}
+
+    dias_a = _dias_completos(usuario_id)
+    dias_b = _dias_completos(partner_id)
+    sincronizados = dias_a & dias_b
+
+    return {
+        "together_id": vinculo["id"],
+        "eu": _snapshot(usuario_id),
+        "parceiro": _snapshot(partner_id),
+        "mes": {
+            "sincronizados": len(sincronizados),
+            "melhor_sequencia_juntas": _melhor_streak(sorted(sincronizados)),
+            "taxa_combinada": round(len(sincronizados) / max(len(dias_a | dias_b), 1) * 100),
+        },
+        "mensagem_ia": vinculo.get("mensagem_ia"),
+    }
+
+
 @router.post("/jejum/together/motivar")
 async def together_motivar(payload: dict):
     """Envia incentivo manual ao parceiro. Respeita o limite de 2 notifs/dia."""
@@ -415,7 +603,36 @@ async def processar_motivacoes(x_cron_secret: str | None = Header(default=None))
     return {"status": "ok", "vinculos": len(vinculos), "notificacoes": disparadas}
 
 
+# ── Registro de token FCM (push nativo) ──────────────────────────────────────
+
+@router.post("/jejum/fcm-token")
+async def registrar_fcm_token(payload: dict):
+    """Registra/atualiza o token FCM do usuário para receber pushes de jejum."""
+    usuario_id = payload.get("usuario_id")
+    token = payload.get("fcm_token")
+    if not usuario_id or not token:
+        raise HTTPException(status_code=422, detail="usuario_id e fcm_token obrigatórios")
+    db = get_supabase()
+    db.table("usuarios").update({"fcm_token": token}).eq("id", usuario_id).execute()
+    return {"status": "ok"}
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _melhor_streak(dias_ordenados: list[str]) -> int:
+    """Maior sequência de dias consecutivos numa lista de datas ISO (yyyy-mm-dd)."""
+    if not dias_ordenados:
+        return 0
+    from datetime import timedelta
+    melhor = atual = 1
+    anterior = date.fromisoformat(dias_ordenados[0])
+    for d in dias_ordenados[1:]:
+        atual_dt = date.fromisoformat(d)
+        atual = atual + 1 if atual_dt - anterior == timedelta(days=1) else 1
+        melhor = max(melhor, atual)
+        anterior = atual_dt
+    return melhor
+
 
 def _pode_notificar(vinculo: dict) -> bool:
     """Limite de 2 notificações/dia por par, com reset diário."""

@@ -9,3 +9,5 @@
 !envelope-flutter-v2/**
 !.github/
 !.github/**
+!docs/
+!docs/**
