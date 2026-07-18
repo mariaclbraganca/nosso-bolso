@@ -112,6 +112,13 @@ class AtualizarPerfilRequest(BaseModel):
     restricoes_alimentares: Optional[list[str]] = None
 
 
+class NotificacaoIfoodRequest(BaseModel):
+    familia_id: UUID
+    estabelecimento: str
+    valor: float
+    data: Optional[str] = None  # YYYY-MM-DD, defaults to today
+
+
 # --- Responses ---
 
 class ItemExtraido(BaseModel):
@@ -131,6 +138,7 @@ class CompraExtraida(BaseModel):
     data_compra: datetime
     itens: list[ItemExtraido]
     status_integracao: StatusIntegracao = StatusIntegracao.PENDENTE
+    fonte: Optional[str] = None  # "nfce" | "ifood" | None
 
 
 class ItemLista(BaseModel):
