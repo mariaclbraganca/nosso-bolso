@@ -1,44 +1,32 @@
-# STATUS DA DOCUMENTACAO
+# Índice da Documentação — Nosso Bolso
 
-Ultima atualizacao: 2026-04-04
-
----
-
-## Documentos Ativos (fonte de verdade)
-
-| Arquivo | Descricao | Localizacao |
-|---------|-----------|-------------|
-| `AGENTS.md` | Regras de desenvolvimento (atualizado) | Raiz |
-| `ENVELOPE_APP_GUIDE_v2.md` | Guia tecnico completo v2 | Raiz |
-| `docs/ROADMAP.md` | Planejamento de features (17 specs) | docs/ |
-| `docs/ARQUITETURA.md` | Visao geral da arquitetura | docs/ |
-| `docs/specs/SPEC-XX_*.md` | Specs detalhadas de cada feature | docs/specs/ |
-| `docs/BUSSINES_RULES.MD` | Regras de negocio (receita, fixos, envelopes) | docs/ |
-| `docs/UI_SPEC.MD` | Especificacao visual (cores, componentes) | docs/ |
-| `docs/TEST_SPECS.MD` | Casos de teste detalhados (TC-01 a TC-05) | docs/ |
-| `PROMPT_MESTRE_TESTES.md` | Suite E2E completa (15 partes) | Raiz |
-| `RELATORIO_TESTES_2026-04-04.md` | Resultado dos testes | Raiz |
+> Mapa de toda a documentação do projeto e quem é fonte de verdade do quê.
+> Última atualização: 2026-07-19
 
 ---
 
-## Documentos Arquivados / Obsoletos
+## Documentos vivos (manter atualizados)
 
-| Arquivo | Motivo | Acao |
-|---------|--------|------|
-| `ENVELOPE_APP_GUIDE.md` (raiz) | Substituido por v2 | Manter como referencia historica |
-| `docs/ENVELOPE_APP_GUIDE.md` | Duplicata da raiz | Pode remover |
-| `docs/ENVELOPE_APP_GUIDE_v2.md` | Duplicata da raiz | Pode remover |
-| `docs/AGENTS.MD` | Duplicata da raiz | Pode remover |
-| `docs/GUIDE.MD` | Roadmap original sem atualizacao | Substituido por `docs/ROADMAP.md` |
-| `docs/SKILLS.MD` | Matriz de skills estatica | Manter como referencia |
-| `docs/envelope_saa_s_architecture_documentation.md` | Substituido por `docs/ARQUITETURA.md` | Pode remover |
+| Documento | Fonte de verdade de… | Atualizar quando… |
+|-----------|----------------------|-------------------|
+| `envelope-flutter-v2/CLAUDE.md` | Diretriz técnica do mobile (arquitetura, design system, regras de código) | Mudar arquitetura, módulo, regra de UI/código |
+| `docs/DATABASE.md` | Camada de dados (tabelas, colunas, triggers, RLS, índices, MongoDB) | Nova tabela/coluna/trigger/índice |
+| `AGENTS.md` (raiz) | Regras de ouro + stack + anti-patterns | Nova regra absoluta ou mudança de stack |
+| `docs/BUSINESS_RULES.md` | Regras de negócio (RN01…RN16) | Nova regra de cálculo/comportamento |
+| `docs/ROADMAP.md` | O que foi entregue e o que falta | Concluir/adicionar feature |
+| `DEPLOY.md` (raiz) | Como deploya (Render, cron, secrets, Supabase) | Mudar processo de deploy |
 
----
+## Convenções
 
-## Convencoes
+- Regras de dev/negócio: `AGENTS.md` + `docs/BUSINESS_RULES.md`
+- Implementação mobile: `envelope-flutter-v2/CLAUDE.md`
+- Dados: `docs/DATABASE.md`
+- Próximos passos: `docs/ROADMAP.md`
 
-- Fonte de verdade para regras: `AGENTS.md`
-- Fonte de verdade para implementacao: `ENVELOPE_APP_GUIDE_v2.md`
-- Fonte de verdade para proximos passos: `docs/ROADMAP.md`
-- Cada feature nova deve ter uma spec em `docs/specs/SPEC-XX_*.md`
-- Resultados de testes em `RELATORIO_TESTES_YYYY-MM-DD.md`
+## Arquivo histórico (`docs/_arquivo/`)
+
+Contém material de referência já superado — **não é fonte de verdade**:
+- `specs/SPEC-01…18` — specs das features já entregues (o ROADMAP resume o estado)
+- `AGENTS.MD`, `BUSSINES_RULES_antigo.MD`, `GUIDE.MD`, `SKILLS.MD` — duplicatas/versões antigas
+- `UI_SPEC.MD`, `TEST_SPECS.MD` — specs visuais/teste antigas (design system atual está no CLAUDE.md)
+- `PROMPT_*`, `RELATORIO_TESTES_2026-04-04.md` — prompts e relatórios pontuais de abr/2026
