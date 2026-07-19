@@ -1,6 +1,6 @@
 # DATABASE.md — Nosso Bolso
 > Documento único e autoritativo sobre toda a camada de dados do sistema.
-> Última atualização: 2026-07-18
+> Última atualização: 2026-07-19
 
 ---
 
@@ -9,6 +9,7 @@
 2. [Supabase — PostgreSQL](#supabase--postgresql)
    - [DER — Diagrama Entidade-Relacionamento](#der--diagrama-entidade-relacionamento)
    - [Tabelas](#tabelas)
+   - [Módulo Jejum](#módulo-jejum-tabelas)
    - [Triggers e Funções](#triggers-e-funções)
    - [RLS — Row Level Security](#rls--row-level-security)
    - [Índices](#índices)
@@ -27,10 +28,12 @@ O sistema usa **dois bancos de dados complementares**:
 
 | Banco | Serviço | Responsabilidade |
 |---|---|---|
-| **PostgreSQL** | Supabase (cloud) | Dados financeiros estruturados: famílias, envelopes, transações, saldos |
+| **PostgreSQL** | Supabase (cloud) | Dados financeiros (famílias, envelopes, transações, saldos) **+ bem-estar** (jejum: config, registros, together; saúde) |
 | **MongoDB** | Atlas (cloud) | IA de compras: notas fiscais, itens, dicionário de produtos, perfil familiar |
 
 Os dois bancos se conectam pelo campo `familia_id` (UUID) e por `transacao_supabase_id` (quando uma compra do MongoDB é confirmada e gera uma transação no Supabase).
+
+**Realtime:** `saldo_geral`, `envelopes` e `jejum_registros` têm Realtime habilitado (o timer de jejum ao vivo depende disso).
 
 ---
 
@@ -297,6 +300,68 @@ Chave-valor global. Guarda chaves de API do Gemini por família.
 
 ---
 
+### Módulo Jejum (tabelas)
+
+Três tabelas do módulo de Jejum Intermitente (`ia_saude/router_jejum.py`).
+Schema em `docs/jejum_schema.sql` + `docs/jejum_schema_v2.sql`.
+
+#### `jejum_config`
+Uma linha por membro. Protocolo, janela alimentar, jokers e sequência (streak).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `id` | uuid | PK |
+| `familia_id` / `usuario_id` | uuid | FKs (`usuario_id` UNIQUE — 1 config por membro) |
+| `protocolo` | text | `16_8`, `14_10`, `18_6`, `20_4`, `omad`, `5_2`, `24h`, `personalizado` |
+| `duracao_horas` | numeric | Horas de jejum da meta |
+| `modalidade` | text | `com_meta` ou `livre` |
+| `janela_inicio` / `janela_fim` | time/text | Horário da janela alimentar (ex: 12:00–20:00) |
+| `joker_days_mes` / `jokers_usados` / `joker_reset_mes` | int | Jokers do mês (reset lazy na virada) |
+| `sequencia_atual` / `recorde_sequencia` | int | Streak atual e recorde (atualizados por trigger) |
+| `hidratacao_meta_copos` | int | Meta de copos/dia (default 8) |
+| `notif_config` | jsonb | Flags dos 7 tipos de notificação (inicio, marcos, janela, proteína…) |
+| `together_ativo` | boolean | Fast Together ligado |
+| `created_at` / `updated_at` | timestamptz | `updated_at` via trigger |
+
+#### `jejum_registros`
+Histórico + o registro em andamento. **Realtime habilitado** (timer ao vivo).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `id` | uuid | PK |
+| `familia_id` / `usuario_id` | uuid | FKs |
+| `iniciado_em` / `finalizado_em` | timestamptz | Início/fim do jejum |
+| `meta_horas` | numeric | Meta (null = modalidade livre) |
+| `duracao_real_min` | int | Duração efetiva ao finalizar |
+| `status` | text | `em_andamento`, `completo`, `interrompido`, `joker` |
+| `humor_inicio` / `humor_fim` | int | 1–5 |
+| `reflexao` | text | Texto livre da micro-reflexão |
+| `sentimento` | text | `leve`, `dificuldade`, `cansada_firme`, `energia` (celebração) |
+| `o_que_ajudou` | jsonb | Ex: `["hidratacao","cafe","parceiro"]` |
+| `motivo_interrupcao` | text | `fome`, `social`, `estresse`, `quis` (privado) |
+| `is_joker_day` | boolean | Usou joker (mantém streak) |
+| `together_partner_id` | uuid | Parceiro Fast Together no momento |
+
+**Índice único** `uniq_jejum_ativo`: garante **1 só jejum `em_andamento` por usuário**.
+
+#### `jejum_together`
+Vínculo Fast Together entre 2 membros + eventos de motivação (só POSITIVOS).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `id` | uuid | PK |
+| `familia_id` / `usuario_a` / `usuario_b` | uuid | FKs (a ≠ b) |
+| `status` | text | `ativo`, `pausado`, `encerrado` |
+| `evento` | text | Milestone que gerou a última motivação (completo, streak_3/7, 50pct…) |
+| `mensagem_ia` | text | Última mensagem de incentivo (Gemini) |
+| `notifs_hoje` / `notifs_reset_dia` | int/date | Limite de 2 notificações/dia por par |
+
+**Regra crítica:** só marcos POSITIVOS do parceiro são compartilhados
+(jejum ativo, sequência, completos). Interrupções, humor e reflexões
+**NUNCA** são visíveis ao parceiro.
+
+---
+
 ### Triggers e Funções
 
 #### `trg_atualiza_saldo` → `fn_atualiza_saldo_v3()`
@@ -353,6 +418,21 @@ Valida invariantes de negócio antes de gravar (ex: impede inconsistências de e
 
 ---
 
+#### `trg_sequencia_jejum` → `fn_atualiza_sequencia_jejum()`
+**Tabela:** `jejum_registros` | **Evento:** UPDATE AFTER
+
+Atualiza o streak quando um jejum sai de `em_andamento`:
+```
+completo ou joker  → sequencia_atual += 1 (joker também consome 1 joker);
+                     recorde = GREATEST(recorde, sequencia_atual+1)
+interrompido       → sequencia_atual = 0 (privado, sem punição na UI)
+```
+
+#### `trg_jejum_config_updated_at` → `fn_jejum_config_updated_at()`
+**Tabela:** `jejum_config` | **Evento:** UPDATE BEFORE — mantém `updated_at = now()`.
+
+---
+
 ### RLS — Row Level Security
 
 **Padrão geral:** usuário só acessa dados da própria família via:
@@ -375,6 +455,9 @@ Todas as tabelas têm RLS habilitado. Nenhuma política com `qual = true` existe
 | `remanejamentos_log` | ALL por família |
 | `contas_patrimonio` | ALL por família |
 | `snapshots_patrimonio` | ALL por família (via `familia_usuarios`) |
+| `jejum_config` | ALL por família (`familia_jejum_config`) |
+| `jejum_registros` | ALL por família (`familia_jejum_registros`) |
+| `jejum_together` | ALL por família (`familia_jejum_together`) |
 
 ---
 
@@ -388,6 +471,9 @@ Todas as tabelas têm RLS habilitado. Nenhuma política com `qual = true` existe
 | `familias_codigo_acesso_key` | `familias` | UNIQUE btree | Unicidade do código de convite |
 | `ix_remanejamentos_familia` | `remanejamentos_log` | btree | Consulta por família + data desc |
 | `snapshots_patrimonio_conta_id_mes_idx` | `snapshots_patrimonio` | UNIQUE btree | 1 snapshot por conta por mês |
+| `uniq_jejum_ativo` | `jejum_registros` | UNIQUE parcial (`WHERE status='em_andamento'`) | 1 jejum ativo por usuário |
+| `idx_jejum_reg_usuario_data` | `jejum_registros` | btree | Histórico por usuário + data desc |
+| `idx_jejum_together_ativo` | `jejum_together` | btree | Vínculos ativos por família |
 
 ---
 
@@ -412,8 +498,10 @@ Armazena notas fiscais processadas e compras capturadas por notificação.
   "valor_total": 183.68,
   "qr_code_url": "https://...",
   "fonte": "nfce | ifood | nubank",
+  "tipo_notificacao": "compra | pix_enviado",
   "status_integracao": "pendente | confirmado | cancelado | falhou",
   "transacao_supabase_id": "uuid | null",
+  "enriquecido_com_cupom": false,
   "llm_provider": "gemini | gemini_mobile",
   "created_at": "2026-07-18T...",
   "itens": [
@@ -504,11 +592,25 @@ Perfil de comportamento de compras da família. Usado pela IA para personalizar 
 
 #### Captura por Notificação
 1. `NotificationListenerService` captura notificações do Nubank (`com.nu.production`) e iFood
-2. Regex extrai valor e estabelecimento do texto
+   - **Android 14+**: exige `foregroundServiceType="specialUse"` + property no manifest,
+     senão o serviço não inicia. Usuário concede "Acesso a notificações" manualmente.
+2. Regex extrai valor, estabelecimento e **tipo** do texto (compra / pix_enviado / pix_recebido)
 3. Fallback para Gemini se regex falhar
-4. POST para `/api/v1/compras/notificacao-nubank` ou `/notificacao-ifood`
-5. Salvo como `status_integracao: pendente` com `itens: []`
-6. Aparece em "Compras IA" para o usuário categorizar
+4. POST para `/api/v1/compras/notificacao-nubank` ou `/notificacao-ifood`, enviando `tipo`
+5. **Roteamento por tipo (backend):**
+   - `pix_recebido` → lança **receita** direto no Supabase (`transacoes.tipo = 'receita'`),
+     descrição "Pix recebido de X". NÃO vira compra pendente.
+   - `compra` / `pix_enviado` → compra pendente no MongoDB (`itens: []`, `status: pendente`)
+6. **Deduplicação em 2 camadas:** app ignora o mesmo texto por 5min (listener + bandeja);
+   backend rejeita compra idêntica (família+estab+valor+dia) criada nos últimos 10min.
+7. Compra sem itens aparece em "Compras IA" para categorizar
+
+#### Enriquecimento por cupom
+Uma compra pendente vinda de notificação (sem itens) pode ser enriquecida escaneando
+a NFC-e daquela compra: o botão "Tenho o cupom" chama `salvar_extraido` com o
+`compra_id`, que faz `update_one` na compra existente (seta `itens`, `qr_code_url`,
+`enriquecido_com_cupom: true`) em vez de criar uma nova — evita duplicata e alimenta
+o dicionário de produtos.
 
 #### Feedback de Consumo
 - Cada item tem `data_feedback_estimada` calculada por `shelf_life` segundo a categoria
@@ -560,3 +662,6 @@ Perfil de comportamento de compras da família. Usado pela IA para personalizar 
 
 - `saldo_geral.valor_total_disponivel` nunca deve ser editado diretamente — sempre via trigger em `transacoes`
 - MongoDB `compras`: índice composto `idx_compras_familia_status` em `{ familia_id, status_integracao }` — criado
+- `jejum_config.sequencia_atual`/`recorde_sequencia` nunca editados direto — sempre via `trg_sequencia_jejum` ao finalizar um `jejum_registros`
+- `jejum_registros`: só pode existir 1 registro `em_andamento` por usuário (índice único parcial)
+- `jejum_together`: dados do parceiro compartilhados são SÓ positivos — interrupções/humor/reflexão nunca cruzam para o outro membro
