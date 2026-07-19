@@ -156,22 +156,28 @@ class JejumNotificationService {
     Future<void> agenda(DateTime quando, String canal, String titulo,
         String corpo) async {
       if (quando.isBefore(DateTime.now())) return;
-      await _plugin.zonedSchedule(
-        id++,
-        titulo,
-        corpo,
-        tz.TZDateTime.from(quando, tz.local),
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            canal, canal,
-            importance: Importance.high,
-            priority: Priority.high,
+      try {
+        await _plugin.zonedSchedule(
+          id++,
+          titulo,
+          corpo,
+          tz.TZDateTime.from(quando, tz.local),
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              canal, canal,
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
           ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (e) {
+        // Nunca deixa o agendamento de um marco derrubar o fluxo do jejum
+        // (ex.: exact_alarms_not_permitted em alguns aparelhos).
+        debugPrint('[Jejum] Falha ao agendar marco "$titulo": $e');
+      }
     }
 
     // Marco 12h — queima de gordura

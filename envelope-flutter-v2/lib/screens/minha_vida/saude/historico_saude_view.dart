@@ -4,10 +4,15 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../theme/app_theme.dart';
 import '../../../providers/saude_provider.dart';
 
-// Backend às vezes retorna {} vazio em vez de [] quando não há dados
+// Backend às vezes retorna {} vazio em vez de [] quando não há dados.
+// Filtra item a item para não estourar em .cast() lazy quando algum
+// elemento não for Map (TypeError _Map is not a subtype of List).
 List<Map<String, dynamic>> _asList(dynamic value) {
-  if (value is List) return value.cast<Map<String, dynamic>>();
-  return [];
+  if (value is! List) return [];
+  return value
+      .whereType<Map>()
+      .map((e) => e.cast<String, dynamic>())
+      .toList();
 }
 
 class HistoricoSaudeView extends ConsumerStatefulWidget {
