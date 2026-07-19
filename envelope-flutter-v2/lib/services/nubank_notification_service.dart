@@ -38,15 +38,8 @@ class NubankNotificationService {
     // tickerText não é bloqueado por vis=PRIVATE — fonte mais confiável para Nubank
     final ticker = (evt.raw?['tickerText'] as String?) ?? '';
 
-    await Sentry.captureMessage(
-      '[Nubank] Raw event recebido',
-      level: SentryLevel.info,
-      withScope: (s) {
-        s.setExtra('title', titulo.isEmpty ? 'NULL' : titulo);
-        s.setExtra('text', corpo.isEmpty ? 'NULL' : corpo);
-        s.setExtra('ticker', ticker.isEmpty ? 'NULL' : ticker);
-      },
-    );
+    // Log local (não polui o Sentry com eventos de sucesso)
+    debugPrint('[Nubank] Raw event — title=$titulo text=$corpo ticker=$ticker');
 
     // Prioridade: ticker (mais completo) > title+text > só title
     final texto = ticker.isNotEmpty ? ticker
@@ -72,11 +65,7 @@ class NubankNotificationService {
       debugPrint('[Nubank] Texto repetido ignorado (dedup local)');
       return;
     }
-    await Sentry.captureMessage(
-      '[Nubank] Notificação recebida: ${texto.length > 40 ? texto.substring(0, 40) : texto}',
-      level: SentryLevel.info,
-      withScope: (scope) => scope.setExtra('texto_completo', texto),
-    );
+    debugPrint('[Nubank] Notificação recebida: $texto');
 
     if (texto.isEmpty) {
       Sentry.addBreadcrumb(Breadcrumb(
@@ -279,13 +268,6 @@ Regras:
       // 201 = criado; 200 = duplicata ignorada ou receita lançada
       if (resp.statusCode == 201 || resp.statusCode == 200) {
         debugPrint('[Nubank] Processado ($tipo): $estabelecimento R\$$valor');
-        await Sentry.captureMessage('[Nubank] Compra pendente inserida com sucesso',
-            level: SentryLevel.info,
-            withScope: (s) {
-              s.setExtra('estabelecimento', estabelecimento);
-              s.setExtra('valor', valor);
-              s.setExtra('origem', origem);
-            });
       } else {
         await Sentry.captureMessage('[Nubank] API retornou ${resp.statusCode}',
             level: SentryLevel.error,

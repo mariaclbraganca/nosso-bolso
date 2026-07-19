@@ -31,14 +31,15 @@ class IfoodNotificationService {
     final temPermissao = await NotificationsListener.hasPermission ?? false;
     final running = await NotificationsListener.isRunning ?? false;
 
-    await Sentry.captureMessage(
-      '[NotificationListener] Status na inicialização: permissao=$temPermissao rodando=$running',
-      level: temPermissao ? SentryLevel.info : SentryLevel.warning,
-      withScope: (scope) {
-        scope.setExtra('tem_permissao', temPermissao);
-        scope.setExtra('servico_rodando', running);
-      },
-    );
+    debugPrint('[NotificationListener] permissao=$temPermissao rodando=$running');
+    // Sentry só quando FALTA permissão (problema real que impede a captura).
+    if (!temPermissao) {
+      await Sentry.captureMessage(
+        '[NotificationListener] SEM permissão de acesso a notificações',
+        level: SentryLevel.warning,
+        withScope: (scope) => scope.setExtra('servico_rodando', running),
+      );
+    }
 
     if (!running) {
       await NotificationsListener.startService(
