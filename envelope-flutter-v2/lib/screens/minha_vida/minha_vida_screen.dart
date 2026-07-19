@@ -5,6 +5,7 @@ import '../../providers/saude_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import 'saude/saude_view.dart';
 import 'exercicio/exercicio_view.dart';
+import 'jejum/jejum_view.dart';
 
 class MinhaVidaScreen extends ConsumerStatefulWidget {
   const MinhaVidaScreen({super.key});
@@ -14,7 +15,7 @@ class MinhaVidaScreen extends ConsumerStatefulWidget {
 }
 
 class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
-  int _segmento = 0; // 0 = Saúde, 1 = Exercício
+  int _segmento = 0; // 0 = Saúde, 1 = Exercício, 2 = Jejum
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +46,7 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
                 children: [
                   SaudeView(membroId: membroId, familiaId: perfil?['familia_id'] as String? ?? ''),
                   ExercicioView(membroId: membroId),
+                  JejumView(membroId: membroId, familiaId: perfil?['familia_id'] as String? ?? ''),
                 ],
               ),
             ),
@@ -132,84 +134,52 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
   // ── Switcher animado ───────────────────────────────────────────────────────
 
   Widget _buildSegmentSwitcher() {
+    // 3 segmentos grandes: Saúde (verde) · Exercício (laranja) · Jejum (roxo)
+    const segmentos = [
+      ('🌿 Saúde', AppColors.grn),
+      ('💪 Exercício', AppColors.org),
+      ('⏱ Jejum', AppColors.pur),
+    ];
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.pagePad, 0, AppSpacing.pagePad, AppSpacing.cardGap,
       ),
-      child: Container(
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppColors.surf,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
-          border: Border.all(color: AppColors.bord, width: 0.5),
-        ),
-        child: Stack(
-          children: [
-            // Pill animada
-            AnimatedAlign(
-              alignment: _segmento == 0
-                  ? Alignment.centerLeft
-                  : Alignment.centerRight,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: FractionallySizedBox(
-                widthFactor: 0.5,
-                child: Container(
-                  margin: const EdgeInsets.all(3),
+      child: Row(
+        children: List.generate(segmentos.length, (i) {
+          final ativo = _segmento == i;
+          final cor = segmentos[i].$2;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i < 2 ? 8 : 0),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _segmento = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  height: 42,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _segmento == 0
-                        ? AppColors.grn.withOpacity(0.18)
-                        : AppColors.org.withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(9),
+                    color: ativo ? cor.withOpacity(0.10) : AppColors.surf,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
                     border: Border.all(
-                      color: _segmento == 0
-                          ? AppColors.grn.withOpacity(0.5)
-                          : AppColors.org.withOpacity(0.5),
-                      width: 1,
+                      color: ativo ? cor : AppColors.bord,
+                      width: ativo ? 1.5 : 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    segmentos[i].$1,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: ativo ? cor : AppColors.mu,
                     ),
                   ),
                 ),
               ),
             ),
-            // Botões de texto
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _segmento = 0),
-                    child: Center(
-                      child: Text(
-                        '💚 Saúde',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _segmento == 0 ? AppColors.grn : AppColors.mu,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _segmento = 1),
-                    child: Center(
-                      child: Text(
-                        '🏋️ Exercício',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _segmento == 1 ? AppColors.org : AppColors.mu,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          );
+        }),
       ),
     );
   }

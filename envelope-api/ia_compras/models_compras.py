@@ -117,6 +117,10 @@ class NotificacaoIfoodRequest(BaseModel):
     estabelecimento: str
     valor: float
     data: Optional[str] = None  # YYYY-MM-DD, defaults to today
+    # tipo: compra | pix_enviado | pix_recebido. pix_recebido vira RECEITA;
+    # os demais viram compra pendente de envelope (gasto). Default = compra.
+    tipo: Optional[str] = "compra"
+    usuario_id: Optional[UUID] = None  # necessário para lançar receita
 
 
 # --- Responses ---

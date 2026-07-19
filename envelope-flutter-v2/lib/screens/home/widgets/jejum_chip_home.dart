@@ -22,10 +22,10 @@ class JejumChipHome extends ConsumerWidget {
       data: (registro) {
         if (registro == null) return const SizedBox.shrink();
 
-        final inicioStr = registro['inicio'] as String?;
+        final inicioStr = registro['iniciado_em'] as String?;
         if (inicioStr == null) return const SizedBox.shrink();
 
-        final inicio = DateTime.tryParse(inicioStr);
+        final inicio = DateTime.tryParse(inicioStr)?.toLocal();
         if (inicio == null) return const SizedBox.shrink();
 
         final decorrido = DateTime.now().difference(inicio);

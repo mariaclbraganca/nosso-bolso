@@ -1,4 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="envelope_flutter_v2"
         android:name="${applicationName}"
@@ -36,7 +46,10 @@
             android:name="im.zoe.labs.flutter_notification_listener.NotificationsHandlerService"
             android:label="Nosso Bolso"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true">
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="notification_listener"/>
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>

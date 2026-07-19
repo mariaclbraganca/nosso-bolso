@@ -21,7 +21,8 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _index = 0;
-  bool _balaoMostrado = false;
+  int _ultimaQtdVista = 0;   // maior nº de pendentes já exibido no popup
+  bool _popupAberto = false; // evita empilhar popups
 
   static const _screens = [
     HomeScreen(),
@@ -53,12 +54,18 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final pendentes = ref.watch(comprasPendentesProvider).value?.length ?? 0;
 
-    // Mostra balão uma única vez ao carregar, se houver pendentes
+    // Popup de pendentes: aparece na primeira carga com pendentes E sempre que
+    // o número aumentar (nova compra capturada enquanto usa o app).
     ref.listen(comprasPendentesProvider, (_, next) {
-      final lista = next.value ?? [];
-      if (lista.isNotEmpty && !_balaoMostrado && mounted) {
-        _balaoMostrado = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _mostrarBalao(lista.length));
+      final qtd = next.value?.length ?? 0;
+      if (qtd == 0) {
+        _ultimaQtdVista = 0; // zerou tudo → rearma para futuras compras
+        return;
+      }
+      if (qtd > _ultimaQtdVista && !_popupAberto && mounted) {
+        _ultimaQtdVista = qtd;
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _mostrarPopupPendentes(qtd));
       }
     });
 
@@ -80,32 +87,75 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     );
   }
 
-  void _mostrarBalao(int quantidade) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+  Future<void> _mostrarPopupPendentes(int quantidade) async {
+    if (!mounted || _popupAberto) return;
+    _popupAberto = true;
+    final plural = quantidade > 1;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.55),
+      builder: (ctx) => Dialog(
         backgroundColor: AppColors.card,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 90),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        duration: const Duration(seconds: 6),
-        content: Row(children: [
-          const Text('🛒', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '$quantidade compra${quantidade > 1 ? 's' : ''} pendente${quantidade > 1 ? 's' : ''} aguardando confirmação.',
-              style: const TextStyle(color: AppColors.tx, fontSize: 13),
-            ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🛒', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
+              Text(
+                plural
+                    ? '$quantidade compras esperando envelope'
+                    : '1 compra esperando envelope',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.title.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                plural
+                    ? 'O app capturou compras que ainda não foram lançadas nos envelopes. Quer organizar agora?'
+                    : 'O app capturou uma compra que ainda não foi lançada num envelope. Quer lançar agora?',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showComprasIA();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.acc,
+                    foregroundColor: AppColors.bg,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
+                    ),
+                  ),
+                  child: const Text('Categorizar agora',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Depois',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.mu)),
+              ),
+            ],
           ),
-        ]),
-        action: SnackBarAction(
-          label: 'Ver agora',
-          textColor: AppColors.acc,
-          onPressed: _showComprasIA,
         ),
       ),
     );
+    _popupAberto = false;
   }
 
   void _showComprasIA() {
@@ -114,7 +164,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const ComprasIASheet(),
-    );
+    ).then((_) => ref.invalidate(comprasPendentesProvider));
   }
 
   void _showFormGasto() {

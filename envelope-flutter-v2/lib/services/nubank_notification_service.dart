@@ -55,8 +55,23 @@ class NubankNotificationService {
     await processarTexto(texto);
   }
 
+  // Textos processados recentemente (evita listener + bandeja processarem 2x).
+  static final Map<String, DateTime> _recentes = {};
+
+  static bool _jaProcessado(String texto) {
+    final agora = DateTime.now();
+    _recentes.removeWhere((_, t) => agora.difference(t).inMinutes >= 5);
+    if (_recentes.containsKey(texto)) return true;
+    _recentes[texto] = agora;
+    return false;
+  }
+
   /// Processa texto de notificação diretamente (usado pelo ActiveNotificationsService).
   static Future<void> processarTexto(String texto) async {
+    if (texto.isNotEmpty && _jaProcessado(texto)) {
+      debugPrint('[Nubank] Texto repetido ignorado (dedup local)');
+      return;
+    }
     await Sentry.captureMessage(
       '[Nubank] Notificação recebida: ${texto.length > 40 ? texto.substring(0, 40) : texto}',
       level: SentryLevel.info,
@@ -150,7 +165,13 @@ class NubankNotificationService {
 
     final hoje = DateTime.now().toIso8601String().substring(0, 10);
     debugPrint('[Nubank] Capturado ($origem): $estabelecimento R\$$valor em $hoje');
-    await _criarCompraPendente(estabelecimento, valor, hoje, origem);
+    // Mapeia origem → tipo que o backend entende (roteia receita vs gasto)
+    final tipo = switch (origem) {
+      'nubank_pix_recebido' => 'pix_recebido',
+      'nubank_pix_enviado' => 'pix_enviado',
+      _ => 'compra',
+    };
+    await _criarCompraPendente(estabelecimento, valor, hoje, origem, tipo);
   }
 
   /// Usa Gemini para extrair valor e estabelecimento de textos que o regex não capturou.
@@ -210,6 +231,7 @@ Regras:
     double valor,
     String data,
     String origem,
+    String tipo,
   ) async {
     try {
       final session = Supabase.instance.client.auth.currentSession;
@@ -249,11 +271,14 @@ Regras:
           'estabelecimento': estabelecimento,
           'valor': valor,
           'data': data,
+          'tipo': tipo,
+          'usuario_id': session.user.id,
         }),
       );
 
-      if (resp.statusCode == 201) {
-        debugPrint('[Nubank] Compra pendente criada: $estabelecimento R\$$valor');
+      // 201 = criado; 200 = duplicata ignorada ou receita lançada
+      if (resp.statusCode == 201 || resp.statusCode == 200) {
+        debugPrint('[Nubank] Processado ($tipo): $estabelecimento R\$$valor');
         await Sentry.captureMessage('[Nubank] Compra pendente inserida com sucesso',
             level: SentryLevel.info,
             withScope: (s) {

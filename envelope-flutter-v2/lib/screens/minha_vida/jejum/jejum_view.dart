@@ -43,32 +43,30 @@ class _JejumViewState extends ConsumerState<JejumView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_onboardingVerificado && widget.membroId.isNotEmpty) {
-      _onboardingVerificado = true;
-      _verificarOnboarding();
-    }
+    // A verificação do onboarding é feita no build (reage ao carregamento
+    // assíncrono da config), garantindo que dispare mesmo quando a config
+    // ainda estava carregando na primeira montagem.
   }
 
-  void _verificarOnboarding() {
-    final configAsync = ref.read(
-      jejumConfigProvider((membroId: widget.membroId, familiaId: widget.familiaId)),
-    );
-    configAsync.whenData((config) {
-      final protocolo = config['protocolo'] as String?;
-      if (protocolo == null || protocolo.isEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => JejumOnboardingScreen(
-                membroId: widget.membroId,
-                familiaId: widget.familiaId,
-              ),
+  void _talvezAbrirOnboarding(Map<String, dynamic> config) {
+    if (_onboardingVerificado) return;
+    final protocolo = config['protocolo'] as String?;
+    if (protocolo == null || protocolo.isEmpty) {
+      _onboardingVerificado = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => JejumOnboardingScreen(
+              membroId: widget.membroId,
+              familiaId: widget.familiaId,
             ),
-          );
-        });
-      }
-    });
+          ),
+        ).then((_) => ref.invalidate(jejumConfigProvider(_args)));
+      });
+    } else {
+      _onboardingVerificado = true;
+    }
   }
 
   @override
@@ -302,6 +300,7 @@ class _JejumViewState extends ConsumerState<JejumView> {
         ),
       ),
       data: (config) {
+        _talvezAbrirOnboarding(config);
         final protocolo = config['protocolo'] as String? ?? '16_8';
         final duracao = (config['duracao_horas'] as num?)?.toDouble() ?? 16.0;
         final modalidade = config['modalidade'] as String? ?? 'com_meta';
@@ -554,6 +553,22 @@ class _JejumViewState extends ConsumerState<JejumView> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: AppSpacing.cardGap),
+
+              // Reconfigurar do zero (reabre o onboarding + fluxo completo)
+              _buildConfigCard(
+                emoji: '🔄',
+                titulo: 'Refazer configuração',
+                subtitulo: 'Rever o passo a passo do jejum desde o início',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => JejumOnboardingScreen(
+                      membroId: widget.membroId,
+                      familiaId: widget.familiaId,
+                    ),
+                  ),
+                ).then((_) => ref.invalidate(jejumConfigProvider(_args))),
               ),
             ],
           );

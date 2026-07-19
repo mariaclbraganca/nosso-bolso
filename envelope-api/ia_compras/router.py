@@ -435,6 +435,11 @@ def registrar_notificacao_ifood(
     fam = assert_mesma_familia(user, str(payload.familia_id))
     data_compra = payload.data or datetime.now().strftime("%Y-%m-%d")
 
+    col = get_compras_collection()
+    if _eh_duplicata(col, fam, payload.estabelecimento, payload.valor, data_compra):
+        logger.info("ifood: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
+        return {"status": "duplicata_ignorada"}
+
     compra_id = str(uuid4())
     doc = {
         "compra_id": compra_id,
@@ -448,9 +453,26 @@ def registrar_notificacao_ifood(
         "itens": [],
         "created_at": datetime.now().isoformat(),
     }
-    get_compras_collection().insert_one(doc)
+    col.insert_one(doc)
     logger.info("ifood: compra_id=%s familia=%s valor=%.2f", compra_id, fam, payload.valor)
     return {"compra_id": compra_id, "status": "pendente"}
+
+
+def _eh_duplicata(col, familia_id: str, estabelecimento: str, valor: float,
+                  data_compra: str, janela_min: int = 10) -> bool:
+    """True se já existe compra idêntica (mesma família/estab/valor/dia) criada
+    nos últimos `janela_min` minutos — evita a inserção dupla do listener +
+    leitura da bandeja para a mesma notificação."""
+    from datetime import timedelta
+    limite = (datetime.now() - timedelta(minutes=janela_min)).isoformat()
+    existente = col.find_one({
+        "familia_id": familia_id,
+        "supermercado": estabelecimento,
+        "valor_total": valor,
+        "data_compra": f"{data_compra}T00:00:00",
+        "created_at": {"$gte": limite},
+    })
+    return existente is not None
 
 
 @router.post("/notificacao-nubank", status_code=201)
@@ -458,11 +480,50 @@ def registrar_notificacao_nubank(
     payload: NotificacaoIfoodRequest,
     user: AuthUser = Depends(get_current_user),
 ):
-    """Recebe compra/Pix capturado via notificação do Nubank e salva como compra pendente."""
+    """Recebe compra/Pix capturado via notificação do Nubank.
+
+    Roteamento por tipo:
+    - pix_recebido → lança RECEITA direto (entrada de dinheiro).
+    - compra / pix_enviado → cria compra pendente de envelope (gasto).
+    Deduplica notificações repetidas (listener + bandeja) numa janela curta.
+    """
     from uuid import uuid4
 
     fam = assert_mesma_familia(user, str(payload.familia_id))
     data_compra = payload.data or datetime.now().strftime("%Y-%m-%d")
+    tipo = (payload.tipo or "compra").lower()
+
+    # Pix recebido = receita: lança direto no Supabase, não vira compra pendente
+    if tipo == "pix_recebido":
+        db = get_supabase()
+        # Evita receita duplicada na janela curta
+        try:
+            recentes = db.table("transacoes").select("id") \
+                .eq("familia_id", fam).eq("tipo", "receita") \
+                .eq("valor", payload.valor).eq("data", str(data_compra)) \
+                .ilike("descricao", f"%{payload.estabelecimento}%").execute()
+            if recentes.data:
+                return {"status": "duplicata_ignorada", "tipo": "receita"}
+        except Exception:
+            pass
+        data = {
+            "valor": payload.valor,
+            "tipo": "receita",
+            "usuario_id": str(payload.usuario_id) if payload.usuario_id else user.id,
+            "envelope_id": None,
+            "descricao": f"Pix recebido de {payload.estabelecimento}",
+            "data": str(data_compra),
+            "familia_id": fam,
+        }
+        res = db.table("transacoes").insert(data).execute()
+        logger.info("nubank: receita (pix recebido) familia=%s valor=%.2f", fam, payload.valor)
+        return {"status": "receita_lancada", "transacao": res.data[0] if res.data else None}
+
+    # compra ou pix_enviado → compra pendente de envelope (gasto)
+    col = get_compras_collection()
+    if _eh_duplicata(col, fam, payload.estabelecimento, payload.valor, data_compra):
+        logger.info("nubank: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
+        return {"status": "duplicata_ignorada", "tipo": "compra"}
 
     compra_id = str(uuid4())
     doc = {
@@ -472,13 +533,14 @@ def registrar_notificacao_nubank(
         "supermercado": payload.estabelecimento,
         "valor_total": payload.valor,
         "fonte": "nubank",
+        "tipo_notificacao": tipo,  # compra | pix_enviado
         "status_integracao": "pendente",
         "transacao_supabase_id": None,
         "itens": [],
         "created_at": datetime.now().isoformat(),
     }
-    get_compras_collection().insert_one(doc)
-    logger.info("nubank: compra_id=%s familia=%s valor=%.2f", compra_id, fam, payload.valor)
+    col.insert_one(doc)
+    logger.info("nubank: compra_id=%s familia=%s valor=%.2f tipo=%s", compra_id, fam, payload.valor, tipo)
     return {"compra_id": compra_id, "status": "pendente"}
 
 
