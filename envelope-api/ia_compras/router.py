@@ -149,6 +149,31 @@ def salvar_extraido(
     if not itens_validados or payload.valor_total <= 0:
         raise HTTPException(422, "JSON extraído inválido: sem itens ou valor_total zerado")
 
+    col = get_compras_collection()
+
+    # Enriquecer compra pendente existente (ex.: notificação Nubank/iFood sem
+    # itens) — vincula os itens do cupom à compra já criada, sem duplicar.
+    if payload.compra_id:
+        alvo = col.find_one({"compra_id": payload.compra_id, "familia_id": fam})
+        if alvo:
+            col.update_one(
+                {"compra_id": payload.compra_id, "familia_id": fam},
+                {"$set": {
+                    "itens": itens_validados,
+                    "qr_code_url": payload.qr_code_url,
+                    "valor_total": payload.valor_total,
+                    "supermercado": payload.supermercado or alvo.get("supermercado") or "Desconhecido",
+                    "llm_provider": "gemini_mobile",
+                    "enriquecido_com_cupom": True,
+                }},
+            )
+            logger.info(
+                "salvar_extraido: compra_id=%s ENRIQUECIDA familia=%s itens=%d",
+                payload.compra_id, fam, len(itens_validados),
+            )
+            return {"compra_id": payload.compra_id, "status": "enriquecida"}
+        # Não encontrada: cai no fluxo padrão (cria nova).
+
     compra_id = str(uuid4())
     doc = {
         "compra_id": compra_id,
@@ -163,7 +188,7 @@ def salvar_extraido(
         "created_at": datetime.now().isoformat(),
         "llm_provider": "gemini_mobile",
     }
-    get_compras_collection().insert_one(doc)
+    col.insert_one(doc)
     logger.info("salvar_extraido: compra_id=%s familia=%s itens=%d", compra_id, fam, len(itens_validados))
     return {"compra_id": compra_id, "status": "pendente"}
 

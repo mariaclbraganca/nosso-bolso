@@ -96,6 +96,9 @@ class IngestaoExtraidaRequest(BaseModel):
     data_compra: str  # YYYY-MM-DD
     valor_total: float
     itens: list[ItemExtraidoInput]
+    # Se presente, enriquece a compra pendente existente (vinda de notificação
+    # Nubank/iFood, sem itens) em vez de criar uma nova — evita duplicata.
+    compra_id: Optional[str] = None
 
 
 class MergeProdutoRequest(BaseModel):

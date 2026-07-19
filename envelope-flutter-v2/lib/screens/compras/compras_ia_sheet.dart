@@ -13,6 +13,68 @@ import 'qr_scanner_screen.dart';
 import 'feedback_compras_screen.dart';
 import 'lista_compras_screen.dart';
 
+// ─── Helpers de categoria ─────────────────────────────────────────────────────
+String _mapearCategoriaCompra(String cat) {
+  const mapa = {
+    'ALIMENTACAO': 'Outros',
+    'LIMPEZA': 'Limpeza',
+    'HIGIENE': 'Higiene Pessoal',
+    'BEBIDAS': 'Bebidas',
+    'OUTROS': 'Outros',
+    'Proteínas': 'Proteínas',
+    'Carboidratos': 'Carboidratos',
+    'Hortifrúti': 'Hortifrúti',
+    'Laticínios': 'Laticínios',
+    'Padaria': 'Padaria',
+    'Bebidas': 'Bebidas',
+    'Lanches': 'Lanches',
+    'Temperos e Condimentos': 'Temperos e Condimentos',
+    'Limpeza': 'Limpeza',
+    'Higiene Pessoal': 'Higiene Pessoal',
+    'Congelados': 'Congelados',
+    'Grãos e Cereais': 'Grãos e Cereais',
+    'Outros': 'Outros',
+  };
+  return mapa[cat] ?? 'Outros';
+}
+
+/// Monta o body do POST /salvar_extraido a partir do JSON já extraído pelo
+/// Gemini. Se [compraIdVinculo] for informado, o backend enriquece a compra
+/// pendente existente em vez de criar uma nova.
+Map<String, dynamic> _montarBodyIngestao({
+  required String familiaId,
+  required String qrUrl,
+  required Map<String, dynamic> extraido,
+  String? compraIdVinculo,
+}) {
+  final body = <String, dynamic>{
+    'familia_id': familiaId,
+    'qr_code_url': qrUrl,
+    'supermercado': extraido['supermercado'] ?? 'Desconhecido',
+    'data_compra': extraido['data_compra'] ??
+        DateTime.now().toIso8601String().substring(0, 10),
+    'valor_total': (extraido['valor_total'] ?? 0.0).toDouble(),
+    'itens': (extraido['itens'] as List? ?? [])
+        .map((item) => {
+              'nome_original':
+                  item['nome_original'] ?? item['nome_padronizado'] ?? '',
+              'nome_padronizado':
+                  item['nome_padronizado'] ?? item['nome_original'] ?? '',
+              'categoria':
+                  _mapearCategoriaCompra(item['categoria'] as String? ?? ''),
+              'quantidade': (item['quantidade'] ?? 1).toDouble(),
+              'unidade': item['unidade'] ?? 'un',
+              'valor_unitario': (item['valor_unitario'] ?? 0.0).toDouble(),
+              'valor_total_item': (item['valor_total_item'] ?? 0.0).toDouble(),
+            })
+        .toList(),
+  };
+  if (compraIdVinculo != null) {
+    body['compra_id'] = compraIdVinculo;
+  }
+  return body;
+}
+
 /// Modal principal de Compras IA.
 /// Aberto via showModalBottomSheet(isScrollControlled: true) — 95% da tela.
 class ComprasIASheet extends ConsumerStatefulWidget {
@@ -26,31 +88,6 @@ class _ComprasIASheetState extends ConsumerState<ComprasIASheet> {
   bool _processando = false;
   String _statusMsg = '';
   bool _falhasColapsadas = true;
-
-  // ─── Categorias ──────────────────────────────────────────────────────────────
-  String _mapearCategoria(String cat) {
-    const mapa = {
-      'ALIMENTACAO': 'Outros',
-      'LIMPEZA': 'Limpeza',
-      'HIGIENE': 'Higiene Pessoal',
-      'BEBIDAS': 'Bebidas',
-      'OUTROS': 'Outros',
-      'Proteínas': 'Proteínas',
-      'Carboidratos': 'Carboidratos',
-      'Hortifrúti': 'Hortifrúti',
-      'Laticínios': 'Laticínios',
-      'Padaria': 'Padaria',
-      'Bebidas': 'Bebidas',
-      'Lanches': 'Lanches',
-      'Temperos e Condimentos': 'Temperos e Condimentos',
-      'Limpeza': 'Limpeza',
-      'Higiene Pessoal': 'Higiene Pessoal',
-      'Congelados': 'Congelados',
-      'Grãos e Cereais': 'Grãos e Cereais',
-      'Outros': 'Outros',
-    };
-    return mapa[cat] ?? 'Outros';
-  }
 
   // ─── Fluxo principal ──────────────────────────────────────────────────────────
 
@@ -140,7 +177,7 @@ class _ComprasIASheetState extends ConsumerState<ComprasIASheet> {
     );
   }
 
-  Future<void> _enviarIngestao(String qrUrl) async {
+  Future<void> _enviarIngestao(String qrUrl, {String? compraIdVinculo}) async {
     final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
     if (perfil == null) return;
     final familiaId = perfil['familia_id'] as String? ?? '';
@@ -179,34 +216,12 @@ class _ComprasIASheetState extends ConsumerState<ComprasIASheet> {
       final resp = await http.post(
         uri,
         headers: ApiService.authHeaders(json: true),
-        body: jsonEncode({
-          'familia_id': familiaId,
-          'qr_code_url': qrUrl,
-          'supermercado': extraido['supermercado'] ?? 'Desconhecido',
-          'data_compra': extraido['data_compra'] ??
-              DateTime.now().toIso8601String().substring(0, 10),
-          'valor_total':
-              (extraido['valor_total'] ?? 0.0).toDouble(),
-          'itens': (extraido['itens'] as List? ?? [])
-              .map((item) => {
-                    'nome_original': item['nome_original'] ??
-                        item['nome_padronizado'] ??
-                        '',
-                    'nome_padronizado': item['nome_padronizado'] ??
-                        item['nome_original'] ??
-                        '',
-                    'categoria': _mapearCategoria(
-                        item['categoria'] as String? ?? ''),
-                    'quantidade':
-                        (item['quantidade'] ?? 1).toDouble(),
-                    'unidade': item['unidade'] ?? 'un',
-                    'valor_unitario':
-                        (item['valor_unitario'] ?? 0.0).toDouble(),
-                    'valor_total_item':
-                        (item['valor_total_item'] ?? 0.0).toDouble(),
-                  })
-              .toList(),
-        }),
+        body: jsonEncode(_montarBodyIngestao(
+          familiaId: familiaId,
+          qrUrl: qrUrl,
+          extraido: extraido,
+          compraIdVinculo: compraIdVinculo,
+        )),
       );
 
       if (!mounted) return;
@@ -709,6 +724,63 @@ class _CompraCard extends ConsumerStatefulWidget {
 
 class _CompraCardState extends ConsumerState<_CompraCard> {
   bool _expandido = false;
+  bool _processandoCupom = false;
+
+  /// Abre o scanner de NFC-e e, ao ler a URL, roda o pipeline
+  /// (scraping → Gemini → backend) vinculando os itens a ESTA compra
+  /// pendente via `compra_id` — não cria compra nova.
+  Future<void> _escanearCupomPara(String compraId) async {
+    final url = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (url == null || url.isEmpty || !mounted) return;
+
+    final perfil = ref.read(perfilUsuarioLogadoProvider).asData?.value;
+    if (perfil == null) return;
+    final familiaId = perfil['familia_id'] as String? ?? '';
+
+    setState(() => _processandoCupom = true);
+    try {
+      final textoLimpo = await NfceScraper.raspar(url);
+      final extraido = await GeminiNfceService.extrairDaNota(textoLimpo);
+
+      final uri =
+          Uri.parse('${ApiService.baseUrl}/api/v1/compras/salvar_extraido');
+      final resp = await http.post(
+        uri,
+        headers: ApiService.authHeaders(json: true),
+        body: jsonEncode(_montarBodyIngestao(
+          familiaId: familiaId,
+          qrUrl: url,
+          extraido: extraido,
+          compraIdVinculo: compraId,
+        )),
+      );
+
+      if (!mounted) return;
+      if (resp.statusCode == 201) {
+        ref.invalidate(comprasPendentesProvider);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cupom vinculado! Itens adicionados à compra.'),
+          backgroundColor: AppColors.grn,
+          duration: Duration(seconds: 4),
+        ));
+      } else {
+        throw Exception('Backend: ${resp.statusCode} — ${resp.body}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erro ao processar cupom: $e'),
+          backgroundColor: AppColors.red,
+          duration: const Duration(seconds: 6),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _processandoCupom = false);
+    }
+  }
 
   String _formatDate(String raw) {
     if (raw.length < 10) return raw;
@@ -896,6 +968,45 @@ class _CompraCardState extends ConsumerState<_CompraCard> {
               ),
             ),
           ],
+
+          // "Tenho o cupom" — só para compras sem itens detalhados
+          // (ex.: vindas de notificação Nubank/iFood).
+          if (itens.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pagePad, 0, AppSpacing.pagePad, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: _processandoCupom
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.acc),
+                        )
+                      : const Icon(Icons.camera_alt_rounded,
+                          size: 16, color: AppColors.acc),
+                  label: Text(
+                    _processandoCupom ? 'Processando cupom...' : 'Tenho o cupom',
+                    style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.acc, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.acc),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusBtn),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onPressed: _processandoCupom
+                      ? null
+                      : () => _escanearCupomPara(
+                          compra['compra_id'] as String? ?? ''),
+                ),
+              ),
+            ),
 
           // Ações
           Padding(
