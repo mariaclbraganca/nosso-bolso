@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants.dart';
 
 /// Centraliza leitura e rotação de chaves Gemini.
@@ -22,28 +23,53 @@ class GeminiKeyService {
   // Mantém compatibilidade com chave legada salva pela tela antiga
   static const _legacyKey = 'ia_gemini_api_key';
 
+  // Armazenamento seguro (Keystore criptografado no Android). As chaves
+  // Gemini são secretas — não devem ficar em SharedPreferences (texto plano).
+  static const _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  /// Migra chaves antigas do SharedPreferences (texto plano) para o
+  /// secure storage, uma única vez. Depois apaga as antigas.
+  static Future<void> _migrarSePreciso() async {
+    try {
+      final jaMigrou = await _secure.read(key: '_migrado_v1');
+      if (jaMigrou == '1') return;
+      final prefs = await SharedPreferences.getInstance();
+      for (final k in [..._prefixos, _legacyKey]) {
+        final v = prefs.getString(k);
+        if (v != null && v.isNotEmpty) {
+          await _secure.write(key: k, value: v);
+          await prefs.remove(k); // remove do armazenamento inseguro
+        }
+      }
+      await _secure.write(key: '_migrado_v1', value: '1');
+    } catch (e) {
+      debugPrint('GeminiKey: erro na migração p/ secure storage: $e');
+    }
+  }
+
   // ── Leitura de chaves ──────────────────────────────────────────────────────
 
   /// Retorna lista de chaves válidas (não vazias), combinando slots novos + legada.
   static Future<List<String>> buscarChaves() async {
+    await _migrarSePreciso();
     final chaves = <String>[];
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Slots numerados (fonte primária)
+      // Slots numerados (fonte primária) — secure storage
       for (final k in _prefixos) {
-        final v = prefs.getString(k) ?? '';
+        final v = await _secure.read(key: k) ?? '';
         if (v.isNotEmpty) chaves.add(v);
       }
 
       // Legada (compatibilidade — se não duplicada)
       if (chaves.isEmpty) {
-        final v = prefs.getString(_legacyKey) ?? '';
+        final v = await _secure.read(key: _legacyKey) ?? '';
         if (v.isNotEmpty) chaves.add(v);
       }
     } catch (e) {
-      debugPrint('GeminiKey: erro SharedPreferences: $e');
+      debugPrint('GeminiKey: erro secure storage: $e');
     }
 
     // Fallback: Supabase
@@ -136,30 +162,31 @@ class GeminiKeyService {
   // ── Persistência de chaves ─────────────────────────────────────────────────
 
   static Future<void> salvarChaves(List<String> chaves) async {
-    final prefs = await SharedPreferences.getInstance();
     for (var i = 0; i < _prefixos.length; i++) {
       final v = i < chaves.length ? chaves[i].trim() : '';
       if (v.isNotEmpty) {
-        await prefs.setString(_prefixos[i], v);
+        await _secure.write(key: _prefixos[i], value: v);
       } else {
-        await prefs.remove(_prefixos[i]);
+        await _secure.delete(key: _prefixos[i]);
       }
     }
     // Atualiza legada com a primeira chave para não quebrar integrações antigas
     if (chaves.isNotEmpty && chaves[0].trim().isNotEmpty) {
-      await prefs.setString(_legacyKey, chaves[0].trim());
+      await _secure.write(key: _legacyKey, value: chaves[0].trim());
+    } else {
+      await _secure.delete(key: _legacyKey);
     }
   }
 
   static Future<List<String>> carregarChavesSalvas() async {
-    final prefs = await SharedPreferences.getInstance();
+    await _migrarSePreciso();
     final resultado = <String>[];
     for (final k in _prefixos) {
-      resultado.add(prefs.getString(k) ?? '');
+      resultado.add(await _secure.read(key: k) ?? '');
     }
     // Se todos os slots novos estão vazios, tenta a legada no slot 1
     if (resultado.every((v) => v.isEmpty)) {
-      resultado[0] = prefs.getString(_legacyKey) ?? '';
+      resultado[0] = await _secure.read(key: _legacyKey) ?? '';
     }
     return resultado;
   }

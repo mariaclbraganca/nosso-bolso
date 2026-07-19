@@ -9,10 +9,18 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
   return supabase.auth.onAuthStateChange;
 });
 
-/// Retorna o usuário logado atualmente (ou null)
+/// Retorna o usuário logado atualmente (ou null).
+/// Ao deslogar (signedOut), retorna null imediatamente — sem cair no
+/// fallback de currentUser, que ainda poderia trazer o usuário do cache.
 final currentUserProvider = Provider<User?>((ref) {
-  final authState = ref.watch(authStateProvider).value;
-  return authState?.session?.user ?? supabase.auth.currentUser;
+  final asyncAuth = ref.watch(authStateProvider);
+  final authState = asyncAuth.value;
+  if (authState != null) {
+    if (authState.event == AuthChangeEvent.signedOut) return null;
+    return authState.session?.user;
+  }
+  // Antes do primeiro evento do stream: usa a sessão persistida (restore).
+  return supabase.auth.currentUser;
 });
 
 /// Provider para gerenciar as ações de Auth (Login, Logout, Google)
@@ -48,6 +56,11 @@ class AuthService {
 
   /// Logout
   Future<void> signOut() async {
+    // Desconecta também do Google (senão o app "lembra" a conta e não
+    // pede seleção no próximo login). Ignora erro se não logou por Google.
+    try {
+      if (!kIsWeb) await GoogleSignIn().signOut();
+    } catch (_) {}
     await _supabase.auth.signOut();
   }
 
@@ -69,8 +82,15 @@ class AuthService {
       return;
     }
 
-    // Mobile: fluxo nativo com google_sign_in
-    final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+    // Mobile: fluxo nativo com google_sign_in.
+    // serverClientId = Web Client ID (Google Cloud). Obrigatório para o
+    // signInWithIdToken do Supabase aceitar o token gerado pelo Google.
+    const webClientId =
+        '148214132378-av2pjofruhg6a76uruh3o8a2jond8a3m.apps.googleusercontent.com';
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      scopes: ['email'],
+      serverClientId: webClientId,
+    );
     final googleUser = await googleSignIn.signIn();
     if (googleUser == null) return;
 

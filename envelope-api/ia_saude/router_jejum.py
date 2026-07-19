@@ -14,8 +14,9 @@ from datetime import datetime, timezone, date
 
 import os
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from database import get_supabase
 from ia_saude.gemini_client import chamar_gemini
 
@@ -39,11 +40,14 @@ def _now() -> datetime:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 @router.get("/jejum/config/{usuario_id}")
-async def get_config(usuario_id: str, familia_id: str = Query(...)):
+async def get_config(usuario_id: str, familia_id: str = Query(...),
+                     user: AuthUser = Depends(get_current_user)):
     """Retorna a config do membro. Cria com defaults (16:8) se não existir.
 
     Reset lazy de jokers: se o mês virou desde o último reset, zera jokers_usados.
     """
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     res = db.table("jejum_config").select("*").eq("usuario_id", usuario_id).execute()
 
@@ -66,8 +70,10 @@ async def get_config(usuario_id: str, familia_id: str = Query(...)):
 
 
 @router.put("/jejum/config/{usuario_id}")
-async def put_config(usuario_id: str, payload: dict):
+async def put_config(usuario_id: str, payload: dict,
+                     user: AuthUser = Depends(get_current_user)):
     """Atualiza protocolo/modalidade/preferências. Upsert."""
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     campos_permitidos = {
         "protocolo", "duracao_horas", "modalidade", "janela_inicio", "janela_fim",
@@ -90,6 +96,7 @@ async def put_config(usuario_id: str, payload: dict):
         familia_id = payload.get("familia_id")
         if not familia_id:
             raise HTTPException(status_code=422, detail="familia_id obrigatório na criação")
+        familia_id = assert_mesma_familia(user, familia_id)
         res = db.table("jejum_config").insert({
             "usuario_id": usuario_id, "familia_id": familia_id, **updates,
         }).execute()
@@ -115,8 +122,10 @@ async def _perfil_metabolico(db, usuario_id: str) -> dict:
 
 
 @router.get("/jejum/sugestao-protocolo/{usuario_id}")
-async def sugestao_protocolo(usuario_id: str):
+async def sugestao_protocolo(usuario_id: str,
+                             user: AuthUser = Depends(get_current_user)):
     """IA sugere o melhor protocolo com base no TDEE/rotina + % de aderência estimada."""
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     perfil = await _perfil_metabolico(db, usuario_id)
     tdee = perfil.get("tdee")
@@ -174,8 +183,10 @@ REGRAS:
 
 
 @router.get("/jejum/sugestao-janela/{usuario_id}")
-async def sugestao_janela(usuario_id: str, protocolo: str = Query("16_8")):
+async def sugestao_janela(usuario_id: str, protocolo: str = Query("16_8"),
+                          user: AuthUser = Depends(get_current_user)):
     """IA sugere horário de janela alimentar para o protocolo escolhido."""
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     refeicoes = []
     try:
@@ -212,12 +223,14 @@ Português brasileiro, tom gentil."""
 # ── Ciclo de vida do jejum ───────────────────────────────────────────────────
 
 @router.post("/jejum/iniciar")
-async def iniciar(payload: dict):
+async def iniciar(payload: dict, user: AuthUser = Depends(get_current_user)):
     """Inicia um jejum. Bloqueia se já existe registro em andamento."""
     usuario_id = payload.get("usuario_id")
     familia_id = payload.get("familia_id")
     if not usuario_id or not familia_id:
         raise HTTPException(status_code=422, detail="usuario_id e familia_id obrigatórios")
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
+    familia_id = assert_mesma_familia(user, familia_id)
 
     db = get_supabase()
     ativo = db.table("jejum_registros").select("id") \
@@ -247,7 +260,8 @@ async def iniciar(payload: dict):
 
 
 @router.post("/jejum/finalizar/{registro_id}")
-async def finalizar(registro_id: str, payload: dict):
+async def finalizar(registro_id: str, payload: dict,
+                    user: AuthUser = Depends(get_current_user)):
     """Finaliza um jejum: completo | interrompido | joker.
 
     O trigger do banco atualiza sequência/recorde/jokers automaticamente.
@@ -261,6 +275,8 @@ async def finalizar(registro_id: str, payload: dict):
     if not reg.data:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
     reg = reg.data[0]
+    if str(reg.get("familia_id")) != user.familia_id:
+        raise HTTPException(status_code=403, detail="Registro não pertence à sua família")
     if reg["status"] != "em_andamento":
         raise HTTPException(status_code=409, detail="Jejum já finalizado")
 
@@ -290,8 +306,9 @@ async def finalizar(registro_id: str, payload: dict):
 
 
 @router.get("/jejum/ativo/{usuario_id}")
-async def get_ativo(usuario_id: str):
+async def get_ativo(usuario_id: str, user: AuthUser = Depends(get_current_user)):
     """Registro em andamento ou null — o app checa ao abrir para restaurar o timer."""
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     res = db.table("jejum_registros").select("*") \
         .eq("usuario_id", usuario_id).eq("status", "em_andamento").execute()
@@ -299,8 +316,10 @@ async def get_ativo(usuario_id: str):
 
 
 @router.get("/jejum/historico/{usuario_id}")
-async def get_historico(usuario_id: str, page: int = 1, limit: int = 30):
+async def get_historico(usuario_id: str, page: int = 1, limit: int = 30,
+                        user: AuthUser = Depends(get_current_user)):
     """Histórico paginado (mais recentes primeiro) + estatísticas agregadas."""
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     offset = (page - 1) * limit
     res = db.table("jejum_registros").select("*") \
@@ -329,12 +348,13 @@ async def get_historico(usuario_id: str, page: int = 1, limit: int = 30):
 # ── Insights IA (semanal) + mensagem do unicórnio ────────────────────────────
 
 @router.get("/jejum/insights/{usuario_id}")
-async def get_insights(usuario_id: str):
+async def get_insights(usuario_id: str, user: AuthUser = Depends(get_current_user)):
     """3 observações positivas + 1 sugestão, geradas pelo Gemini a partir dos
     últimos 7 dias. Também retorna a mensagem contextual do card do unicórnio.
 
     REGRA: nunca mencionar peso, dinheiro ou linguagem punitiva.
     """
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     registros = db.table("jejum_registros").select(
         "iniciado_em, duracao_real_min, meta_horas, status, humor_inicio, humor_fim"
@@ -407,7 +427,7 @@ REGRAS OBRIGATÓRIAS:
 # ── Fast Together ────────────────────────────────────────────────────────────
 
 @router.post("/jejum/together/convite")
-async def together_convite(payload: dict):
+async def together_convite(payload: dict, user: AuthUser = Depends(get_current_user)):
     """Cria/reativa o vínculo Fast Together entre dois membros da mesma família."""
     familia_id = payload.get("familia_id")
     usuario_a = payload.get("usuario_a")
@@ -416,6 +436,7 @@ async def together_convite(payload: dict):
         raise HTTPException(status_code=422, detail="familia_id, usuario_a e usuario_b obrigatórios")
     if usuario_a == usuario_b:
         raise HTTPException(status_code=422, detail="Não é possível parear consigo mesmo")
+    familia_id = assert_mesma_familia(user, familia_id)
 
     db = get_supabase()
     # Ambos precisam ser da mesma família
@@ -442,12 +463,15 @@ async def together_convite(payload: dict):
 
 
 @router.get("/jejum/together/{usuario_id}")
-async def together_estado(usuario_id: str, familia_id: str = Query(...)):
+async def together_estado(usuario_id: str, familia_id: str = Query(...),
+                          user: AuthUser = Depends(get_current_user)):
     """Estado do vínculo Together do usuário + progresso POSITIVO do parceiro.
 
     Compartilha apenas: jejum ativo (elapsed), sequência, último completo.
     NUNCA compartilha: interrupções, humor, reflexões.
     """
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     tg = db.table("jejum_together").select("*").eq("familia_id", familia_id) \
         .eq("status", "ativo") \
@@ -480,11 +504,14 @@ async def together_estado(usuario_id: str, familia_id: str = Query(...)):
 
 
 @router.get("/jejum/together/dupla/{usuario_id}")
-async def together_dupla(usuario_id: str, familia_id: str = Query(...)):
+async def together_dupla(usuario_id: str, familia_id: str = Query(...),
+                         user: AuthUser = Depends(get_current_user)):
     """Visão rica do Fast Together: timers de AMBOS + stats do mês juntas.
 
     Só dados POSITIVOS. Usado na tela dedicada de acompanhamento mútuo.
     """
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     db = get_supabase()
     tg = db.table("jejum_together").select("*").eq("familia_id", familia_id) \
         .eq("status", "ativo") \
@@ -534,18 +561,21 @@ async def together_dupla(usuario_id: str, familia_id: str = Query(...)):
 
 
 @router.post("/jejum/together/motivar")
-async def together_motivar(payload: dict):
+async def together_motivar(payload: dict, user: AuthUser = Depends(get_current_user)):
     """Envia incentivo manual ao parceiro. Respeita o limite de 2 notifs/dia."""
     together_id = payload.get("together_id")
     remetente_id = payload.get("remetente_id")
     if not together_id or not remetente_id:
         raise HTTPException(status_code=422, detail="together_id e remetente_id obrigatórios")
+    remetente_id = assert_mesmo_usuario(user, remetente_id)
 
     db = get_supabase()
     tg = db.table("jejum_together").select("*").eq("id", together_id).execute()
     if not tg.data:
         raise HTTPException(status_code=404, detail="Vínculo não encontrado")
     vinculo = tg.data[0]
+    if str(vinculo.get("familia_id")) != user.familia_id:
+        raise HTTPException(status_code=403, detail="Vínculo não pertence à sua família")
 
     if not _pode_notificar(vinculo):
         raise HTTPException(status_code=429, detail="Limite de 2 incentivos por dia atingido")
@@ -606,12 +636,13 @@ async def processar_motivacoes(x_cron_secret: str | None = Header(default=None))
 # ── Registro de token FCM (push nativo) ──────────────────────────────────────
 
 @router.post("/jejum/fcm-token")
-async def registrar_fcm_token(payload: dict):
+async def registrar_fcm_token(payload: dict, user: AuthUser = Depends(get_current_user)):
     """Registra/atualiza o token FCM do usuário para receber pushes de jejum."""
     usuario_id = payload.get("usuario_id")
     token = payload.get("fcm_token")
     if not usuario_id or not token:
         raise HTTPException(status_code=422, detail="usuario_id e fcm_token obrigatórios")
+    usuario_id = assert_mesmo_usuario(user, usuario_id)
     db = get_supabase()
     db.table("usuarios").update({"fcm_token": token}).eq("id", usuario_id).execute()
     return {"status": "ok"}

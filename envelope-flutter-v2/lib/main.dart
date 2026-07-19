@@ -71,6 +71,7 @@ class NossoBolsoApp extends ConsumerWidget {
       navigatorKey: navigatorKey,
       home: const _AuthGate(),
       routes: {
+        '/gate': (_) => const _AuthGate(),
         '/home': (_) => const MainNavigationScreen(),
       },
     );

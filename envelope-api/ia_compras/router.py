@@ -260,6 +260,31 @@ def confirmar_compra(
         raise HTTPException(400, f"Compra ja esta com status {compra['status_integracao']}")
 
     db = get_supabase()
+
+    # ── Idempotência (evita cobrança dupla) ──────────────────────────────────
+    # Cenário de risco: numa confirmação anterior o INSERT no Supabase
+    # funcionou mas o update do Mongo falhou (rede). A compra ficou "pendente"
+    # e o usuário confirma de novo → 2ª transação = cobrança dupla.
+    #
+    # Defesa: o compra_id é gravado na coluna `origem_ref` da transação. Antes
+    # de inserir, procuramos uma transação já existente com esse compra_id.
+    # Se achar, reaproveitamos (não cobra de novo).
+    existente = db.table("transacoes").select("id, envelope_id") \
+        .eq("familia_id", fam).eq("origem_ref", payload.compra_id) \
+        .is_("deleted_at", "null").execute()
+    if existente.data:
+        transacao_id = existente.data[0]["id"]
+        col.update_one(
+            {"compra_id": payload.compra_id},
+            {"$set": {"status_integracao": "confirmado",
+                      "transacao_supabase_id": transacao_id}},
+        )
+        env = db.table("envelopes").select("saldo_atual") \
+            .eq("id", existente.data[0]["envelope_id"]).eq("familia_id", fam).execute()
+        saldo = env.data[0]["saldo_atual"] if env.data else 0.0
+        return {"transacao_id": transacao_id, "saldo_restante": saldo,
+                "idempotente": True}
+
     fonte = compra.get("fonte", "nfce")
     num_itens = len(compra.get("itens", []))
     if fonte == "ifood":
@@ -275,8 +300,28 @@ def confirmar_compra(
         "descricao": descricao,
         "data": compra["data_compra"][:10],
         "familia_id": fam,
+        "origem_ref": payload.compra_id,  # chave de idempotência
     }
-    result = db.table("transacoes").insert(transacao).execute()
+    try:
+        result = db.table("transacoes").insert(transacao).execute()
+    except Exception as exc:
+        # Se o índice único uniq_transacao_origem_ref bloquear (corrida entre
+        # duas confirmações simultâneas), reaproveita a transação já criada.
+        if "uniq_transacao_origem_ref" in str(exc) or "duplicate" in str(exc).lower():
+            dup = db.table("transacoes").select("id") \
+                .eq("familia_id", fam).eq("origem_ref", payload.compra_id) \
+                .is_("deleted_at", "null").execute()
+            if dup.data:
+                transacao_id = dup.data[0]["id"]
+                col.update_one(
+                    {"compra_id": payload.compra_id},
+                    {"$set": {"status_integracao": "confirmado",
+                              "transacao_supabase_id": transacao_id}},
+                )
+                return {"transacao_id": transacao_id, "saldo_restante": 0.0,
+                        "idempotente": True}
+        raise HTTPException(500, f"Falha ao registrar transacao: {exc}")
+
     if not result.data:
         raise HTTPException(500, "Falha ao registrar transacao no Supabase")
 

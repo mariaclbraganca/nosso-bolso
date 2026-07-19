@@ -287,6 +287,15 @@ class ConfigHubScreen extends ConsumerWidget {
     );
     if (ok != true) return;
     await ref.read(authServiceProvider).signOut();
+    // Limpa o cache do perfil para o AuthGate reavaliar
+    ref.invalidate(perfilUsuarioLogadoProvider);
+    // O splash faz pushReplacementNamed('/home'), tirando o AuthGate da pilha.
+    // Por isso, ao sair, navegamos explicitamente de volta ao gate limpando
+    // TODA a pilha — o gate reavalia a sessão (agora nula) e mostra o Login.
+    if (context.mounted) {
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil('/gate', (route) => false);
+    }
   }
 }
 
