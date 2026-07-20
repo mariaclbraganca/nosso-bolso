@@ -23,6 +23,9 @@ void main() async {
         options.dsn = sentryDsn;
         options.tracesSampleRate = 0.2;
         options.environment = 'production';
+        // A navegação de telas é anexada como breadcrumbs pelo
+        // SentryNavigatorObserver no MaterialApp — sem isso o crash só registra
+        // o lifecycle do Android e não revela qual tela Dart estava ativa.
       },
       appRunner: _iniciar,
     );
@@ -70,6 +73,9 @@ class NossoBolsoApp extends ConsumerWidget {
       theme: AppTheme.dark,
       navigatorKey: navigatorKey,
       scaffoldMessengerKey: scaffoldMessengerKey,
+      // Registra a navegação de telas como breadcrumbs no Sentry — o crash
+      // passa a mostrar qual tela estava ativa (rotas com settings.name).
+      navigatorObservers: [SentryNavigatorObserver()],
       home: const _AuthGate(),
       routes: {
         '/gate': (_) => const _AuthGate(),
