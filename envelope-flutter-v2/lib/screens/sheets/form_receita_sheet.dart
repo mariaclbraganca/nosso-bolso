@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/moeda.dart';
 import 'abastecer_sheet.dart';
 
 const _origens = [
@@ -43,10 +44,7 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
       final perfil = ref.read(perfilUsuarioLogadoProvider).value;
       if (perfil == null) throw Exception('Usuário não autenticado');
 
-      final rawValor = _valorController.text
-          .replaceAll('.', '')
-          .replaceAll(',', '.');
-      final valor = double.parse(rawValor);
+      final valor = parseMoeda(_valorController.text);
       final obs = _obsController.text.trim();
 
       await ApiService.post('/transacoes/receita', {
@@ -215,9 +213,8 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
                           ),
                           validator: (v) {
                             if (v == null || v.isEmpty) return 'Informe o valor';
-                            final raw = v.replaceAll('.', '').replaceAll(',', '.');
-                            final n = double.tryParse(raw);
-                            if (n == null || n <= 0) return 'Valor inválido';
+                            final n = parseMoeda(v);
+                            if (n <= 0) return 'Valor inválido';
                             return null;
                           },
                         ),

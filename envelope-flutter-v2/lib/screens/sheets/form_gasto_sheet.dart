@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/moeda.dart';
 
 class FormGastoSheet extends ConsumerStatefulWidget {
   final String? initialEnvelopeId;
@@ -65,10 +66,7 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
       final perfil = ref.read(perfilUsuarioLogadoProvider).value;
       if (perfil == null) throw Exception('Usuário não autenticado');
 
-      final rawValor = _valorController.text
-          .replaceAll('.', '')
-          .replaceAll(',', '.');
-      final valor = double.parse(rawValor);
+      final valor = parseMoeda(_valorController.text);
 
       final data = <String, dynamic>{
         'valor': valor,
@@ -108,6 +106,9 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
     final bottom = MediaQuery.of(context).viewInsets.bottom + 20;
 
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -123,7 +124,8 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -208,9 +210,8 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
                             if (v == null || v.isEmpty) {
                               return 'Informe o valor';
                             }
-                            final raw = v.replaceAll('.', '').replaceAll(',', '.');
-                            final n = double.tryParse(raw);
-                            if (n == null || n <= 0) return 'Valor inválido';
+                            final n = parseMoeda(v);
+                            if (n <= 0) return 'Valor inválido';
                             return null;
                           },
                         ),
@@ -392,6 +393,7 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),

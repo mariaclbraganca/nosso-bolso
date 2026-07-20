@@ -466,7 +466,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
                                 color: AppColors.tx),
                           ),
                           Text(
-                            'Até ${horaFimJanela.replaceAll(':', 'h')}',
+                            'Até ${_fmtHoraJanela(horaFimJanela)}',
                             style: AppTextStyles.caption,
                           ),
                         ],
@@ -593,7 +593,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
                   ),
                   child: Text(
                     horaFimJanela != null
-                        ? 'Iniciar próximo às ${horaFimJanela.replaceAll(':', 'h')}'
+                        ? 'Iniciar próximo às ${_fmtHoraJanela(horaFimJanela)}'
                         : 'Iniciar próximo jejum',
                     style: const TextStyle(fontSize: 14),
                   ),
@@ -1191,6 +1191,17 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
 
   String _fmtHoras(double h) =>
       h.truncateToDouble() == h ? '${h.toInt()}h' : '${h}h';
+
+  /// Formata "HH:MM" (ou "HH:MM:SS") do banco como "20h00", tolerando lixo.
+  /// Retorna '' se não conseguir parsear (evita renderizar "2000" cru).
+  String _fmtHoraJanela(String? hhmm) {
+    if (hhmm == null || !hhmm.contains(':')) return '';
+    final p = hhmm.split(':');
+    final h = int.tryParse(p[0]);
+    final m = int.tryParse(p.length > 1 ? p[1] : '');
+    if (h == null || m == null) return '';
+    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
+  }
 
   // "Hoje, 20:50" / "Amanhã, 12:50" / "Ontem, 20:50" relativo ao dia de hoje.
   String _fmtDataHora(DateTime dt) {

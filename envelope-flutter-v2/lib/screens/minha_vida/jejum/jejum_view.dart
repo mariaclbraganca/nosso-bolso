@@ -39,6 +39,7 @@ class _JejumViewState extends ConsumerState<JejumView> {
       (membroId: widget.membroId, familiaId: widget.familiaId);
 
   bool _onboardingVerificado = false;
+  bool _iniciando = false; // trava anti duplo-toque no botão "Iniciar jejum"
 
   @override
   void didChangeDependencies() {
@@ -376,7 +377,8 @@ class _JejumViewState extends ConsumerState<JejumView> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () => _iniciarJejum(config),
+                      onPressed:
+                          _iniciando ? null : () => _iniciarJejum(config),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.pur,
                         foregroundColor: AppColors.bg,
@@ -386,9 +388,16 @@ class _JejumViewState extends ConsumerState<JejumView> {
                               BorderRadius.circular(AppSpacing.radiusBtn),
                         ),
                       ),
-                      child: const Text('Iniciar jejum',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: _iniciando
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.4, color: AppColors.bg),
+                            )
+                          : const Text('Iniciar jejum',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -654,10 +663,12 @@ class _JejumViewState extends ConsumerState<JejumView> {
   }
 
   Future<void> _iniciarJejum(Map<String, dynamic> config) async {
+    if (_iniciando) return; // guarda extra contra reentrância
     HapticFeedback.mediumImpact();
     final modalidade = config['modalidade'] as String? ?? 'com_meta';
     final duracao = (config['duracao_horas'] as num?)?.toDouble() ?? 16.0;
 
+    setState(() => _iniciando = true);
     try {
       final registro = await JejumApiService.iniciar(
         usuarioId: widget.membroId,
@@ -674,6 +685,8 @@ class _JejumViewState extends ConsumerState<JejumView> {
           backgroundColor: AppColors.red,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _iniciando = false);
     }
   }
 

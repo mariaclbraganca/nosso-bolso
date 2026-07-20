@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import 'active_notifications_service.dart';
 import 'nubank_notification_service.dart';
+import 'notificacao_fila_service.dart';
 
 /// Ponto central de escuta de notificações.
 /// Roteia para iFood e Nubank a partir de um único receivePort.
@@ -23,6 +24,10 @@ class IfoodNotificationService {
     _iniciado = true;
 
     await NotificationsListener.initialize(callbackHandle: _onNotificacao);
+
+    // Reenvia notificações que ficaram na fila (offline/sessão nula) na sessão
+    // anterior. Fire-and-forget — não bloqueia o init.
+    NotificacaoFilaService.flush();
 
     NotificationsListener.receivePort?.listen((evt) {
       if (evt is NotificationEvent) _processarTodos(evt);
@@ -89,29 +94,46 @@ class IfoodNotificationService {
     double valor,
     String data,
   ) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    // familia_id vem do user_metadata gravado no login
+    final familiaId =
+        session?.user.userMetadata?['familia_id'] as String? ?? '';
+
+    const endpoint = '/api/v1/compras/notificacao-ifood';
+    final body = {
+      'familia_id': familiaId,
+      'estabelecimento': estabelecimento,
+      'valor': valor,
+      'data': data,
+    };
+
+    // Sem sessão/família ainda: enfileira p/ enviar quando logar/reconectar.
+    if (session == null || familiaId.isEmpty) {
+      await NotificacaoFilaService.enfileirar(endpoint, body);
+      return;
+    }
+
     try {
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session == null) return;
-
-      // familia_id vem do user_metadata gravado no login
-      final familiaId =
-          session.user.userMetadata?['familia_id'] as String? ?? '';
-      if (familiaId.isEmpty) return;
-
-      final uri = Uri.parse(
-          '${ApiService.baseUrl}/api/v1/compras/notificacao-ifood');
-      await http.post(
-        uri,
-        headers: ApiService.authHeaders(json: true),
-        body: jsonEncode({
-          'familia_id': familiaId,
-          'estabelecimento': estabelecimento,
-          'valor': valor,
-          'data': data,
-        }),
-      );
+      final resp = await http
+          .post(
+            Uri.parse('${ApiService.baseUrl}$endpoint'),
+            headers: ApiService.authHeaders(json: true),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (resp.statusCode >= 500 ||
+          resp.statusCode == 408 ||
+          resp.statusCode == 429) {
+        // Falha transitória do servidor → enfileira p/ retry.
+        await NotificacaoFilaService.enfileirar(endpoint, body);
+      } else {
+        // Enviou (ou erro permanente): aproveita p/ drenar a fila acumulada.
+        await NotificacaoFilaService.flush();
+      }
     } catch (e) {
-      debugPrint('[iFood] Erro ao enviar: $e');
+      // Rede caiu no meio → não perde a compra: enfileira.
+      debugPrint('[iFood] Erro ao enviar, enfileirando: $e');
+      await NotificacaoFilaService.enfileirar(endpoint, body);
     }
   }
 

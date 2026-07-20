@@ -21,7 +21,7 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _index = 0;
-  int _ultimaQtdVista = 0;   // maior nº de pendentes já exibido no popup
+  int _qtdAnterior = 0;      // qtd de pendentes no último evento do stream
   bool _popupAberto = false; // evita empilhar popups
 
   static const _screens = [
@@ -54,16 +54,15 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final pendentes = ref.watch(comprasPendentesProvider).value?.length ?? 0;
 
-    // Popup de pendentes: aparece na primeira carga com pendentes E sempre que
-    // o número aumentar (nova compra capturada enquanto usa o app).
-    ref.listen(comprasPendentesProvider, (_, next) {
+    // Popup de pendentes: aparece sempre que o nº de pendentes AUMENTA em
+    // relação ao evento anterior do stream (nova compra capturada). Comparar
+    // com a qtd anterior — e não com o máximo histórico — faz o popup reabrir
+    // corretamente no ciclo 2→1→2 (excluir uma e receber outra).
+    ref.listen(comprasPendentesProvider, (prev, next) {
       final qtd = next.value?.length ?? 0;
-      if (qtd == 0) {
-        _ultimaQtdVista = 0; // zerou tudo → rearma para futuras compras
-        return;
-      }
-      if (qtd > _ultimaQtdVista && !_popupAberto && mounted) {
-        _ultimaQtdVista = qtd;
+      final antes = prev?.value?.length ?? _qtdAnterior;
+      _qtdAnterior = qtd;
+      if (qtd > antes && !_popupAberto && mounted) {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _mostrarPopupPendentes(qtd));
       }

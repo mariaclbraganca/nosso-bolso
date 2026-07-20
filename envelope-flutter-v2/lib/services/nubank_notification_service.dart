@@ -6,6 +6,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'api_service.dart';
 import 'gemini_key_service.dart';
+import 'notificacao_fila_service.dart';
+import '../utils/moeda.dart';
 
 /// Processa notificações do Nubank capturadas pelo listener central (IfoodNotificationService).
 /// Estratégia: tenta regex primeiro (rápido, sem custo). Se falhar, usa Gemini como fallback.
@@ -251,23 +253,32 @@ Regras:
         return;
       }
 
-      final uri = Uri.parse('${ApiService.baseUrl}/api/v1/compras/notificacao-nubank');
-      final resp = await http.post(
-        uri,
-        headers: ApiService.authHeaders(json: true),
-        body: jsonEncode({
-          'familia_id': familiaId,
-          'estabelecimento': estabelecimento,
-          'valor': valor,
-          'data': data,
-          'tipo': tipo,
-          'usuario_id': session.user.id,
-        }),
-      );
+      const endpoint = '/api/v1/compras/notificacao-nubank';
+      final body = {
+        'familia_id': familiaId,
+        'estabelecimento': estabelecimento,
+        'valor': valor,
+        'data': data,
+        'tipo': tipo,
+        'usuario_id': session.user.id,
+      };
+      final resp = await http
+          .post(
+            Uri.parse('${ApiService.baseUrl}$endpoint'),
+            headers: ApiService.authHeaders(json: true),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
 
       // 201 = criado; 200 = duplicata ignorada ou receita lançada
       if (resp.statusCode == 201 || resp.statusCode == 200) {
         debugPrint('[Nubank] Processado ($tipo): $estabelecimento R\$$valor');
+        await NotificacaoFilaService.flush(); // drena fila acumulada
+      } else if (resp.statusCode >= 500 ||
+          resp.statusCode == 408 ||
+          resp.statusCode == 429) {
+        // Falha transitória → não perde a compra: enfileira p/ retry.
+        await NotificacaoFilaService.enfileirar(endpoint, body);
       } else {
         await Sentry.captureMessage('[Nubank] API retornou ${resp.statusCode}',
             level: SentryLevel.error,
@@ -277,14 +288,24 @@ Regras:
             });
       }
     } catch (e, st) {
-      debugPrint('[Nubank] Erro ao criar compra pendente: $e');
+      // Rede caiu no meio → enfileira p/ reenviar quando reconectar.
+      debugPrint('[Nubank] Erro ao criar compra pendente, enfileirando: $e');
+      await NotificacaoFilaService.enfileirar(
+        '/api/v1/compras/notificacao-nubank',
+        {
+          'estabelecimento': estabelecimento,
+          'valor': valor,
+          'data': data,
+          'tipo': tipo,
+        },
+      );
       await Sentry.captureException(e, stackTrace: st);
     }
   }
 
   static double? _parseValor(String raw) {
-    final normalizado = raw.trim().replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(normalizado);
+    final v = parseMoeda(raw);
+    return v > 0 ? v : null;
   }
 
   static String _limparNome(String raw) {

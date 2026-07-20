@@ -287,6 +287,9 @@ class ConfigHubScreen extends ConsumerWidget {
     );
     if (ok != true) return;
     await ref.read(authServiceProvider).signOut();
+    // Bloqueia a sessão admin (PIN) — não deve seguir desbloqueada p/ o próximo
+    // usuário que logar neste aparelho.
+    ref.read(pinNotifierProvider.notifier).bloquear();
     // Limpa o cache do perfil para o AuthGate reavaliar
     ref.invalidate(perfilUsuarioLogadoProvider);
     // O splash faz pushReplacementNamed('/home'), tirando o AuthGate da pilha.

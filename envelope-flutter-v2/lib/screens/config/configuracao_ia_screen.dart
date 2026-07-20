@@ -54,6 +54,24 @@ class _ConfiguracaoIAScreenState
 
     setState(() => _salvando = true);
     try {
+      // Valida cada chave preenchida com um ping ao Gemini antes de salvar —
+      // evita gravar chave inválida que só falharia depois, no Monitor IA.
+      for (var i = 0; i < novas.length; i++) {
+        if (novas[i].isEmpty) continue;
+        final ok = await GeminiKeyService.validarChave(novas[i]);
+        if (!ok) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Chave ${i + 1} inválida ou sem acesso — '
+                  'confira e tente de novo.'),
+              backgroundColor: AppColors.red,
+            ));
+            setState(() => _salvando = false);
+          }
+          return;
+        }
+      }
+
       await GeminiKeyService.salvarChaves(novas);
 
       // Persiste também no Supabase

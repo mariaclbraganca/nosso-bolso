@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../constants.dart';
+import '../services/gemini_key_service.dart';
 
 /// Gerencia o estado de autenticação do Supabase
 final authStateProvider = StreamProvider<AuthState>((ref) {
@@ -56,6 +57,9 @@ class AuthService {
 
   /// Logout
   Future<void> signOut() async {
+    // Limpa segredos locais — outro usuário no mesmo aparelho não deve herdar
+    // as chaves Gemini da conta anterior.
+    await GeminiKeyService.limparCacheLocal();
     // Desconecta também do Google (senão o app "lembra" a conta e não
     // pede seleção no próximo login). Ignora erro se não logou por Google.
     try {

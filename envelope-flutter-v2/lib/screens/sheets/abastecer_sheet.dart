@@ -7,6 +7,7 @@ import '../../providers/envelopes_provider.dart';
 import '../../providers/fixos_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/moeda.dart';
 
 const double _kToleranciaCentavo = 0.005;
 
@@ -35,11 +36,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     return _controllers.putIfAbsent(id, () => TextEditingController());
   }
 
-  double _parseCampo(String text) {
-    if (text.trim().isEmpty) return 0;
-    final raw = text.replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(raw) ?? 0;
-  }
+  double _parseCampo(String text) => parseMoeda(text);
 
   double _totalDigitado(List<Map<String, dynamic>> envelopes) {
     double total = 0;

@@ -113,18 +113,24 @@ class _PatrimonioConteudoState extends ConsumerState<_PatrimonioConteudo> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final contasAsync = ref.watch(patrimonioProvider);
-    final total = ref.watch(totalPatrimonioProvider);
-    final evolucao = ref.watch(evolucaoPatrimonioProvider);
-
-    // Dispara snapshot quando os dados do stream chegam
-    ref.listen(patrimonioProvider, (_, next) {
+  void initState() {
+    super.initState();
+    // Dispara o snapshot UMA vez quando os dados chegam — via listenManual no
+    // initState, não no build (que remontava e regravava a cada rebuild). O
+    // guard _snapshotSalvo garante idempotência dentro da mesma montagem.
+    ref.listenManual(patrimonioProvider, (_, next) {
       final contas = next.value;
       if (contas != null && contas.isNotEmpty) {
         _salvarSnapshotSeNecessario(contas);
       }
-    });
+    }, fireImmediately: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final contasAsync = ref.watch(patrimonioProvider);
+    final total = ref.watch(totalPatrimonioProvider);
+    final evolucao = ref.watch(evolucaoPatrimonioProvider);
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return CustomScrollView(

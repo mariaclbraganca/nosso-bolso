@@ -49,6 +49,43 @@ class GeminiKeyService {
     }
   }
 
+  /// Testa se uma chave Gemini é válida fazendo uma chamada mínima ao modelo.
+  /// Retorna true só se a API aceitar a chave (HTTP 200). Timeout curto para
+  /// não travar a UI. Não lança — devolve false em qualquer falha.
+  static Future<bool> validarChave(String chave) async {
+    if (chave.trim().isEmpty) return false;
+    try {
+      final resp = await http
+          .post(
+            Uri.parse('$_baseUrl?key=${chave.trim()}'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {'parts': [{'text': 'ping'}]}
+              ],
+              'generationConfig': {'maxOutputTokens': 1},
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+      return resp.statusCode == 200;
+    } catch (e) {
+      debugPrint('GeminiKey: falha ao validar chave: $e');
+      return false;
+    }
+  }
+
+  /// Limpa as chaves Gemini do dispositivo (chamar no logout — outro usuário
+  /// no mesmo aparelho não deve herdar as chaves da conta anterior).
+  static Future<void> limparCacheLocal() async {
+    try {
+      for (final k in [..._prefixos, _legacyKey]) {
+        await _secure.delete(key: k);
+      }
+    } catch (e) {
+      debugPrint('GeminiKey: erro ao limpar cache local: $e');
+    }
+  }
+
   // ── Leitura de chaves ──────────────────────────────────────────────────────
 
   /// Retorna lista de chaves válidas (não vazias), combinando slots novos + legada.
