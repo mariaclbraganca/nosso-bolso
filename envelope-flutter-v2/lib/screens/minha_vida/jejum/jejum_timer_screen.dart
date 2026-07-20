@@ -189,22 +189,18 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
                                   fontSize: 13,
                                 ),
                               ),
-                              if (inicio != null) ...[
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Início ${_fmtHoraInicio(inicio)}',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.mu,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+
+                    // Card começa / termina
+                    if (inicio != null)
+                      _buildComecaTermina(
+                          registro, inicio, metaHoras),
+                    const SizedBox(height: 12),
 
                     // Próxima fase
                     if (proxima != null)
@@ -1122,12 +1118,134 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
   String _fmtHoras(double h) =>
       h.truncateToDouble() == h ? '${h.toInt()}h' : '${h}h';
 
-  String _fmtHoraInicio(DateTime inicio) {
-    final hh = inicio.hour.toString().padLeft(2, '0');
-    final mm = inicio.minute.toString().padLeft(2, '0');
-    final ontem = DateTime.now().difference(inicio).inHours >= 12 ||
-        inicio.day != DateTime.now().day;
-    return ontem ? '$hh:$mm · ontem' : '$hh:$mm';
+  // "Hoje, 20:50" / "Amanhã, 12:50" / "Ontem, 20:50" relativo ao dia de hoje.
+  String _fmtDataHora(DateTime dt) {
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    final hoje = DateTime.now();
+    final diaDt = DateTime(dt.year, dt.month, dt.day);
+    final diaHoje = DateTime(hoje.year, hoje.month, hoje.day);
+    final difDias = diaDt.difference(diaHoje).inDays;
+    final label = switch (difDias) {
+      0 => 'Hoje',
+      1 => 'Amanhã',
+      -1 => 'Ontem',
+      _ => '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}',
+    };
+    return '$label, $hh:$mm';
+  }
+
+  // Card "O jejum começa / O jejum termina" (abaixo do anel).
+  Widget _buildComecaTermina(
+      Map<String, dynamic> registro, DateTime inicio, double? metaHoras) {
+    final termina = metaHoras != null
+        ? inicio.add(Duration(minutes: (metaHoras * 60).round()))
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePad),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          border: Border.all(color: AppColors.bord, width: 0.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Começa (editável)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('O jejum começa', style: AppTextStyles.caption),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => _editarInicio(registro, inicio),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _fmtDataHora(inicio),
+                            style: AppTextStyles.bodySm.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.tx,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit_rounded,
+                            size: 13, color: AppColors.acc),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 1, height: 34,
+              color: AppColors.bord,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            // Termina
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('O jejum termina', style: AppTextStyles.caption),
+                  const SizedBox(height: 4),
+                  Text(
+                    termina != null ? _fmtDataHora(termina) : 'em aberto',
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: termina != null ? AppColors.acc : AppColors.mu,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Abre time picker para corrigir o início; valida e salva no backend.
+  Future<void> _editarInicio(
+      Map<String, dynamic> registro, DateTime inicioAtual) async {
+    HapticFeedback.selectionClick();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(inicioAtual),
+      helpText: 'Quando o jejum começou?',
+    );
+    if (picked == null || !mounted) return;
+
+    // Monta a data: hoje com a hora escolhida; se ficou no futuro, é de ontem.
+    final agora = DateTime.now();
+    var novo = DateTime(
+        agora.year, agora.month, agora.day, picked.hour, picked.minute);
+    if (novo.isAfter(agora)) {
+      novo = novo.subtract(const Duration(days: 1));
+    }
+
+    try {
+      await JejumApiService.ajustarInicio(registro['id'] as String, novo);
+      ref.invalidate(jejumAtivoProvider(widget.membroId));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Início ajustado ✓'),
+        backgroundColor: AppColors.grn,
+        duration: Duration(seconds: 2),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$e'.replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.org,
+      ));
+    }
   }
 
   // Card de hidratação — aparece a cada bloco de 2h de jejum.

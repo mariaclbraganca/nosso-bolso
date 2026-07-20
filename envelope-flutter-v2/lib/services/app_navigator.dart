@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 // Chave global para navegar sem BuildContext (usada por notificações).
 final navigatorKey = GlobalKey<NavigatorState>();
 
+// Chave global do ScaffoldMessenger — permite mostrar SnackBar sem depender
+// do BuildContext de um sheet que já foi fechado (evita erro de árvore).
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 // Índices do IndexedStack do MainNavigationScreen
 const int navHome     = 0;
 const int navExtrato  = 1;

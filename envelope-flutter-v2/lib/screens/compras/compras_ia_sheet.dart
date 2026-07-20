@@ -7,6 +7,7 @@ import '../../providers/compras_provider.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/app_navigator.dart';
 import '../../services/nfce_scraper.dart';
 import '../../services/gemini_nfce_service.dart';
 import 'qr_scanner_screen.dart';
@@ -1267,6 +1268,8 @@ class _ConfirmarSheetState extends ConsumerState<_ConfirmarSheet> {
                   );
                 }
                 return DropdownButtonFormField<String>(
+                  isExpanded: true, // evita "unbounded width" com o Expanded
+                                    // dentro do DropdownMenuItem (congelava a tela)
                   dropdownColor: AppColors.card,
                   value: _envelopeId,
                   hint: Text('Selecionar envelope',
@@ -1386,14 +1389,14 @@ class _ConfirmarSheetState extends ConsumerState<_ConfirmarSheet> {
         }),
       );
       if (resp.statusCode == 200) {
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Compra confirmada e debitada do envelope!'),
-            backgroundColor: AppColors.grn,
-            duration: Duration(seconds: 3),
-          ));
-        }
+        if (mounted) Navigator.pop(context);
+        // Usa a key global do ScaffoldMessenger — não depende do context do
+        // sheet que acabou de ser fechado (o que corrompia a árvore de render).
+        scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(
+          content: Text('Compra confirmada e debitada do envelope!'),
+          backgroundColor: AppColors.grn,
+          duration: Duration(seconds: 3),
+        ));
       } else {
         final body = jsonDecode(resp.body);
         throw Exception(body['detail'] ?? resp.body);

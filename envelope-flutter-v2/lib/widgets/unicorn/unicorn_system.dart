@@ -320,14 +320,17 @@ class UnicornEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Column simples com mainAxisSize.min — funciona em qualquer contexto
+    // (Expanded, Center, Column) sem quebrar constraints. Unicórnio menor
+    // (140) para reduzir chance de overflow em áreas apertadas.
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            UnicornWidget(type: type, size: 160, mood: AstrixMood.wave),
-            const SizedBox(height: 24),
+            UnicornWidget(type: type, size: 140, mood: AstrixMood.wave),
+            const SizedBox(height: 20),
             Text(
               title,
               style: const TextStyle(

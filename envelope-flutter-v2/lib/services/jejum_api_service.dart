@@ -79,6 +79,21 @@ class JejumApiService {
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
 
+  /// Ajusta o horário de início de um jejum em andamento (corrige quem
+  /// esqueceu de registrar na hora). Recalcula o tempo decorrido.
+  static Future<Map<String, dynamic>> ajustarInicio(
+      String registroId, DateTime novoInicio) async {
+    final resp = await http.post(
+      Uri.parse('$_base/ajustar-inicio/$registroId'),
+      headers: ApiService.authHeaders(json: true),
+      body: jsonEncode({'iniciado_em': novoInicio.toUtc().toIso8601String()}),
+    );
+    if (resp.statusCode != 200) {
+      throw Exception('${jsonDecode(resp.body)['detail'] ?? resp.body}');
+    }
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
   /// Sugestão IA de protocolo: {protocolo, label, janela_inicio, janela_fim, aderencia_pct, justificativa}.
   static Future<Map<String, dynamic>> getSugestaoProtocolo(String usuarioId) async {
     final resp = await http.get(

@@ -18,7 +18,7 @@ class AbastecerSheet extends ConsumerStatefulWidget {
 }
 
 class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
-  final Map<int, TextEditingController> _controllers = {};
+  final Map<String, TextEditingController> _controllers = {};
   bool _carregando = false;
 
   static final _fmt = NumberFormat('R\$ #,##0.00', 'pt_BR');
@@ -31,7 +31,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     super.dispose();
   }
 
-  TextEditingController _ctrlFor(int id) {
+  TextEditingController _ctrlFor(String id) {
     return _controllers.putIfAbsent(id, () => TextEditingController());
   }
 
@@ -44,7 +44,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
   double _totalDigitado(List<Map<String, dynamic>> envelopes) {
     double total = 0;
     for (final env in envelopes) {
-      final id = env['id'] as int;
+      final id = env['id'] as String;
       final ctrl = _controllers[id];
       if (ctrl != null) total += _parseCampo(ctrl.text);
     }
@@ -70,7 +70,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
     setState(() => _carregando = true);
     try {
       for (final env in envelopes) {
-        final id = env['id'] as int;
+        final id = env['id'] as String;
         final ctrl = _controllers[id];
         if (ctrl == null) continue;
         final valor = _parseCampo(ctrl.text);
@@ -190,7 +190,24 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
+                    // Dica de uso
+                    Row(
+                      children: [
+                        const Icon(Icons.touch_app_rounded,
+                            size: 15, color: AppColors.mu),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Toque no campo de cada envelope e digite quanto colocar.',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.mu),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
                     // Lista de envelopes
                     if (envelopes.isEmpty)
@@ -209,7 +226,7 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
                             const SizedBox(height: AppSpacing.cardGap),
                         itemBuilder: (context, index) {
                           final env = envelopes[index];
-                          final id = env['id'] as int;
+                          final id = env['id'] as String;
                           final emoji = env['emoji'] as String? ?? '📦';
                           final nome = env['nome_envelope'] as String? ?? '—';
                           final saldoAtual =
@@ -252,8 +269,21 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
                                   ),
                                 ),
                                 // Campo valor
-                                SizedBox(
-                                  width: 110,
+                                // Campo de valor — visível como caixa clicável
+                                Container(
+                                  width: 120,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: ctrl.text.isNotEmpty
+                                          ? AppColors.acc.withOpacity(0.6)
+                                          : AppColors.bord,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 2),
                                   child: TextField(
                                     controller: ctrl,
                                     keyboardType:
@@ -272,14 +302,16 @@ class _AbastecerSheetState extends ConsumerState<AbastecerSheet> {
                                     ),
                                     onChanged: (_) => setState(() {}),
                                     decoration: InputDecoration(
+                                      isDense: true,
+                                      border: InputBorder.none,
                                       hintText: '0,00',
                                       hintStyle: AppTextStyles.mono.copyWith(
                                         fontSize: 16,
                                         color: AppColors.mu,
                                       ),
-                                      prefixText: 'R\$ ',
+                                      prefixText: '+ R\$ ',
                                       prefixStyle: AppTextStyles.bodySm
-                                          .copyWith(color: AppColors.mu),
+                                          .copyWith(color: AppColors.acc),
                                     ),
                                   ),
                                 ),

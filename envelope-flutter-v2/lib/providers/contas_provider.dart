@@ -13,10 +13,13 @@ final contasMesProvider = FutureProvider.autoDispose
   for (final c in contas) {
     if (c['pago'] == true) continue;
     final vencStr = c['data_vencimento'] as String?;
-    final id      = c['id'] as int?;
+    // O id da conta é UUID (String). Deriva um int estável e não-negativo
+    // para usar como ID da notificação local (que exige int).
+    final idRaw = c['id'];
+    final id = idRaw is int ? idRaw : (idRaw?.toString().hashCode ?? 0).abs() % 100000;
     final nome    = c['nome'] as String? ?? 'Conta';
     final valor   = (c['valor'] as num?)?.toDouble() ?? 0.0;
-    if (vencStr == null || id == null) continue;
+    if (vencStr == null || idRaw == null) continue;
     final venc = DateTime.tryParse(vencStr);
     if (venc == null) continue;
     await NotificationService.agendarAlertaConta(

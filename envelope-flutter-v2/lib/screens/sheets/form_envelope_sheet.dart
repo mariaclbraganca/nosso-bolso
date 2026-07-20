@@ -91,7 +91,7 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
       };
 
       if (_editando) {
-        final id = widget.envelope!['id'] as int;
+        final id = widget.envelope!['id'] as String;
         await ApiService.put('/envelopes/$id', data);
         if (mounted) Navigator.of(context).pop(true);
       } else {
@@ -152,7 +152,7 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
     setState(() => _excluindo = true);
     try {
       final perfil = ref.read(perfilUsuarioLogadoProvider).value;
-      final id = widget.envelope!['id'] as int;
+      final id = widget.envelope!['id'] as String;
       await ApiService.delete(
         '/envelopes/$id',
         familiaId: perfil?['familia_id']?.toString(),

@@ -305,6 +305,46 @@ async def finalizar(registro_id: str, payload: dict,
     return res.data[0]
 
 
+@router.post("/jejum/ajustar-inicio/{registro_id}")
+async def ajustar_inicio(registro_id: str, payload: dict,
+                         user: AuthUser = Depends(get_current_user)):
+    """Corrige o horário de início de um jejum em andamento.
+
+    Usado quando a pessoa esqueceu de registrar na hora exata. Recalcula o
+    tempo decorrido. O novo início não pode estar no futuro nem há mais de 48h.
+    """
+    novo_inicio_str = payload.get("iniciado_em")
+    if not novo_inicio_str:
+        raise HTTPException(status_code=422, detail="iniciado_em obrigatório")
+
+    db = get_supabase()
+    reg = db.table("jejum_registros").select("*").eq("id", registro_id).execute()
+    if not reg.data:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    reg = reg.data[0]
+    if str(reg.get("familia_id")) != user.familia_id:
+        raise HTTPException(status_code=403, detail="Registro não pertence à sua família")
+    if reg["status"] != "em_andamento":
+        raise HTTPException(status_code=409, detail="Só é possível ajustar um jejum em andamento")
+
+    try:
+        novo_inicio = datetime.fromisoformat(novo_inicio_str.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="iniciado_em inválido")
+
+    agora = _now()
+    if novo_inicio > agora:
+        raise HTTPException(status_code=422, detail="O início não pode estar no futuro")
+    from datetime import timedelta
+    if novo_inicio < agora - timedelta(hours=48):
+        raise HTTPException(status_code=422, detail="O início não pode ser há mais de 48h")
+
+    res = db.table("jejum_registros").update({
+        "iniciado_em": novo_inicio.isoformat(),
+    }).eq("id", registro_id).execute()
+    return res.data[0]
+
+
 @router.get("/jejum/ativo/{usuario_id}")
 async def get_ativo(usuario_id: str, user: AuthUser = Depends(get_current_user)):
     """Registro em andamento ou null — o app checa ao abrir para restaurar o timer."""

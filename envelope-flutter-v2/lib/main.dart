@@ -69,6 +69,7 @@ class NossoBolsoApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       navigatorKey: navigatorKey,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       home: const _AuthGate(),
       routes: {
         '/gate': (_) => const _AuthGate(),
