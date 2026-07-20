@@ -704,7 +704,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
         registro['id'] as String,
         status: 'completo',
       );
-      await JejumNotificationService.encerrar();
+      JejumNotificationService.encerrar(); // fire-and-forget: não bloqueia a UI
       ref.invalidate(jejumAtivoProvider(widget.membroId));
       ref.invalidate(jejumHistoricoProvider(widget.membroId));
       if (!mounted) return;
@@ -1071,7 +1071,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
         reflexao: resultado.reflexao,
         motivoInterrupcao: motivoInterrupcao,
       );
-      await JejumNotificationService.encerrar();
+      JejumNotificationService.encerrar(); // fire-and-forget: não bloqueia a UI
 
       if (!mounted) return;
       ref.invalidate(jejumAtivoProvider(widget.membroId));

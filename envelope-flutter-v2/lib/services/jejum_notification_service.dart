@@ -220,9 +220,10 @@ class JejumNotificationService {
   }
 
   static Future<void> cancelarMarcos() async {
-    for (var i = _baseMarcos; i < _baseMarcos + 100; i++) {
-      await _plugin.cancel(i);
-    }
+    // Cancela em paralelo (não sequencial) — 100 awaits em série travava a UI.
+    await Future.wait([
+      for (var i = _baseMarcos; i < _baseMarcos + 100; i++) _plugin.cancel(i),
+    ]);
   }
 
   /// Próxima ocorrência de "HH:MM" a partir de agora.

@@ -234,16 +234,21 @@ class _JejumCelebracaoSheetState extends ConsumerState<JejumCelebracaoSheet> {
     HapticFeedback.mediumImpact();
     setState(() => _salvando = true);
     try {
+      // O essencial: salvar no banco (com timeout de segurança).
       await JejumApiService.finalizar(
         widget.registroId,
         status: 'completo',
         sentimento: pular ? null : _sentimento,
         oQueAjudou: pular ? null : _ajudou.toList(),
-      );
-      await JejumNotificationService.encerrar();
+      ).timeout(const Duration(seconds: 20));
+
       ref.invalidate(jejumHistoricoProvider(widget.membroId));
       ref.invalidate(jejumConfigProvider(
           (membroId: widget.membroId, familiaId: widget.familiaId)));
+
+      // Limpa a notificação SEM bloquear o fechamento da tela (fire-and-forget).
+      JejumNotificationService.encerrar();
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -251,7 +256,7 @@ class _JejumCelebracaoSheetState extends ConsumerState<JejumCelebracaoSheet> {
       setState(() => _salvando = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao finalizar: $e'),
+          content: Text('Erro ao finalizar: ${'$e'.replaceFirst('Exception: ', '')}'),
           backgroundColor: AppColors.red,
         ),
       );
