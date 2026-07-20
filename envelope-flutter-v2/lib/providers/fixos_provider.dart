@@ -3,7 +3,7 @@ import 'usuarios_provider.dart';
 import '../constants.dart';
 import '../services/notification_service.dart';
 import 'mes_provider.dart';
-import 'transacoes_provider.dart';
+import 'envelopes_provider.dart';
 
 /// Stream bruto — todos os fixos da família (necessário pois .stream() aceita só 1 .eq()).
 final fixosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
@@ -41,12 +41,11 @@ final totalReservadoProvider = Provider<double>((ref) {
   return total;
 });
 
-/// Saldo livre para envelopes = receita_do_mes - abastecido_no_mes - reservado
+/// Saldo livre para distribuir em envelopes = saldo_geral atual − fixos pendentes.
+/// `saldo_geral` (fonte de verdade) já desconta fixos PAGOS; aqui subtraímos os
+/// fixos ainda NÃO pagos como reserva ("quanto posso distribuir sem furar as contas").
 final saldoLivreProvider = Provider<double>((ref) {
-  final reservado      = ref.watch(totalReservadoProvider);
-  final mes            = ref.watch(mesAtualProvider);
-  final stats          = ref.watch(statsPorMesProvider(mes));
-  final receitaMes     = stats.totalReceita;
-  final abastecidoMes  = stats.totalAbastecido;
-  return receitaMes - abastecidoMes - reservado;
+  final saldoGeral = ref.watch(saldoGeralProvider).value ?? 0;
+  final reservado  = ref.watch(totalReservadoProvider); // fixos pendentes do mês
+  return saldoGeral - reservado;
 });

@@ -274,3 +274,26 @@ def restaurar_transacao(
         raise HTTPException(status_code=404, detail="Não foi possível restaurar")
     _sync_mongo_restaurar(transacao_id)
     return {"status": "success", "message": "Transação restaurada"}
+
+@router.delete("/{transacao_id}/permanente")
+def excluir_permanente(
+    transacao_id: str,
+    user: AuthUser = Depends(get_current_user),
+    familia_id: str = None,
+):
+    """Hard delete: remove definitivamente a transação (só da lixeira) E limpa o
+    vínculo no MongoDB, evitando compra órfã. Exige que já esteja soft-deletada."""
+    familia_id = assert_mesma_familia(user, familia_id)
+    db = get_supabase()
+    result = db.table("transacoes").delete() \
+        .eq("id", transacao_id) \
+        .eq("familia_id", familia_id) \
+        .not_.is_("deleted_at", "null").execute()
+
+    if not result.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Transação não encontrada na lixeira ou acesso negado",
+        )
+    _sync_mongo_cancelar(transacao_id)
+    return {"status": "success", "message": "Transação excluída permanentemente"}

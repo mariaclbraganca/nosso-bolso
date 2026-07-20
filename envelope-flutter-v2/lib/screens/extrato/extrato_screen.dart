@@ -8,7 +8,7 @@ import '../../providers/transacoes_provider.dart';
 import '../../providers/mes_provider.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../providers/remanejamentos_provider.dart';
-import '../../constants.dart';
+import '../../services/api_service.dart';
 import 'relatorios_body.dart';
 import 'resumo_mensal_screen.dart';
 import 'edit_transacao_sheet.dart';
@@ -685,12 +685,20 @@ class _TransacaoItem extends ConsumerWidget {
     WidgetRef ref,
     String id,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(
+      content: Text('Excluindo…',
+          style: AppTextStyles.bodySm.copyWith(color: AppColors.tx)),
+      backgroundColor: AppColors.surf,
+      duration: const Duration(seconds: 30),
+    ));
     try {
-      await supabase
-          .from('transacoes')
-          .update({'deleted_at': DateTime.now().toIso8601String()})
-          .eq('id', id);
+      // Via API (não direto no Supabase): o backend faz soft-delete E sincroniza
+      // o MongoDB (_sync_mongo_cancelar). Delete direto deixaria a compra órfã.
+      await ApiService.delete('/transacoes/$id')
+          .timeout(const Duration(seconds: 30));
 
+      messenger.hideCurrentSnackBar();
       onDeleted();
 
       if (context.mounted) {
@@ -710,15 +718,14 @@ class _TransacaoItem extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao excluir: $e',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.tx)),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir: $e',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.tx)),
+          backgroundColor: AppColors.red,
+        ),
+      );
     }
   }
 

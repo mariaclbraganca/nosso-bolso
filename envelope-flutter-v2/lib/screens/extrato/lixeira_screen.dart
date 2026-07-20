@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../widgets/shared/error_state.dart';
+import '../../services/api_service.dart';
 import '../../constants.dart';
 
 /// Provider para transações deletadas (soft-delete)
@@ -220,10 +221,10 @@ class LixeiraScreen extends ConsumerWidget {
     if (id == null) return;
 
     try {
-      await supabase
-          .from('transacoes')
-          .update({'deleted_at': null})
-          .eq('id', id);
+      // Via API: o backend restaura no Supabase E ressincroniza o MongoDB
+      // (_sync_mongo_restaurar). Update direto deixaria a compra órfã.
+      await ApiService.post('/transacoes/$id/restaurar', {})
+          .timeout(const Duration(seconds: 30));
 
       ref.invalidate(lixeiraProvider);
 
@@ -295,10 +296,9 @@ class LixeiraScreen extends ConsumerWidget {
     if (confirm != true) return;
 
     try {
-      await supabase
-          .from('transacoes')
-          .delete()
-          .eq('id', id);
+      // Via API: hard-delete no Supabase + limpeza do vínculo no MongoDB.
+      await ApiService.delete('/transacoes/$id/permanente')
+          .timeout(const Duration(seconds: 30));
 
       ref.invalidate(lixeiraProvider);
 
