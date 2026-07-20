@@ -518,14 +518,11 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Botão registrar refeição
+              // ① Concluir jejum (principal) — celebra + conta streak + volta
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Navega para registro de refeição
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => _finalizar(registro, true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.acc,
                     foregroundColor: AppColors.bg,
@@ -536,20 +533,41 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
                     ),
                   ),
                   child: const Text(
-                    '🍽️ Registrar primeira refeição',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    '✅ Concluir jejum',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // Botão iniciar próximo jejum
+              // ② Registrar refeição — conclui e abre o registro
+              SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: () => _concluirERegistrarRefeicao(registro),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.acc,
+                    side: BorderSide(color: AppColors.acc.withOpacity(0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusBtn),
+                    ),
+                  ),
+                  child: const Text(
+                    '🍽️ Registrar refeição',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // ③ Iniciar próximo jejum — conclui o atual e inicia o novo
               SizedBox(
                 height: 48,
                 child: OutlinedButton(
                   onPressed: () => _iniciarProximoJejum(registro),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.tx,
+                    foregroundColor: AppColors.mu,
                     side: const BorderSide(color: AppColors.bord),
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -558,7 +576,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
                   ),
                   child: Text(
                     horaFimJanela != null
-                        ? 'Iniciar próximo jejum às ${horaFimJanela.replaceAll(':', 'h')}'
+                        ? 'Iniciar próximo às ${horaFimJanela.replaceAll(':', 'h')}'
                         : 'Iniciar próximo jejum',
                     style: const TextStyle(fontSize: 14),
                   ),
@@ -624,12 +642,19 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
   Future<void> _iniciarProximoJejum(Map<String, dynamic> registro) async {
     HapticFeedback.mediumImpact();
     try {
+      // 1º conclui o jejum atual (marca completo, conta streak) — senão o
+      // backend bloqueia o novo com 409 (já existe um em andamento).
+      await JejumApiService.finalizar(
+        registro['id'] as String,
+        status: 'completo',
+      );
       final metaHoras = (registro['meta_horas'] as num?)?.toDouble();
       final novo = await JejumApiService.iniciar(
         usuarioId: widget.membroId,
         familiaId: widget.familiaId,
         metaHoras: metaHoras,
       );
+      ref.invalidate(jejumAtivoProvider(widget.membroId));
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -646,6 +671,37 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao iniciar: $e'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
+  // Conclui o jejum e abre o registro de refeição (a pessoa comeu ao quebrar).
+  Future<void> _concluirERegistrarRefeicao(
+      Map<String, dynamic> registro) async {
+    HapticFeedback.mediumImpact();
+    try {
+      await JejumApiService.finalizar(
+        registro['id'] as String,
+        status: 'completo',
+      );
+      await JejumNotificationService.encerrar();
+      ref.invalidate(jejumAtivoProvider(widget.membroId));
+      ref.invalidate(jejumHistoricoProvider(widget.membroId));
+      if (!mounted) return;
+      // Fecha o timer e abre a tela de Saúde (onde registra refeição)
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Jejum concluído! Registre sua refeição em Saúde 🍽️'),
+        backgroundColor: AppColors.grn,
+        duration: Duration(seconds: 3),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: $e'),
           backgroundColor: AppColors.red,
         ),
       );
