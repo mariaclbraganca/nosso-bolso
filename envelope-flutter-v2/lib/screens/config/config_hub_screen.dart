@@ -10,6 +10,7 @@ import 'configuracao_ia_screen.dart';
 import 'notification_settings_screen.dart';
 import 'insights_screen.dart';
 import 'pin_screen.dart';
+import 'simulador_gastos_screen.dart';
 
 class ConfigHubScreen extends ConsumerWidget {
   const ConfigHubScreen({super.key});
@@ -126,6 +127,17 @@ class ConfigHubScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const ConfiguracaoIAScreen()),
+              ),
+            ),
+            const _Divider(),
+            _MenuItem(
+              emoji: '🔮',
+              label: 'Simulador de gastos',
+              subtitle: 'Planeje um cenário futuro (ex: mudança de cidade)',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const SimuladorGastosScreen()),
               ),
             ),
           ]),
