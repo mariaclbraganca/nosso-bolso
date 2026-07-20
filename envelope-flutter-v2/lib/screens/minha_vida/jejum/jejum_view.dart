@@ -665,7 +665,7 @@ class _JejumViewState extends ConsumerState<JejumView> {
         metaHoras: modalidade == 'livre' ? null : duracao,
       );
       if (!mounted) return;
-      _abrirTimer(registro);
+      _abrirTimer(registro, recemIniciado: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -677,7 +677,8 @@ class _JejumViewState extends ConsumerState<JejumView> {
     }
   }
 
-  void _abrirTimer(Map<String, dynamic> registro) {
+  void _abrirTimer(Map<String, dynamic> registro,
+      {bool recemIniciado = false}) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -685,6 +686,7 @@ class _JejumViewState extends ConsumerState<JejumView> {
           membroId: widget.membroId,
           familiaId: widget.familiaId,
           registroInicial: registro,
+          recemIniciado: recemIniciado,
         ),
       ),
     );

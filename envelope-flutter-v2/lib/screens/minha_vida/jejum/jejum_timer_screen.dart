@@ -16,12 +16,16 @@ class JejumTimerScreen extends ConsumerStatefulWidget {
   final String membroId;
   final String familiaId;
   final Map<String, dynamic> registroInicial;
+  // Quando true, abre o seletor "Quando você iniciou?" ao montar (jejum
+  // recém-criado — permite corrigir se esqueceu de registrar na hora).
+  final bool recemIniciado;
 
   const JejumTimerScreen({
     super.key,
     required this.membroId,
     required this.familiaId,
     required this.registroInicial,
+    this.recemIniciado = false,
   });
 
   @override
@@ -39,6 +43,19 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
       if (mounted) setState(() {});
     });
     JejumNotificationService.iniciar(widget.registroInicial);
+
+    // Jejum recém-iniciado: pergunta o horário de início (a pessoa pode ter
+    // esquecido de registrar na hora). Aparece por cima do timer, como na ref.
+    if (widget.recemIniciado) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final inicio =
+            DateTime.tryParse(widget.registroInicial['iniciado_em'] ?? '')
+                ?.toLocal();
+        if (mounted && inicio != null) {
+          _editarInicio(widget.registroInicial, inicio);
+        }
+      });
+    }
   }
 
   @override
@@ -663,6 +680,7 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
             membroId: widget.membroId,
             familiaId: widget.familiaId,
             registroInicial: novo,
+            recemIniciado: true,
           ),
         ),
       );
@@ -1271,19 +1289,42 @@ class _JejumTimerScreenState extends ConsumerState<JejumTimerScreen> {
   Future<void> _editarInicio(
       Map<String, dynamic> registro, DateTime inicioAtual) async {
     HapticFeedback.selectionClick();
-    final picked = await showTimePicker(
+    final agora = DateTime.now();
+
+    // 1) Escolhe o DIA (limite de 48h atrás — hoje ou ontem/anteontem).
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: inicioAtual,
+      firstDate: agora.subtract(const Duration(days: 2)),
+      lastDate: agora,
+      helpText: 'Em que dia o jejum começou?',
+    );
+    if (dia == null || !mounted) return;
+
+    // 2) Escolhe a HORA.
+    final hora = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(inicioAtual),
-      helpText: 'Quando o jejum começou?',
+      helpText: 'A que horas começou?',
     );
-    if (picked == null || !mounted) return;
+    if (hora == null || !mounted) return;
 
-    // Monta a data: hoje com a hora escolhida; se ficou no futuro, é de ontem.
-    final agora = DateTime.now();
-    var novo = DateTime(
-        agora.year, agora.month, agora.day, picked.hour, picked.minute);
+    var novo = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+
+    // Validações locais (o backend também valida): não-futuro e ≤ 48h.
     if (novo.isAfter(agora)) {
-      novo = novo.subtract(const Duration(days: 1));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('O início não pode estar no futuro.'),
+        backgroundColor: AppColors.org,
+      ));
+      return;
+    }
+    if (novo.isBefore(agora.subtract(const Duration(hours: 48)))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('O início não pode ser há mais de 48h.'),
+        backgroundColor: AppColors.org,
+      ));
+      return;
     }
 
     try {
