@@ -72,6 +72,16 @@ DSN em `lib/constants.dart:7`. **15 issues nos últimos 14 dias, TODOS `fatal` e
 
 **Total de eventos:** ~90 ocorrências em 14 dias, 1 usuário (o dev).
 
+**📦 Pipeline de símbolos (documentado — NÃO alterado):**
+- Não há plugin Gradle do Sentry (`android/app/build.gradle` e `android/build.gradle` sem nenhuma referência a "sentry"), nem `sentry.properties`, nem `--split-debug-info` em qualquer script.
+- Único CI é `.github/workflows/jejum-cron.yml` (não faz build de APK). O APK é buildado manualmente.
+- **Comando de build recomendado (para o futuro, quando quiser símbolos):**
+  ```
+  flutter build apk --release --split-debug-info=build/symbols --obfuscate
+  ```
+  Depois, subir os símbolos com `sentry-cli debug-files upload` ou o `sentry_dart_plugin`. **Isso muda o fluxo de deploy — decisão pendente do usuário, não aplicada.**
+- ✅ **`SentryNavigatorObserver` JÁ ADICIONADO** (main.dart) — resolve a falta de rastro de tela; os símbolos (linha exata) ficam para depois.
+
 **⚠️ LIMITAÇÃO CRÍTICA da instrumentação Sentry atual:**
 - As stack traces têm **ZERO frames do app** (`APP FRAMES: 0`) — só framework Flutter (`assertions.dart`, `box.dart`, `object.dart`). O build release não envia símbolos Dart (falta `--split-debug-info` + upload de debug symbols), então **é impossível saber a linha/widget exato** a partir do Sentry.
 - Os **breadcrumbs só têm lifecycle Android** (MainActivity resumed/paused) — **falta o `SentryNavigatorObserver`**, então não há rastro de qual TELA Dart estava ativa no crash.
@@ -134,7 +144,8 @@ DSN em `lib/constants.dart:7`. **15 issues nos últimos 14 dias, TODOS `fatal` e
 - `scaffoldMessengerKey` (GlobalKey<ScaffoldMessengerState>) — SnackBar sem context de sheet fechado.
 - `_PendingNavigation` — singleton com callback registrado pelo `MainNavigationScreen` p/ trocar aba do IndexedStack (`navHome/Extrato/Planos/Vida` = 0-3).
 
-### 3.4 ⚠️ INCONSISTÊNCIA de rotas nomeadas (relevante p/ bug de logout)
+### 3.4 ⚠️ INCONSISTÊNCIA de rotas nomeadas (relevante p/ bug de logout) — ✅ CORRIGIDO
+> **Correção aplicada:** o splash agora faz `pushReplacementNamed('/gate')` (não mais `/home`), e a rota `/home` foi removida do `MaterialApp.routes`. Diagnóstico original abaixo.
 Há DOIS estilos de navegação nomeada que conflitam:
 - `unicorn_splash_screen.dart:55` → `Navigator.of(context).pushReplacementNamed('/home')`
   → **remove o AuthGate da pilha de navegação.**
@@ -185,7 +196,8 @@ onboarding_screen (2), compras_ia_sheet (2), config_hub_screen (1), perfil_famil
 
 ## 4. Estado global e ciclo de vida
 
-### 4.1 ⚠️ `UnicornSplashScreen._shown` (static bool) NUNCA é resetado
+### 4.1 ⚠️ `UnicornSplashScreen._shown` (static bool) NUNCA é resetado — ✅ CORRIGIDO
+> **Correção aplicada:** adicionado `static void resetParaNovoLogin() => _shown = false;` e chamado no logout (`config_hub_screen.dart`). O diagnóstico abaixo descreve o estado ANTES da correção.
 ```dart
 // lib/screens/unicorn_splash_screen.dart
 static bool _shown = false;              // linha 7
@@ -232,7 +244,8 @@ Navigator.of(context).pushNamedAndRemoveUntil('/gate', (route) => false);
 - `main.dart:125` → `ref.invalidate(perfilUsuarioLogadoProvider)` (retry no AuthGate)
 > Só o `perfilUsuarioLogadoProvider` é invalidado. Providers de dados (envelopes, saldo, jejum) dependem de auto-dispose/rebuild pela cadeia de `perfilUsuarioLogadoProvider`.
 
-### 4.5 `sugestaoJantarProvider` — CÓDIGO MORTO
+### 4.5 `sugestaoJantarProvider` — CÓDIGO MORTO — ✅ REMOVIDO
+> **Correção aplicada:** `sugestaoJantarProvider` + typedef `_JantarArgs` removidos de `saude_provider.dart`. O método `SaudeApiService.getSugestaoJantar` foi MANTIDO (é usado direto por `sugestao_jantar_screen.dart`). Diagnóstico original abaixo.
 - **Definido:** `lib/providers/saude_provider.dart:36` (`FutureProvider.autoDispose`).
 - **Consumido:** em **NENHUM lugar** (única ocorrência no lib/ inteiro é a própria definição).
 > É código morto — nenhuma tela faz `ref.watch(sugestaoJantarProvider)`. Candidato a remoção. (Existe uma tela `sugestao_jantar_screen.dart` mas ela não consome este provider.)
@@ -298,14 +311,25 @@ c96a3e5 feat: módulo jejum 100% conforme ao artefato — backend IA + telas
 
 ## Resumo executivo (o que merece atenção)
 
-| # | Achado | Severidade |
-|---|--------|-----------|
-| 0 | **Sentry: 15 crashes fatais reais, TODOS de layout** (overflow/constraints) no A546E — mas sem símbolos/observer, não dá pra localizar a tela. Instrumentação incompleta. | **Alta** |
-| 1 | `UnicornSplashScreen._shown` static nunca reseta no logout | Baixa (visual) |
-| 2 | `sugestaoJantarProvider` é código morto (nunca consumido) | Limpeza |
-| 3 | Inconsistência de rotas nomeadas `/home` (splash) vs `/gate` (logout) | Média (foi origem de bug) |
-| 4 | 91 blocos `catch`, muitos silenciosos (`catch (_) {}`) sem reportar | Média (esconde erros) |
-| 5 | `Sentry.setExtra` deprecado em 8 pontos | Baixa |
-| 6 | Deps majors atrás (riverpod 3.x, google_sign_in 7.x, local_notifications) | Média (upgrade arriscado) |
-| 7 | 170 lints `info` (cosméticos) — `dart fix` resolve 108 automaticamente | Baixa |
-| — | **0 errors, 0 warnings** no analyze | ✅ compila limpo |
+> Status atualizado em 2026-07-20. Correções aplicadas (ainda NÃO commitadas — em teste no device).
+
+| # | Achado | Severidade | Status |
+|---|--------|-----------|--------|
+| 0 | **Sentry: 15 crashes fatais reais, TODOS de layout** (overflow/constraints) no A546E — sem símbolos/observer não dava pra localizar a tela. | **Alta** | 🟡 **Parcial** — `SentryNavigatorObserver` adicionado (mostra a tela). Símbolos p/ linha exata: pendente (decisão do usuário, não muda pipeline). Os crashes de layout em si: a investigar com o observer novo. |
+| 1 | `UnicornSplashScreen._shown` static nunca reseta no logout | Baixa (visual) | ✅ **Corrigido** — `resetParaNovoLogin()` chamado no logout (config_hub). |
+| 2 | `sugestaoJantarProvider` é código morto (nunca consumido) | Limpeza | ✅ **Corrigido** — provider + typedef `_JantarArgs` removidos (método do service mantido, ainda usado pela tela). |
+| 3 | Inconsistência de rotas nomeadas `/home` (splash) vs `/gate` (logout) | Média (foi origem de bug) | ✅ **Corrigido** — splash agora vai p/ `/gate`; rota `/home` removida do MaterialApp. |
+| 4 | 91 blocos `catch`, muitos silenciosos (`catch (_) {}`) sem reportar | Média (esconde erros) | ⬜ **Pendente** — deixado para depois (não mexer nos 91 agora). |
+| 5 | `Sentry.setExtra` deprecado em 8 pontos | Baixa | ✅ **Corrigido** — trocado por `scope.setContexts('info', {...})` nos 8 pontos. |
+| 6 | Deps majors atrás (riverpod 3.x, google_sign_in 7.x, local_notifications) | Média (upgrade arriscado) | ⬜ **Pendente** — upgrade arriscado, não feito. |
+| 7 | 170 lints `info` (cosméticos) — `dart fix` resolve 108 automaticamente | Baixa | ⬜ **Pendente** — `dart fix --apply` não rodado (a pedido). Contagem caiu p/ 163 pelas remoções acima. |
+| — | **0 errors, 0 warnings** no analyze | ✅ compila limpo | ✅ mantido (163 issues, todos `info`) |
+
+### Correções aplicadas nesta rodada (arquivos)
+- `lib/main.dart` — `SentryNavigatorObserver` (var `sentryObserver`) + remoção da rota `/home`.
+- `lib/screens/unicorn_splash_screen.dart` — `/home`→`/gate` no `_navigate` + método `resetParaNovoLogin()`.
+- `lib/screens/config/config_hub_screen.dart` — chama `resetParaNovoLogin()` no logout + comentário atualizado.
+- `lib/services/active_notifications_service.dart`, `ifood_notification_service.dart`, `nubank_notification_service.dart` — `setExtra`→`setContexts` (8 pontos).
+- `lib/providers/saude_provider.dart` — removidos `sugestaoJantarProvider` + `_JantarArgs`.
+
+> **Não commitado ainda** — aguardando teste no A546E (especialmente o fluxo logout→login, itens 1/3).

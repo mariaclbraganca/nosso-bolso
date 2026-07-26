@@ -10,11 +10,17 @@ import 'providers/auth_provider.dart';
 import 'providers/usuarios_provider.dart';
 import 'services/notification_service.dart';
 import 'services/ifood_notification_service.dart';
+import 'services/active_notifications_service.dart';
+import 'services/notificacao_fila_service.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/app_navigator.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'screens/unicorn_splash_screen.dart';
+
+/// Observer global de navegação — anexa as transições de tela como breadcrumbs
+/// no Sentry, para que os crashes revelem qual tela Dart estava ativa.
+final sentryObserver = SentryNavigatorObserver();
 
 void main() async {
   if (sentryDsn.isNotEmpty) {
@@ -62,11 +68,40 @@ Future<void> _iniciar() async {
   runApp(const ProviderScope(child: NossoBolsoApp()));
 }
 
-class NossoBolsoApp extends ConsumerWidget {
+class NossoBolsoApp extends ConsumerStatefulWidget {
   const NossoBolsoApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NossoBolsoApp> createState() => _NossoBolsoAppState();
+}
+
+class _NossoBolsoAppState extends ConsumerState<NossoBolsoApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Ao voltar para o foreground, relê a bandeja de notificações. Rede de
+    // segurança: se o listener em background perdeu algum evento (binder
+    // instável no Android 16), as compras ainda são capturadas ao abrir o app.
+    if (state == AppLifecycleState.resumed) {
+      ActiveNotificationsService.processarAtivas();
+      NotificacaoFilaService.flush();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Nosso Bolso',
       debugShowCheckedModeBanner: false,
@@ -75,11 +110,10 @@ class NossoBolsoApp extends ConsumerWidget {
       scaffoldMessengerKey: scaffoldMessengerKey,
       // Registra a navegação de telas como breadcrumbs no Sentry — o crash
       // passa a mostrar qual tela estava ativa (rotas com settings.name).
-      navigatorObservers: [SentryNavigatorObserver()],
+      navigatorObservers: [sentryObserver],
       home: const _AuthGate(),
       routes: {
         '/gate': (_) => const _AuthGate(),
-        '/home': (_) => const MainNavigationScreen(),
       },
     );
   }

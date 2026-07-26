@@ -31,13 +31,6 @@ final hidratacaoDiaProvider = FutureProvider.autoDispose
   return SaudeApiService.getHidratacao(args.membroId, args.data);
 });
 
-typedef _JantarArgs = ({String familiaId, List<String> membroIds});
-
-final sugestaoJantarProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, _JantarArgs>((ref, args) async {
-  return SaudeApiService.getSugestaoJantar(args.familiaId, args.membroIds);
-});
-
 final historicoPesoProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, membroId) async {
   return SaudeApiService.getHistoricoPeso(membroId);

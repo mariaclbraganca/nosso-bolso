@@ -11,6 +11,7 @@ import 'notification_settings_screen.dart';
 import 'insights_screen.dart';
 import 'pin_screen.dart';
 import 'simulador_gastos_screen.dart';
+import '../unicorn_splash_screen.dart';
 
 class ConfigHubScreen extends ConsumerWidget {
   const ConfigHubScreen({super.key});
@@ -302,11 +303,12 @@ class ConfigHubScreen extends ConsumerWidget {
     // Bloqueia a sessão admin (PIN) — não deve seguir desbloqueada p/ o próximo
     // usuário que logar neste aparelho.
     ref.read(pinNotifierProvider.notifier).bloquear();
+    // Rearma o splash — o próximo login neste aparelho deve vê-lo de novo.
+    UnicornSplashScreen.resetParaNovoLogin();
     // Limpa o cache do perfil para o AuthGate reavaliar
     ref.invalidate(perfilUsuarioLogadoProvider);
-    // O splash faz pushReplacementNamed('/home'), tirando o AuthGate da pilha.
-    // Por isso, ao sair, navegamos explicitamente de volta ao gate limpando
-    // TODA a pilha — o gate reavalia a sessão (agora nula) e mostra o Login.
+    // Ao sair, navegamos de volta ao '/gate' limpando TODA a pilha — o gate
+    // reavalia a sessão (agora nula) e mostra o Login.
     if (context.mounted) {
       Navigator.of(context)
           .pushNamedAndRemoveUntil('/gate', (route) => false);

@@ -220,7 +220,25 @@ class GeminiMonitorService {
     final analise = MonitorAnalise.fromJson(json, DateTime.now());
 
     await _salvarCache(analise);
+    await _salvarNoSupabase(familiaId, analise); // cópia no servidor (histórico)
     return analise;
+  }
+
+  /// Salva o relatório no Supabase (além do cache local) — permite consultar o
+  /// último relatório fora do dispositivo. Best-effort: não derruba o fluxo.
+  static Future<void> _salvarNoSupabase(
+      String familiaId, MonitorAnalise analise) async {
+    try {
+      await supabase.from('monitor_ia_relatorios').insert({
+        'familia_id': familiaId,
+        'status': analise.status,
+        'titulo': analise.titulo,
+        'relatorio': analise.toJson(),
+        'gerado_em': analise.geradoEm.toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('MonitorIA: erro ao salvar no Supabase: $e');
+    }
   }
 
   // ── Montagem do contexto ──────────────────────────────────────────────────

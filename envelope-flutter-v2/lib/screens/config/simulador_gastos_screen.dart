@@ -313,6 +313,57 @@ class _DetalheSimulacaoScreenState extends State<_DetalheSimulacaoScreen> {
     _persistir();
   }
 
+  Future<void> _editarReceita() async {
+    final ctrl = TextEditingController(
+        text: _s.receita > 0 ? _fmt.format(_s.receita) : '');
+    final novo = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          side: const BorderSide(color: AppColors.bord, width: 0.5),
+        ),
+        title: Text('Renda mensal', style: AppTextStyles.titleSm),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: AppTextStyles.body,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[\d.,R$ ]')),
+          ],
+          decoration: InputDecoration(
+            hintText: 'Ex: 5.000,00',
+            hintStyle: AppTextStyles.body.copyWith(color: AppColors.mu),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, parseMoeda(v)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar',
+                style: AppTextStyles.bodySm.copyWith(color: AppColors.mu)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.acc,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, parseMoeda(ctrl.text)),
+            child: Text('Salvar',
+                style: AppTextStyles.bodySm.copyWith(color: AppColors.bg)),
+          ),
+        ],
+      ),
+    );
+    if (novo == null) return;
+    setState(() => _s = _s.copyWith(receita: novo));
+    _persistir();
+  }
+
   Future<_ItemGasto?> _editarItemDialog({_ItemGasto? inicial}) {
     final nomeCtrl = TextEditingController(text: inicial?.nome);
     final valorCtrl = TextEditingController(
@@ -403,16 +454,6 @@ class _DetalheSimulacaoScreenState extends State<_DetalheSimulacaoScreen> {
         ),
         title: Text(_s.nome, style: AppTextStyles.titleSm),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'fab_add_item',
-        backgroundColor: AppColors.acc,
-        foregroundColor: AppColors.bg,
-        onPressed: _adicionarItem,
-        icon: const Icon(Icons.add_rounded),
-        label: Text('Adicionar gasto',
-            style: AppTextStyles.bodySm.copyWith(
-                color: AppColors.bg, fontWeight: FontWeight.bold)),
-      ),
       body: Column(
         children: [
           Expanded(
@@ -475,23 +516,95 @@ class _DetalheSimulacaoScreenState extends State<_DetalheSimulacaoScreen> {
                     },
                   ),
           ),
-          // Rodapé com total
+          // Painel de resumo: receita · gastos · sobra + botão adicionar
           Container(
-            padding: EdgeInsets.fromLTRB(AppSpacing.pagePad, 16,
-                AppSpacing.pagePad, MediaQuery.of(context).padding.bottom + 16),
+            padding: EdgeInsets.fromLTRB(AppSpacing.pagePad, 14,
+                AppSpacing.pagePad, MediaQuery.of(context).padding.bottom + 14),
             decoration: const BoxDecoration(
               color: AppColors.surf,
               border: Border(top: BorderSide(color: AppColors.bord, width: 0.5)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Total mensal',
-                    style: AppTextStyles.body
-                        .copyWith(fontWeight: FontWeight.w600)),
-                Text(_fmt.format(_s.total),
-                    style: AppTextStyles.monoLg.copyWith(
-                        color: AppColors.acc, fontWeight: FontWeight.w800)),
+                // Renda mensal (editável)
+                InkWell(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  onTap: _editarReceita,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(children: [
+                          Text('Renda mensal', style: AppTextStyles.bodySm),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.edit_outlined,
+                              size: 14, color: AppColors.mu),
+                        ]),
+                        Text(
+                          _s.receita > 0 ? _fmt.format(_s.receita) : 'toque p/ definir',
+                          style: _s.receita > 0
+                              ? AppTextStyles.mono
+                              : AppTextStyles.caption
+                                  .copyWith(color: AppColors.mu),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Total de gastos
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total de gastos', style: AppTextStyles.bodySm),
+                    Text(_fmt.format(_s.total),
+                        style: AppTextStyles.mono
+                            .copyWith(color: AppColors.red)),
+                  ],
+                ),
+                // Sobra (só aparece se houver renda informada)
+                if (_s.receita > 0) ...[
+                  const Divider(color: AppColors.bord, height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_s.sobra >= 0 ? 'Sobra' : 'Falta',
+                          style: AppTextStyles.body
+                              .copyWith(fontWeight: FontWeight.w700)),
+                      Text(_fmt.format(_s.sobra.abs()),
+                          style: AppTextStyles.monoLg.copyWith(
+                              color: _s.sobra >= 0
+                                  ? AppColors.acc
+                                  : AppColors.red,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 14),
+                // Botão adicionar gasto (dentro do painel — não flutua sobre o total)
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _adicionarItem,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.acc,
+                      foregroundColor: AppColors.bg,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusBtn),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text('Adicionar gasto',
+                        style: AppTextStyles.bodySm.copyWith(
+                            color: AppColors.bg,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -518,17 +631,28 @@ class _ItemGasto {
 class _Simulacao {
   final String nome;
   final List<_ItemGasto> itens;
-  const _Simulacao({required this.nome, required this.itens});
+  final double receita; // renda mensal informada (0 = não informada)
+  const _Simulacao({required this.nome, required this.itens, this.receita = 0});
 
   double get total => itens.fold(0.0, (s, it) => s + it.valor);
+  double get sobra => receita - total; // pode ser negativo (falta)
 
-  _Simulacao copyWith({String? nome, List<_ItemGasto>? itens}) =>
-      _Simulacao(nome: nome ?? this.nome, itens: itens ?? this.itens);
+  _Simulacao copyWith(
+          {String? nome, List<_ItemGasto>? itens, double? receita}) =>
+      _Simulacao(
+        nome: nome ?? this.nome,
+        itens: itens ?? this.itens,
+        receita: receita ?? this.receita,
+      );
 
-  Map<String, dynamic> toJson() =>
-      {'nome': nome, 'itens': itens.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {
+        'nome': nome,
+        'receita': receita,
+        'itens': itens.map((e) => e.toJson()).toList(),
+      };
   factory _Simulacao.fromJson(Map<String, dynamic> j) => _Simulacao(
         nome: j['nome'] as String? ?? 'Simulação',
+        receita: (j['receita'] as num?)?.toDouble() ?? 0,
         itens: ((j['itens'] as List?) ?? [])
             .map((e) => _ItemGasto.fromJson(e as Map<String, dynamic>))
             .toList(),

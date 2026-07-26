@@ -7,6 +7,10 @@ class UnicornSplashScreen extends StatefulWidget {
   static bool _shown = false;
   static bool get hasShown => _shown;
 
+  /// Rearma o splash para um novo login (chamar no logout) — senão o próximo
+  /// usuário no mesmo aparelho não veria o splash, pois _shown fica true em RAM.
+  static void resetParaNovoLogin() => _shown = false;
+
   const UnicornSplashScreen({super.key});
 
   @override
@@ -52,7 +56,10 @@ class _UnicornSplashScreenState extends State<UnicornSplashScreen>
   void _navigate() {
     _navTimer?.cancel();
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/home');
+    // Vai para o '/gate' (AuthGate) em vez de '/home' direto — o gate reavalia a
+    // sessão e decide entre Login/Onboarding/Home. Como _shown já é true aqui, o
+    // gate cai direto na Home (sem re-mostrar o splash).
+    Navigator.of(context).pushReplacementNamed('/gate');
   }
 
   Animation<double> _cardAnim(int i) => CurvedAnimation(
