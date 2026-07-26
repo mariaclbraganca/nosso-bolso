@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import 'active_notifications_service.dart';
 import 'nubank_notification_service.dart';
 import 'notificacao_fila_service.dart';
+import '../utils/moeda.dart';
 
 /// Ponto central de escuta de notificações.
 /// Roteia para iFood e Nubank a partir de um único receivePort.
@@ -79,13 +80,29 @@ class IfoodNotificationService {
     final pkg = evt.packageName ?? '';
     if (!pkg.contains('ifood')) return;
 
-    final texto = evt.text ?? '';
-    final match = _regexValor.firstMatch(texto);
-    if (match == null) return;
+    // tickerText não é bloqueado por vis=PRIVATE — fonte mais confiável, igual
+    // ao Nubank. Fallback: title + text.
+    final ticker = (evt.raw?['tickerText'] as String?) ?? '';
+    final title = evt.title ?? '';
+    final body = evt.text ?? '';
+    final texto = ticker.isNotEmpty ? ticker : '$title $body'.trim();
 
-    final valorStr = match.group(1)!.replaceAll('.', '').replaceAll(',', '.');
-    final valor = double.tryParse(valorStr);
-    if (valor == null || valor <= 0) return;
+    final match = _regexValor.firstMatch(texto);
+    if (match == null) {
+      // Formato mudou? Registra p/ sabermos que precisa atualizar o regex —
+      // só para notificações que parecem de compra (evita ruído).
+      if (texto.contains(RegExp(r'R\$'))) {
+        await Sentry.captureMessage(
+          '[iFood] Regex não bateu — possível mudança de formato',
+          level: SentryLevel.warning,
+          withScope: (s) => s.setContexts('info', {'texto': texto}),
+        );
+      }
+      return;
+    }
+
+    final valor = parseMoeda(match.group(1)!);
+    if (valor <= 0) return;
 
     final estabelecimento = match.group(2)!.trim();
     final hoje = DateTime.now().toIso8601String().substring(0, 10);
