@@ -42,13 +42,18 @@ class IfoodNotificationService {
       await Sentry.captureMessage(
         '[NotificationListener] SEM permissão de acesso a notificações',
         level: SentryLevel.warning,
-        withScope: (scope) => scope.setExtra('servico_rodando', running),
+        withScope: (scope) =>
+            scope.setContexts('info', {'servico_rodando': running}),
       );
     }
 
     if (!running) {
       await NotificationsListener.startService(
-        foreground: false,
+        // Foreground (não background): no Android 14+/16 o serviço em background
+        // tem o binder derrubado ("Closing all transactions") e os eventos não
+        // cruzam a ponte para o Dart. O manifest já declara foregroundServiceType
+        // specialUse + a property, então o serviço foreground é o modo correto.
+        foreground: true,
         title: 'Nosso Bolso',
         description: 'Monitorando notificações financeiras',
       );

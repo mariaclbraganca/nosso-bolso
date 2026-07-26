@@ -24,9 +24,11 @@ class NubankNotificationService {
     r'[Vv]oc[êe]\s+(?:pagou|enviou)\s+R\$\s*([\d.,]+)\s+para\s+(.+?)(?:\.+\s*$|\s*$)',
     caseSensitive: false,
   );
-  // Pix recebido: "Você recebeu uma transferência de R$ 0,10 de João Silva."
+  // Pix recebido — dois formatos do Nubank:
+  //  a) "Você recebeu uma transferência de R$ 0,10 de João Silva."
+  //  b) "Recebemos sua transferência de R$ 0,01." (sem remetente no texto)
   static final _regexPixRecebido = RegExp(
-    r'[Vv]oc[êe]\s+recebeu\s+(?:uma\s+transferência\s+de\s+)?R\$\s*([\d.,]+)\s+de\s+(.+?)(?:\.+\s*$|\s*$)',
+    r'(?:[Vv]oc[êe]\s+recebeu\s+(?:uma\s+)?transfer[êe]ncia\s+de|[Rr]ecebemos\s+sua\s+transfer[êe]ncia\s+de)\s+R\$\s*([\d.,]*\d)(?:\s+de\s+(.+?))?(?:\.+\s*$|\s*$)',
     caseSensitive: false,
   );
 
@@ -117,7 +119,11 @@ class NubankNotificationService {
       final matchRecebido = _regexPixRecebido.firstMatch(texto);
       if (matchRecebido != null) {
         valor = _parseValor(matchRecebido.group(1)!);
-        estabelecimento = _limparNome(matchRecebido.group(2)!);
+        // O formato "Recebemos sua transferência..." não traz o remetente.
+        final remetente = matchRecebido.group(2);
+        estabelecimento = (remetente != null && remetente.trim().isNotEmpty)
+            ? _limparNome(remetente)
+            : 'Pix recebido';
         origem = 'nubank_pix_recebido';
         Sentry.addBreadcrumb(Breadcrumb(
           message: '[Nubank] Regex Pix recebido OK',
@@ -149,7 +155,7 @@ class NubankNotificationService {
       await Sentry.captureMessage(
         '[Nubank] Falha total ao extrair dados',
         level: SentryLevel.error,
-        withScope: (scope) => scope.setExtra('texto', texto),
+        withScope: (scope) => scope.setContexts('info', {'texto': texto}),
       );
       return;
     }
@@ -224,12 +230,19 @@ Regras:
     String origem,
     String tipo,
   ) async {
+    const endpoint = '/api/v1/compras/notificacao-nubank';
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null) {
-        await Sentry.captureMessage('[Nubank] session null — não inseriu',
-            level: SentryLevel.warning,
-            withScope: (s) => s.setExtra('origem', origem));
+        // App capturou em background sem sessão carregada no isolate. NÃO perde
+        // a compra: enfileira p/ enviar quando o app abrir com sessão válida.
+        // (Requisito: zero gasto perdido.)
+        await NotificacaoFilaService.enfileirar(endpoint, {
+          'estabelecimento': estabelecimento,
+          'valor': valor,
+          'data': data,
+          'tipo': tipo,
+        });
         return;
       }
 
@@ -247,13 +260,16 @@ Regras:
       }
 
       if (familiaId.isEmpty) {
-        await Sentry.captureMessage('[Nubank] familia_id vazio mesmo após fallback DB',
-            level: SentryLevel.error,
-            withScope: (s) => s.setExtra('email', session.user.email ?? ''));
+        // Sem família resolvida agora → enfileira em vez de descartar.
+        await NotificacaoFilaService.enfileirar(endpoint, {
+          'estabelecimento': estabelecimento,
+          'valor': valor,
+          'data': data,
+          'tipo': tipo,
+        });
         return;
       }
 
-      const endpoint = '/api/v1/compras/notificacao-nubank';
       final body = {
         'familia_id': familiaId,
         'estabelecimento': estabelecimento,
@@ -282,10 +298,8 @@ Regras:
       } else {
         await Sentry.captureMessage('[Nubank] API retornou ${resp.statusCode}',
             level: SentryLevel.error,
-            withScope: (s) {
-              s.setExtra('body', resp.body);
-              s.setExtra('origem', origem);
-            });
+            withScope: (s) => s.setContexts(
+                'info', {'body': resp.body, 'origem': origem}));
       }
     } catch (e, st) {
       // Rede caiu no meio → enfileira p/ reenviar quando reconectar.

@@ -43,16 +43,36 @@ class NotificacaoFilaService {
       final fila = prefs.getStringList(_key) ?? [];
       if (fila.isEmpty) return;
 
+      // Completa familia_id/usuario_id com a sessão atual — itens enfileirados
+      // em background (isolate sem sessão) foram salvos sem esses campos.
+      String familiaId =
+          session.user.userMetadata?['familia_id'] as String? ?? '';
+      if (familiaId.isEmpty) {
+        try {
+          final row = await Supabase.instance.client
+              .from('usuarios')
+              .select('familia_id')
+              .eq('id', session.user.id)
+              .maybeSingle();
+          familiaId = row?['familia_id'] as String? ?? '';
+        } catch (_) {}
+      }
+
       final restantes = <String>[];
       for (final raw in fila) {
         var enviado = false;
         try {
           final item = jsonDecode(raw) as Map<String, dynamic>;
+          final body = Map<String, dynamic>.from(item['body'] as Map);
+          // Preenche campos que faltavam na captura em background.
+          final f = body['familia_id'] as String?;
+          if (f == null || f.isEmpty) body['familia_id'] = familiaId;
+          body.putIfAbsent('usuario_id', () => session.user.id);
           final resp = await http
               .post(
                 Uri.parse('${ApiService.baseUrl}${item['endpoint']}'),
                 headers: ApiService.authHeaders(json: true),
-                body: jsonEncode(item['body']),
+                body: jsonEncode(body),
               )
               .timeout(const Duration(seconds: 20));
           // 2xx = aceito; 4xx (menos 401/408/429) = erro permanente, descarta

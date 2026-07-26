@@ -19,9 +19,12 @@ class ActiveNotificationsService {
         final pkg = notif['packageName'] as String? ?? '';
         if (pkg != 'com.nu.production') continue;
 
+        // Prioriza tickerText (não bloqueado por vis=PRIVATE) — igual ao
+        // listener em tempo real. Fallback: title + bigText/text.
+        final ticker = (notif['tickerText'] as String?)?.trim() ?? '';
         final title = notif['title'] as String? ?? '';
         final text = (notif['bigText'] as String?) ?? (notif['text'] as String?) ?? '';
-        final texto = '$title $text'.trim();
+        final texto = ticker.isNotEmpty ? ticker : '$title $text'.trim();
         if (texto.isEmpty) continue;
 
         await NubankNotificationService.processarTexto(texto);
@@ -32,7 +35,8 @@ class ActiveNotificationsService {
         await Sentry.captureMessage(
           '[ActiveNotif] $processadas notificações do Nubank processadas na abertura',
           level: SentryLevel.info,
-          withScope: (s) => s.setExtra('total_lidas', lista.length),
+          withScope: (s) =>
+              s.setContexts('info', {'total_lidas': lista.length}),
         );
       }
     } on MissingPluginException {

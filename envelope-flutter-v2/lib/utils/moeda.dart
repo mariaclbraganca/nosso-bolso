@@ -13,6 +13,9 @@ double parseMoeda(String texto) {
 
   // Remove tudo que não for dígito, vírgula, ponto ou sinal.
   s = s.replaceAll(RegExp(r'[^\d,.\-]'), '');
+  // Remove separadores soltos nas bordas (ex: "0,01." → "0,01"), que quebrariam
+  // a heurística de decimal. Um separador só é decimal se tiver dígitos depois.
+  s = s.replaceAll(RegExp(r'^[.,]+'), '').replaceAll(RegExp(r'[.,]+$'), '');
   if (s.isEmpty || s == '-') return 0;
 
   final ultimaVirgula = s.lastIndexOf(',');

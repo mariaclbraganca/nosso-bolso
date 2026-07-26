@@ -41,6 +41,9 @@ class MainActivity : FlutterActivity() {
                     "title" to extras.getString(Notification.EXTRA_TITLE),
                     "text" to extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
                     "bigText" to extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
+                    // tickerText não é bloqueado por vis=PRIVATE — fonte mais
+                    // confiável para o Nubank (que oculta text na lock screen).
+                    "tickerText" to sbn.notification?.tickerText?.toString(),
                 )
             } ?: emptyList()
         } catch (e: Exception) {
