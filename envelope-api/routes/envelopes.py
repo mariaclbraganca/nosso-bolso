@@ -34,6 +34,7 @@ def criar_envelope(
         "familia_id": fam,
         "is_reserva": payload.is_reserva,
         "valor_objetivo": payload.valor_objetivo,
+        "natureza": payload.natureza or ('reserva' if payload.is_reserva else 'consumo'),
         "saldo_atual": 0  # Regra de Ouro: Sempre inicia em 0
     }
     result = db.table("envelopes").insert(data).execute()

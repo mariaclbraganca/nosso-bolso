@@ -259,7 +259,15 @@ def confirmar_compra(
     if compra["status_integracao"] != "pendente":
         raise HTTPException(400, f"Compra ja esta com status {compra['status_integracao']}")
 
+    return integrar_compra(compra, str(payload.envelope_id), usr, fam)
+
+
+def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
+    """Lança a compra pendente como despesa no Supabase e marca como confirmada.
+    Usado por /confirmar e pelo fechamento do dia (/dia/fechar)."""
+    col = get_compras_collection()
     db = get_supabase()
+    compra_id = compra["compra_id"]
 
     # ── Idempotência (evita cobrança dupla) ──────────────────────────────────
     # Cenário de risco: numa confirmação anterior o INSERT no Supabase
@@ -270,12 +278,12 @@ def confirmar_compra(
     # de inserir, procuramos uma transação já existente com esse compra_id.
     # Se achar, reaproveitamos (não cobra de novo).
     existente = db.table("transacoes").select("id, envelope_id") \
-        .eq("familia_id", fam).eq("origem_ref", payload.compra_id) \
+        .eq("familia_id", fam).eq("origem_ref", compra_id) \
         .is_("deleted_at", "null").execute()
     if existente.data:
         transacao_id = existente.data[0]["id"]
         col.update_one(
-            {"compra_id": payload.compra_id},
+            {"compra_id": compra_id},
             {"$set": {"status_integracao": "confirmado",
                       "transacao_supabase_id": transacao_id}},
         )
@@ -289,18 +297,20 @@ def confirmar_compra(
     num_itens = len(compra.get("itens", []))
     if fonte == "ifood":
         descricao = f"{compra['supermercado']} (iFood Benefícios)"
-    else:
+    elif num_itens:
         descricao = f"{compra['supermercado']} — {num_itens} itens"
+    else:
+        descricao = compra["supermercado"]  # captura Nubank: sem itens
 
     transacao = {
         "valor": compra["valor_total"],
         "tipo": "despesa",
         "usuario_id": usr,
-        "envelope_id": str(payload.envelope_id),
+        "envelope_id": envelope_id,
         "descricao": descricao,
         "data": compra["data_compra"][:10],
         "familia_id": fam,
-        "origem_ref": payload.compra_id,  # chave de idempotência
+        "origem_ref": compra_id,  # chave de idempotência
     }
     try:
         result = db.table("transacoes").insert(transacao).execute()
@@ -309,12 +319,12 @@ def confirmar_compra(
         # duas confirmações simultâneas), reaproveita a transação já criada.
         if "uniq_transacao_origem_ref" in str(exc) or "duplicate" in str(exc).lower():
             dup = db.table("transacoes").select("id") \
-                .eq("familia_id", fam).eq("origem_ref", payload.compra_id) \
+                .eq("familia_id", fam).eq("origem_ref", compra_id) \
                 .is_("deleted_at", "null").execute()
             if dup.data:
                 transacao_id = dup.data[0]["id"]
                 col.update_one(
-                    {"compra_id": payload.compra_id},
+                    {"compra_id": compra_id},
                     {"$set": {"status_integracao": "confirmado",
                               "transacao_supabase_id": transacao_id}},
                 )
@@ -327,12 +337,12 @@ def confirmar_compra(
 
     transacao_id = result.data[0]["id"]
     col.update_one(
-        {"compra_id": payload.compra_id},
+        {"compra_id": compra_id},
         {"$set": {"status_integracao": "confirmado", "transacao_supabase_id": transacao_id}}
     )
 
     envelope = db.table("envelopes").select("saldo_atual") \
-        .eq("id", str(payload.envelope_id)).eq("familia_id", fam).execute()
+        .eq("id", envelope_id).eq("familia_id", fam).execute()
     saldo = envelope.data[0]["saldo_atual"] if envelope.data else 0.0
     return {"transacao_id": transacao_id, "saldo_restante": saldo}
 
@@ -518,6 +528,7 @@ def registrar_notificacao_ifood(
         "supermercado": payload.estabelecimento,
         "valor_total": payload.valor,
         "fonte": "ifood",
+        "usuario_id": str(payload.usuario_id) if payload.usuario_id else user.id,  # quem gastou
         "status_integracao": "pendente",
         "transacao_supabase_id": None,
         "itens": [],
@@ -603,6 +614,7 @@ def registrar_notificacao_nubank(
         "supermercado": payload.estabelecimento,
         "valor_total": payload.valor,
         "fonte": "nubank",
+        "usuario_id": str(payload.usuario_id) if payload.usuario_id else user.id,  # quem gastou
         "tipo_notificacao": tipo,  # compra | pix_enviado
         "status_integracao": "pendente",
         "transacao_supabase_id": None,

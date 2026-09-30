@@ -99,7 +99,7 @@ def resumir_semana_financeira(familia_id: str) -> dict:
             .execute()
         )
         transacoes = res.data or []
-        total_gastos  = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "gasto")
+        total_gastos  = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "despesa")
         total_receita = sum(t.get("valor", 0) for t in transacoes if t.get("tipo") == "receita")
         return {
             "total_gastos_7d":  round(total_gastos, 2),

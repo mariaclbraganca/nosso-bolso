@@ -3,7 +3,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import envelopes, transacoes, dashboard, abastecer, fixos, remanejar, insights, notificacoes, configuracoes
+from routes import envelopes, transacoes, dashboard, abastecer, fixos, remanejar, insights, notificacoes, configuracoes, parcelas, fechamento, reconciliacao, dia
 from routes.configuracoes import carregar_config_do_supabase
 from ia_compras.router import router as compras_router
 from ia_compras.mongo_client import ensure_indexes
@@ -48,6 +48,10 @@ app.include_router(transacoes.router, prefix="/transacoes", tags=["transacoes"])
 app.include_router(dashboard.router,  prefix="/dashboard",  tags=["dashboard"])
 app.include_router(abastecer.router,  prefix="/abastecer",  tags=["abastecer"])
 app.include_router(fixos.router,      prefix="/fixos",      tags=["fixos"])
+app.include_router(parcelas.router,   prefix="/parcelas",   tags=["parcelas"])
+app.include_router(fechamento.router, prefix="/fechamento", tags=["fechamento"])
+app.include_router(dia.router,        prefix="/dia",        tags=["dia"])
+app.include_router(reconciliacao.router, prefix="/reconciliacao", tags=["reconciliacao"])
 app.include_router(remanejar.router,  prefix="/remanejar",  tags=["remanejar"])
 app.include_router(insights.router,   prefix="/insights",    tags=["insights"])
 app.include_router(notificacoes.router, prefix="/notificacoes", tags=["notificacoes"])

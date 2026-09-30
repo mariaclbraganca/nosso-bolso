@@ -12,6 +12,7 @@ class TransacaoCreate(BaseModel):
     data: date = date.today()
     familia_id: UUID
     comprovante_url: Optional[str] = None
+    forma_pagamento: Optional[str] = None  # credito|debito|pix|dinheiro|va
 
     @model_validator(mode='after')
     def validar_envelope_id(self):
@@ -90,6 +91,11 @@ class TransacaoUpdate(BaseModel):
             raise ValueError('valor deve ser maior que zero')
         return v
 
+def _valida_natureza(v):
+    if v is not None and v not in ('consumo', 'objetivo', 'reserva'):
+        raise ValueError("natureza deve ser consumo, objetivo ou reserva")
+    return v
+
 class EnvelopeCreate(BaseModel):
     nome_envelope: str
     valor_planejado: float
@@ -98,6 +104,12 @@ class EnvelopeCreate(BaseModel):
     familia_id: UUID
     is_reserva: bool = False
     valor_objetivo: Optional[float] = None
+    natureza: Optional[str] = None
+
+    @field_validator('natureza')
+    @classmethod
+    def natureza_valida(cls, v):
+        return _valida_natureza(v)
 
 class EnvelopeUpdate(BaseModel):
     nome_envelope: Optional[str] = None
@@ -106,6 +118,7 @@ class EnvelopeUpdate(BaseModel):
     cor: Optional[str] = None
     is_reserva: Optional[bool] = None
     valor_objetivo: Optional[float] = None
+    natureza: Optional[str] = None
 
     @field_validator('valor_planejado')
     @classmethod
@@ -113,6 +126,11 @@ class EnvelopeUpdate(BaseModel):
         if v is not None and v <= 0:
             raise ValueError('valor_planejado deve ser maior que zero')
         return v
+
+    @field_validator('natureza')
+    @classmethod
+    def natureza_valida(cls, v):
+        return _valida_natureza(v)
 
 class RemanejarPayload(BaseModel):
     origem_id: UUID
@@ -147,4 +165,64 @@ class GastoFixoUpdate(BaseModel):
     def valor_positivo(cls, v):
         if v is not None and v <= 0:
             raise ValueError('valor deve ser maior que zero')
+        return v
+
+
+# ═══════════════════════════════════════════════════════════════
+# PARCELAS — compras parceladas com contagem regressiva
+# ═══════════════════════════════════════════════════════════════
+class ParcelaCreate(BaseModel):
+    """Uma compra parcelada. O sistema gera N transações automaticamente."""
+    descricao: str
+    valor_total: float
+    num_parcelas: int
+    data_primeira: date = date.today()
+    familia_id: UUID
+    usuario_id: UUID
+    envelope_id: Optional[UUID] = None
+    cartao: Optional[str] = None
+
+    @field_validator('valor_total')
+    @classmethod
+    def valor_total_positivo(cls, v):
+        if v <= 0:
+            raise ValueError('valor_total deve ser maior que zero')
+        return v
+
+    @field_validator('num_parcelas')
+    @classmethod
+    def num_parcelas_valido(cls, v):
+        if v < 1 or v > 72:
+            raise ValueError('num_parcelas deve ser entre 1 e 72')
+        return v
+
+
+# ═══════════════════════════════════════════════════════════════
+# NATUREZA DO ENVELOPE — consumo/objetivo/reserva
+# ═══════════════════════════════════════════════════════════════
+class EnvelopeNatureza(BaseModel):
+    """Atualiza a natureza de um envelope (define comportamento no fechamento)."""
+    natureza: str
+
+    @field_validator('natureza')
+    @classmethod
+    def natureza_valida(cls, v):
+        if v not in ('consumo', 'objetivo', 'reserva'):
+            raise ValueError("natureza deve ser consumo, objetivo ou reserva")
+        return v
+
+
+# ═══════════════════════════════════════════════════════════════
+# FECHAMENTO MENSAL
+# ═══════════════════════════════════════════════════════════════
+class FecharMesPayload(BaseModel):
+    familia_id: UUID
+    mes: str  # 'YYYY-MM'
+
+    @field_validator('mes')
+    @classmethod
+    def mes_valido(cls, v):
+        import re
+        if not re.match(r'^\d{4}-\d{2}$', v):
+            raise ValueError("mes deve estar no formato YYYY-MM")
         return v

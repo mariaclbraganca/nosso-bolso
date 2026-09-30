@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 spec11_db.py
 spec15_db.py
+# Arquivos locais (não fazem parte do deploy no Render)
+sql_migrations/
+testar_local.sh
+CORRECOES_FLUTTER.md
+LEIA_ME_CORRECOES.md

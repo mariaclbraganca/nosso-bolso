@@ -52,6 +52,7 @@ def registrar_transacao(
         "descricao": payload.descricao, "data": str(payload.data),
         "familia_id": fam,
         "comprovante_url": payload.comprovante_url,
+        "forma_pagamento": payload.forma_pagamento,
     }
     result = db.table("transacoes").insert(data).execute()
     return result.data[0]
