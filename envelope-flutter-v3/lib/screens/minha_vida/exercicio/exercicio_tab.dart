@@ -10,8 +10,9 @@ import 'widgets/form_treino_sheet.dart';
 
 class ExercicioTab extends ConsumerWidget {
   final String membroId;
+  final String familiaId;
 
-  const ExercicioTab({super.key, required this.membroId});
+  const ExercicioTab({super.key, required this.membroId, required this.familiaId});
 
   String get _hoje {
     final n = DateTime.now();
@@ -26,7 +27,7 @@ class ExercicioTab extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => FormTreinoSheet(membroId: membroId, data: _hoje),
+      builder: (_) => FormTreinoSheet(membroId: membroId, familiaId: familiaId, data: _hoje),
     );
   }
 
@@ -49,8 +50,8 @@ class ExercicioTab extends ConsumerWidget {
 
     final dados = exercicioAsync.asData?.value ?? {};
     final itens = (dados['exercicios'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-    final totalMin = dados['total_minutos'] as int? ?? 0;
-    final totalCal = dados['total_calorias'] as num? ?? 0;
+    final totalMin = (dados['total_duracao_min'] as num?)?.round() ?? 0;
+    final totalCal = dados['total_calorias_kcal'] as num? ?? 0;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -131,8 +132,8 @@ class ExercicioTab extends ConsumerWidget {
             ...itens.map((ex) {
               final cat = ex['categoria'] as String? ?? 'cardio';
               final emoji = categoriaEmoji[cat] ?? '🏃';
-              final min = ex['duracao_minutos'] ?? 0;
-              final cal = ex['calorias_queimadas'] ?? 0;
+              final min = ex['duracao_min'] ?? 0;
+              final cal = ex['calorias_kcal'] ?? 0;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),

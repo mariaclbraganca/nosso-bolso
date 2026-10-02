@@ -17,11 +17,11 @@ class MetasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titulo = meta['titulo'] as String? ?? 'Meta';
+    final titulo = meta['nome'] as String? ?? 'Meta';
     final emoji = meta['emoji'] as String? ?? '🎯';
-    final valorAlvo = (meta['valor_alvo'] as num?)?.toDouble() ?? 0.0;
+    final valorAlvo = (meta['valor_meta'] as num?)?.toDouble() ?? 0.0;
     final valorAtual = (meta['valor_atual'] as num?)?.toDouble() ?? 0.0;
-    final prazoStr = meta['data_prazo'] as String?;
+    final prazoStr = meta['prazo'] as String?;
 
     final pct = valorAlvo > 0 ? (valorAtual / valorAlvo).clamp(0.0, 1.0) : 0.0;
     final atingida = valorAtual >= valorAlvo && valorAlvo > 0;

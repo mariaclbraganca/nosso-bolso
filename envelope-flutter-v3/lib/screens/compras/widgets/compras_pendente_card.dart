@@ -38,7 +38,7 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
     );
 
     if (conf == true) {
-      final id = widget.compra['id'] as String? ?? widget.compra['_id'] as String? ?? '';
+      final id = widget.compra['compra_id'] as String? ?? '';
       try {
         await ApiService.delete('/api/v1/compras/$id');
         ref.invalidate(comprasPendentesProvider);
@@ -58,7 +58,7 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
 
   @override
   Widget build(BuildContext context) {
-    final estab = widget.compra['estabelecimento'] as String? ?? 'Mercado / Estabelecimento';
+    final estab = widget.compra['supermercado'] as String? ?? 'Compra';
     final valorTotal = (widget.compra['valor_total'] as num?)?.toDouble() ?? 0.0;
     final dataStr = widget.compra['data_compra'] as String? ?? widget.compra['data'] as String?;
     final itens = (widget.compra['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -118,14 +118,14 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
                       children: [
                         Expanded(
                           child: Text(
-                            item['nome'] as String? ?? 'Item',
+                            item['nome_padronizado'] as String? ?? item['nome_original'] as String? ?? 'Item',
                             style: NBText.legenda.copyWith(color: NBColors.tinta),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
-                          '${item['quantidade'] ?? 1}x ${brl((item['valor_total'] as num?)?.toDouble() ?? 0.0)}',
+                          '${item['quantidade'] ?? 1}x ${brl((item['valor_total_item'] as num?)?.toDouble() ?? 0.0)}',
                           style: NBText.legenda,
                         ),
                       ],

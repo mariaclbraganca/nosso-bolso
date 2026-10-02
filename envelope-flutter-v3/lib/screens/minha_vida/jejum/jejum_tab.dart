@@ -98,17 +98,22 @@ class _JejumTabState extends ConsumerState<JejumTab> {
     final ativoAsync = ref.watch(jejumAtivoProvider(widget.membroId));
 
     final config = configAsync.asData?.value ?? {};
-    final protoId = config['protocolo_padrao'] as String? ?? '16_8';
+    final protoId = config['protocolo'] as String? ?? '16_8';
     final proto = ProtocoloJejum.porId(protoId) ?? ProtocoloJejum.todos.first;
-    final metaHoras = proto.horas ?? 16.0;
 
-    final seqAtual = config['sequencia_atual'] as int? ?? 0;
-    final jokers = config['jokers_disponiveis'] as int? ?? 2;
+    final seqAtual = (config['sequencia_atual'] as num?)?.toInt() ?? 0;
+    final jokersMes = (config['joker_days_mes'] as num?)?.toInt() ?? 0;
+    final jokersUsados = (config['jokers_usados'] as num?)?.toInt() ?? 0;
+    final jokers = (jokersMes - jokersUsados).clamp(0, jokersMes);
 
     final ativo = ativoAsync.asData?.value;
+    final metaHoras = (ativo?['meta_horas'] as num?)?.toDouble() ??
+        (config['duracao_horas'] as num?)?.toDouble() ??
+        proto.horas ??
+        16.0;
     Duration decorrido = Duration.zero;
-    if (ativo != null && ativo['inicio'] != null) {
-      final inicio = DateTime.tryParse(ativo['inicio'].toString());
+    if (ativo != null && ativo['iniciado_em'] != null) {
+      final inicio = DateTime.tryParse(ativo['iniciado_em'].toString())?.toLocal();
       if (inicio != null) {
         decorrido = DateTime.now().difference(inicio);
         if (decorrido.isNegative) decorrido = Duration.zero;

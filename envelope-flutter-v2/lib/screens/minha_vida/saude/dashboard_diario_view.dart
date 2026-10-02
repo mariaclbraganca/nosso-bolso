@@ -881,7 +881,7 @@ class _MealSlotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalKcal = refeicoes.fold<int>(
       0,
-      (sum, r) => sum + ((r['calorias_kcal'] as num?)?.toInt() ?? 0),
+      (sum, r) => sum + (((r['macros_totais'] as Map?)?['calorias_kcal'] as num?)?.toInt() ?? 0),
     );
 
     // Alerta só quando há refeição registrada num slot fora da janela
@@ -992,7 +992,7 @@ class _MealSlotCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${(r['calorias_kcal'] as num?)?.toInt() ?? 0} kcal',
+                      '${((r['macros_totais'] as Map?)?['calorias_kcal'] as num?)?.toInt() ?? 0} kcal',
                       style: const TextStyle(fontSize: 12, color: AppColors.mu),
                     ),
                   ],

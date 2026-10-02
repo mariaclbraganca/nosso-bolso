@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/providers/contas_provider.dart';
-import '../../../core/providers/mes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../core/services/financeiro_ext_service.dart';
 import '../../../ui/components/nb_components.dart';
@@ -51,7 +50,6 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
     setState(() => _salvando = true);
     final perfil = ref.read(perfilUsuarioLogadoProvider).value;
     final familiaId = perfil?['familia_id'] as String? ?? '';
-    final mes = ref.read(mesAtualProvider);
 
     try {
       await FinanceiroExtService.criarConta({
@@ -59,10 +57,8 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
         'nome': nome,
         'valor': _valorNumerico,
         'categoria': _categoria,
-        'data_vencimento': DateFormat('yyyy-MM-dd').format(_vencimento),
-        'mes': mes,
-        'codigo_barras': _codigoCtrl.text.trim().isNotEmpty ? _codigoCtrl.text.trim() : null,
-        'pago': false,
+        'vencimento': DateFormat('yyyy-MM-dd').format(_vencimento),
+        'observacao': _codigoCtrl.text.trim(),
       });
 
       avisar('Conta registrada com sucesso!');

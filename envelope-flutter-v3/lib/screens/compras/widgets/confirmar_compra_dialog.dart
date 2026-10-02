@@ -39,7 +39,7 @@ class _ConfirmarCompraDialogState extends ConsumerState<ConfirmarCompraDialog> {
     final perfil = ref.read(perfilUsuarioLogadoProvider).value;
     final familiaId = perfil?['familia_id'] as String? ?? '';
     final usuarioId = perfil?['id'] as String? ?? '';
-    final compraId = widget.compra['id'] as String? ?? widget.compra['_id'] as String? ?? '';
+    final compraId = widget.compra['compra_id'] as String? ?? '';
 
     try {
       await ApiService.post('/api/v1/compras/confirmar', {
@@ -64,7 +64,7 @@ class _ConfirmarCompraDialogState extends ConsumerState<ConfirmarCompraDialog> {
   Widget build(BuildContext context) {
     final envelopes = ref.watch(envelopesViseisProvider);
     final valorTotal = (widget.compra['valor_total'] as num?)?.toDouble() ?? 0.0;
-    final estabelecimento = widget.compra['estabelecimento'] as String? ?? 'Mercado / Estabelecimento';
+    final estabelecimento = widget.compra['supermercado'] as String? ?? 'Compra';
 
     return AlertDialog(
       backgroundColor: NBColors.cartao,

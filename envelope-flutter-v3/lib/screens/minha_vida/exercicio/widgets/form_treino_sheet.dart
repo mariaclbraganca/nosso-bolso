@@ -8,11 +8,13 @@ import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 
 class FormTreinoSheet extends ConsumerStatefulWidget {
   final String membroId;
+  final String familiaId;
   final String data;
 
   const FormTreinoSheet({
     super.key,
     required this.membroId,
+    required this.familiaId,
     required this.data,
   });
 
@@ -24,14 +26,22 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
   String _categoria = 'cardio';
   final _nomeCtrl = TextEditingController();
   final _duracaoCtrl = TextEditingController(text: '30');
-  final _caloriasCtrl = TextEditingController();
   bool _salvando = false;
+
+  // MET médio de cada categoria no catálogo do backend (agente_treino.py).
+  // O servidor calcula as calorias com o MET e o peso do perfil metabólico.
+  static const _metPorCategoria = {
+    'cardio': 7.6,
+    'forca': 5.4,
+    'flexibilidade': 2.6,
+    'esporte': 6.8,
+    'lazer': 4.5,
+  };
 
   @override
   void dispose() {
     _nomeCtrl.dispose();
     _duracaoCtrl.dispose();
-    _caloriasCtrl.dispose();
     super.dispose();
   }
 
@@ -41,18 +51,21 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
       avisar('Informe o nome do exercício', erro: true);
       return;
     }
-    final duracao = int.tryParse(_duracaoCtrl.text.trim()) ?? 30;
-    final cals = double.tryParse(_caloriasCtrl.text.replaceAll(',', '.')) ??
-        (duracao * 7.0);
+    final duracao = int.tryParse(_duracaoCtrl.text.trim()) ?? 0;
+    if (duracao <= 0) {
+      avisar('Informe a duração em minutos', erro: true);
+      return;
+    }
 
     setState(() => _salvando = true);
     try {
       await SaudeApiService.registrarExercicio({
         'membro_id': widget.membroId,
+        'familia_id': widget.familiaId,
         'categoria': _categoria,
         'nome': nome,
-        'duracao_minutos': duracao,
-        'calorias_queimadas': cals,
+        'met': _metPorCategoria[_categoria] ?? 4.0,
+        'duracao_min': duracao,
         'data': widget.data,
       });
       ref.invalidate(exercicioDiaProvider);
@@ -119,41 +132,19 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _duracaoCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Duração (minutos)',
-                    filled: true,
-                    fillColor: NBColors.cartao,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(NBRadius.campo),
-                      borderSide: const BorderSide(color: NBColors.linha),
-                    ),
-                  ),
-                ),
+          TextField(
+            controller: _duracaoCtrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Duração (minutos)',
+              helperText: 'As calorias são calculadas pela atividade e pelo seu peso.',
+              filled: true,
+              fillColor: NBColors.cartao,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(NBRadius.campo),
+                borderSide: const BorderSide(color: NBColors.linha),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _caloriasCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Calorias (opcional)',
-                    hintText: 'Ex: 220',
-                    filled: true,
-                    fillColor: NBColors.cartao,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(NBRadius.campo),
-                      borderSide: const BorderSide(color: NBColors.linha),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 20),
           BotaoPrincipal(

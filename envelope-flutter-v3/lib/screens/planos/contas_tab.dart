@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants.dart';
 import '../../../core/providers/contas_provider.dart';
 import '../../../core/providers/mes_provider.dart';
 import '../../../core/services/financeiro_ext_service.dart';
@@ -17,11 +16,7 @@ class ContasTab extends ConsumerWidget {
 
   Future<void> _togglePago(WidgetRef ref, BuildContext context, String id, bool pago) async {
     try {
-      try {
-        await FinanceiroExtService.marcarPaga(id, pago: pago);
-      } catch (_) {
-        await supabase.from('contas_pagar').update({'pago': pago}).eq('id', id);
-      }
+      await FinanceiroExtService.marcarPaga(id, pago: pago);
       if (pago) {
         final idNum = (id.hashCode).abs() % 100000;
         NotificationService.cancelarAlertaConta(idNum);
@@ -52,11 +47,7 @@ class ContasTab extends ConsumerWidget {
     );
     if (conf == true) {
       try {
-        try {
-          await FinanceiroExtService.deletarConta(id);
-        } catch (_) {
-          await supabase.from('contas_pagar').delete().eq('id', id);
-        }
+        await FinanceiroExtService.deletarConta(id);
         final mes = ref.read(mesAtualProvider);
         ref.invalidate(contasMesProvider(mes));
         ref.invalidate(resumoContasProvider(mes));
@@ -153,8 +144,8 @@ class ContasTab extends ConsumerWidget {
               for (final c in contas)
                 ContasCard(
                   conta: c,
-                  onTogglePago: (v) => _togglePago(ref, context, c['id'] as String, v),
-                  onExcluir: () => _excluirConta(ref, context, c['id'] as String),
+                  onTogglePago: (v) => _togglePago(ref, context, idMongo(c), v),
+                  onExcluir: () => _excluirConta(ref, context, idMongo(c)),
                 ),
             const SizedBox(height: NBSpacing.m),
             BotaoSecundario(

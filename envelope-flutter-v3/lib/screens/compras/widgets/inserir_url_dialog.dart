@@ -37,7 +37,7 @@ class _InserirUrlDialogState extends ConsumerState<InserirUrlDialog> {
 
     try {
       await ApiService.post('/api/v1/compras/ingestao', {
-        'url': url,
+        'qr_code_url': url,
         'familia_id': familiaId,
         'usuario_id': usuarioId,
       });

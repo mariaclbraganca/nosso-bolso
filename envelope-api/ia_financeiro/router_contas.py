@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import datetime, timezone
 from bson import ObjectId
+from bson.errors import InvalidId
+
+from auth import AuthUser, get_current_user, assert_mesma_familia
 
 from ia_financeiro.mongo_client_financeiro import get_contas_pagar_col
 
@@ -16,6 +19,13 @@ def _serialize(doc: dict) -> dict:
     return doc
 
 
+def _oid(doc_id: str) -> ObjectId:
+    try:
+        return ObjectId(doc_id)
+    except (InvalidId, TypeError):
+        raise HTTPException(status_code=404, detail="Conta não encontrada")
+
+
 CATEGORIAS_CONTA = [
     "aluguel", "energia", "agua", "internet", "telefone",
     "cartao_credito", "saude", "educacao", "transporte",
@@ -25,10 +35,12 @@ CATEGORIAS_CONTA = [
 
 @router_contas.get("/contas-pagar")
 def listar_contas(
-    familia_id: str = Query(...),
+    familia_id: str = Query(None),
     mes: str = Query(None),         # YYYY-MM — filtra por mês de vencimento
     incluir_pagas: bool = Query(True),
+    user: AuthUser = Depends(get_current_user),
 ):
+    familia_id = assert_mesma_familia(user, familia_id)
     col = get_contas_pagar_col()
     filtro: dict = {"familia_id": familia_id}
     if mes:
@@ -41,8 +53,8 @@ def listar_contas(
 
 
 @router_contas.post("/contas-pagar")
-def criar_conta(payload: dict):
-    familia_id = payload.get("familia_id")
+def criar_conta(payload: dict, user: AuthUser = Depends(get_current_user)):
+    familia_id = assert_mesma_familia(user, payload.get("familia_id"))
     nome       = payload.get("nome")
     valor      = payload.get("valor")
     vencimento = payload.get("vencimento")   # YYYY-MM-DD
@@ -71,36 +83,41 @@ def criar_conta(payload: dict):
 
 
 @router_contas.patch("/contas-pagar/{conta_id}/pagar")
-def marcar_paga(conta_id: str, payload: dict = None):
+def marcar_paga(conta_id: str, payload: dict = None, user: AuthUser = Depends(get_current_user)):
     if payload is None:
         payload = {}
     col  = get_contas_pagar_col()
     pago = payload.get("pago", True)
-    col.update_one(
-        {"_id": ObjectId(conta_id)},
+    filtro = {"_id": _oid(conta_id), "familia_id": user.familia_id}
+    result = col.update_one(
+        filtro,
         {"$set": {
             "pago":     pago,
             "pago_em":  _now() if pago else None,
             "atualizado_em": _now(),
         }},
     )
-    doc = col.find_one({"_id": ObjectId(conta_id)})
-    if not doc:
+    if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
-    return _serialize(doc)
+    return _serialize(col.find_one(filtro))
 
 
 @router_contas.delete("/contas-pagar/{conta_id}")
-def deletar_conta(conta_id: str):
+def deletar_conta(conta_id: str, user: AuthUser = Depends(get_current_user)):
     col = get_contas_pagar_col()
-    result = col.delete_one({"_id": ObjectId(conta_id)})
+    result = col.delete_one({"_id": _oid(conta_id), "familia_id": user.familia_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
     return {"ok": True}
 
 
 @router_contas.get("/contas-pagar/resumo")
-def resumo_contas(familia_id: str = Query(...), mes: str = Query(...)):
+def resumo_contas(
+    familia_id: str = Query(None),
+    mes: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
+):
+    familia_id = assert_mesma_familia(user, familia_id)
     col   = get_contas_pagar_col()
     docs  = list(col.find({"familia_id": familia_id, "vencimento": {"$regex": f"^{mes}"}}))
     total = sum(d.get("valor", 0) for d in docs)

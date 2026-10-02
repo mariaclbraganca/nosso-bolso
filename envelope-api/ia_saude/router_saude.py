@@ -187,6 +187,35 @@ async def _debitar_estoque_background(familia_id: str, itens: list) -> None:
         pass  # falha silenciosa — não derruba o registro
 
 
+def _resultado_manual(dados: dict) -> dict:
+    def num(chave: str) -> float:
+        try:
+            return float(dados.get(chave) or 0)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail=f"{chave} precisa ser um número")
+
+    descricao = (dados.get("descricao") or "").strip()
+    if not descricao:
+        raise HTTPException(status_code=422, detail="Descreva o que foi comido em dados_entrada.descricao")
+    macros = {
+        "calorias_kcal": num("calorias_kcal"),
+        "proteina_g":    num("proteina_g"),
+        "carboidrato_g": num("carboidrato_g"),
+        "gordura_g":     num("gordura_g"),
+        "fibra_g":       num("fibra_g"),
+    }
+    item = {"nome": descricao, "tipo": "alimento", **macros}
+    if dados.get("peso_g") is not None:
+        item["peso_prato_g"] = num("peso_g")
+    return {
+        "status": "calculado",
+        "descricao": descricao,
+        "itens_identificados": [item],
+        "macros_totais": macros,
+        "confianca": 1.0,
+    }
+
+
 def _montar_doc_refeicao(
     payload: dict,
     resultado_ia: dict,
@@ -234,9 +263,14 @@ async def registrar_refeicao(payload: dict, background_tasks: BackgroundTasks):
     if not familia_id or not membro_id:
         raise HTTPException(status_code=422, detail="familia_id e membro_id obrigatórios")
 
-    # ── Chamada ao agente de IA ──────────────────────────────────────────────
-    dados_entrada = payload.get("dados_entrada", {})
-    resultado = await analisar_refeicao(modalidade, dados_entrada)
+    dados_entrada = payload.get("dados_entrada") or {}
+    if modalidade == "manual":
+        # Valores digitados pela pessoa: grava como estão, sem chamar a IA.
+        resultado = _resultado_manual(dados_entrada)
+    else:
+        if modalidade == "texto" and not (dados_entrada.get("descricao") or "").strip():
+            raise HTTPException(status_code=422, detail="Descreva o que foi comido em dados_entrada.descricao")
+        resultado = await analisar_refeicao(modalidade, dados_entrada)
 
     # Retorna estado de clarificação sem salvar
     if resultado.get("status") == "aguardando_clarificacao":

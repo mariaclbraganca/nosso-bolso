@@ -78,7 +78,7 @@ class RefeicoesCard extends ConsumerWidget {
           const Divider(color: NBColors.afundado, height: 1),
           const SizedBox(height: 8),
           ..._slots.map((slot) {
-            final reg = lista.where((r) => r['tipo'] == slot.$1).firstOrNull;
+            final reg = lista.where((r) => (r['tipo_refeicao'] ?? r['tipo']) == slot.$1).firstOrNull;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
@@ -92,7 +92,7 @@ class RefeicoesCard extends ConsumerWidget {
                         Text(slot.$2, style: NBText.corpo.copyWith(fontWeight: FontWeight.bold)),
                         if (reg != null)
                           Text(
-                            '${reg['descricao'] ?? ''} ${reg['calorias_estimadas'] != null && (reg['calorias_estimadas'] as num) > 0 ? "(${reg['calorias_estimadas']} kcal)" : ""}',
+                            '${reg['descricao'] ?? ''} ${(((reg['macros_totais'] as Map?)?['calorias_kcal'] as num?) ?? 0) > 0 ? "(${((reg['macros_totais'] as Map)['calorias_kcal'] as num).round()} kcal)" : ""}',
                             style: NBText.legenda.copyWith(color: NBColors.tintaSuave),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -105,7 +105,7 @@ class RefeicoesCard extends ConsumerWidget {
                   if (reg != null)
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 18, color: NBColors.tintaSuave),
-                      onPressed: () => _deletar(ref, reg['id']?.toString() ?? ''),
+                      onPressed: () => _deletar(ref, idMongo(reg)),
                     )
                   else
                     IconButton(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants.dart';
 import '../../../core/providers/mes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../core/services/api_service.dart';
@@ -67,31 +66,20 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
       final f = widget.fixoParaEditar;
       if (f != null) {
         final id = f['id'] as String;
-        await supabase.from('gastos_fixos').update({
+        await ApiService.patch('/fixos/$id', {
           'nome': nome,
           'valor': _valorNumerico,
           'dia_vencimento': _diaVencimento,
-        }).eq('id', id);
+        });
         avisar('Gasto fixo atualizado com sucesso!');
       } else {
-        try {
-          await ApiService.post('/fixos/', {
-            'nome': nome,
-            'valor': _valorNumerico,
-            'dia_vencimento': _diaVencimento,
-            'mes': mes,
-            'familia_id': familiaId,
-          });
-        } catch (_) {
-          await supabase.from('gastos_fixos').insert({
-            'nome': nome,
-            'valor': _valorNumerico,
-            'dia_vencimento': _diaVencimento,
-            'mes': mes,
-            'familia_id': familiaId,
-            'pago': false,
-          });
-        }
+        await ApiService.post('/fixos/', {
+          'nome': nome,
+          'valor': _valorNumerico,
+          'dia_vencimento': _diaVencimento,
+          'mes': mes,
+          'familia_id': familiaId,
+        });
         avisar('Gasto fixo criado com sucesso!');
       }
       if (mounted) Navigator.pop(context, true);

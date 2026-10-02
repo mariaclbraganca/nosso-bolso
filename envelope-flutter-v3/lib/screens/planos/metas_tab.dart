@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants.dart';
 import '../../../core/providers/metas_provider.dart';
 import '../../../core/services/financeiro_ext_service.dart';
 import '../../../ui/components/nb_components.dart';
@@ -32,11 +31,7 @@ class MetasTab extends ConsumerWidget {
     );
     if (conf == true) {
       try {
-        try {
-          await FinanceiroExtService.deletarMeta(id);
-        } catch (_) {
-          await supabase.from('metas_economia').delete().eq('id', id);
-        }
+        await FinanceiroExtService.deletarMeta(id);
         ref.invalidate(metasProvider);
         avisar('Meta excluída.');
       } catch (e) {
@@ -79,7 +74,7 @@ class MetasTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Erro: $e', style: const TextStyle(color: NBColors.estouro))),
       data: (metas) {
         final totalAcumulado = metas.fold(0.0, (sum, m) => sum + ((m['valor_atual'] as num?)?.toDouble() ?? 0.0));
-        final totalAlvo = metas.fold(0.0, (sum, m) => sum + ((m['valor_alvo'] as num?)?.toDouble() ?? 0.0));
+        final totalAlvo = metas.fold(0.0, (sum, m) => sum + ((m['valor_meta'] as num?)?.toDouble() ?? 0.0));
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
@@ -142,7 +137,7 @@ class MetasTab extends ConsumerWidget {
                 MetasCard(
                   meta: m,
                   onAportar: () => _abrirAporte(context, ref, m),
-                  onExcluir: () => _excluirMeta(ref, context, m['id'] as String),
+                  onExcluir: () => _excluirMeta(ref, context, idMongo(m)),
                 ),
             const SizedBox(height: NBSpacing.m),
             BotaoSecundario(

@@ -174,3 +174,6 @@ class Rotulo extends StatelessWidget {
         child: Text(texto, style: NBText.rotulo.copyWith(color: NBColors.tintaSuave)),
       );
 }
+
+/// Documentos do MongoDB (contas, metas) chegam com `_id`, não `id`.
+String idMongo(Map<String, dynamic> doc) => (doc['_id'] ?? doc['id'] ?? '').toString();

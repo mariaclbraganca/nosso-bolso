@@ -32,17 +32,17 @@ void main() {
   group('Regras de Negócio de Exercício', () {
     test('Soma de minutos e calorias de múltiplos treinos', () {
       final treinos = [
-        {'duracao_minutos': 30, 'calorias_queimadas': 200.0},
-        {'duracao_minutos': 15, 'calorias_queimadas': 120.0},
+        {'duracao_min': 30, 'calorias_kcal': 200.0},
+        {'duracao_min': 15, 'calorias_kcal': 120.0},
       ];
 
       final totalMin = treinos.fold<int>(
         0,
-        (soma, t) => soma + (t['duracao_minutos'] as int),
+        (soma, t) => soma + (t['duracao_min'] as int),
       );
       final totalCal = treinos.fold<double>(
         0.0,
-        (soma, t) => soma + (t['calorias_queimadas'] as double),
+        (soma, t) => soma + (t['calorias_kcal'] as double),
       );
 
       expect(totalMin, 45);

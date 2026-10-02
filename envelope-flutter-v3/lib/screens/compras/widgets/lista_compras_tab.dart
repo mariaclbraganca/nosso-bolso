@@ -18,7 +18,7 @@ class ListaComprasTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Erro ao carregar lista: $e', style: const TextStyle(color: NBColors.estouro))),
       data: (dados) {
         final itens = (dados['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final totalPrevisto = (dados['total_estimado'] as num?)?.toDouble() ?? 0.0;
+        final totalPrevisto = (dados['custo_estimado_total'] as num?)?.toDouble() ?? 0.0;
 
         if (itens.isEmpty) {
           return const Padding(

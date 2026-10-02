@@ -27,7 +27,6 @@ class FormRefeicaoSheet extends ConsumerStatefulWidget {
 class _FormRefeicaoSheetState extends ConsumerState<FormRefeicaoSheet> {
   late String _tipo;
   final _descricaoCtrl = TextEditingController();
-  final _caloriasCtrl = TextEditingController();
   bool _salvando = false;
 
   final _tipos = const [
@@ -46,7 +45,6 @@ class _FormRefeicaoSheetState extends ConsumerState<FormRefeicaoSheet> {
   @override
   void dispose() {
     _descricaoCtrl.dispose();
-    _caloriasCtrl.dispose();
     super.dispose();
   }
 
@@ -56,23 +54,27 @@ class _FormRefeicaoSheetState extends ConsumerState<FormRefeicaoSheet> {
       avisar('Informe o que você comeu', erro: true);
       return;
     }
-    final cals = double.tryParse(_caloriasCtrl.text.replaceAll(',', '.')) ?? 0.0;
-
     setState(() => _salvando = true);
     try {
-      await SaudeApiService.registrarRefeicao({
+      // A IA do backend calcula os macros a partir do texto.
+      final r = await SaudeApiService.registrarRefeicao({
         'membro_id': widget.membroId,
         'familia_id': widget.familiaId,
-        'tipo': _tipo,
-        'descricao': desc,
-        'calorias_estimadas': cals,
-        'data': widget.data,
+        'tipo_refeicao': _tipo,
+        'modalidade': 'texto',
+        'dados_entrada': {'descricao': desc},
+        'offline_timestamp': widget.data,
       });
+      if (r['status'] == 'aguardando_clarificacao') {
+        avisar(r['pergunta_agente'] as String? ?? 'Conte um pouco mais: quantidades ajudam a IA a calcular.');
+        return;
+      }
       ref.invalidate(refeicoesDiaProvider);
       ref.invalidate(extratoDiarioProvider);
       if (mounted) {
         Navigator.pop(context);
-        avisar('Refeição registrada com sucesso! 🥗');
+        final kcal = (((r['resultado'] as Map?)?['macros_totais'] as Map?)?['calorias_kcal'] as num?)?.round();
+        avisar(kcal == null ? 'Refeição registrada.' : 'Refeição registrada: $kcal kcal.');
       }
     } catch (e) {
       if (mounted) avisar(mensagemErro(e), erro: true);
@@ -120,22 +122,7 @@ class _FormRefeicaoSheetState extends ConsumerState<FormRefeicaoSheet> {
             controller: _descricaoCtrl,
             decoration: InputDecoration(
               labelText: 'O que você comeu?',
-              hintText: 'Ex: Arroz integral, frango e salada',
-              filled: true,
-              fillColor: NBColors.cartao,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(NBRadius.campo),
-                borderSide: const BorderSide(color: NBColors.linha),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _caloriasCtrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Calorias estimadas (opcional)',
-              hintText: 'Ex: 450',
+              hintText: 'Ex: 4 colheres de arroz, 1 filé de frango e salada',
               filled: true,
               fillColor: NBColors.cartao,
               border: OutlineInputBorder(

@@ -65,18 +65,28 @@ class _RegistrarRefeicaoSheetState extends ConsumerState<RegistrarRefeicaoSheet>
     try {
       final hoje = DateTime.now();
       final data = '${hoje.year}-${hoje.month.toString().padLeft(2, '0')}-${hoje.day.toString().padLeft(2, '0')}';
-      await SaudeApiService.registrarRefeicao({
-        'membro_id':      widget.membroId,
-        'familia_id':     widget.familiaId,
-        'tipo_refeicao':  _tipo,
-        'descricao':      desc,
-        'calorias_kcal':  double.tryParse(_kcalCtrl.text) ?? 0,
-        'data':           data,
-        if (double.tryParse(_protCtrl.text) != null) 'proteina_g':     double.parse(_protCtrl.text),
-        if (double.tryParse(_carbCtrl.text) != null) 'carboidrato_g':  double.parse(_carbCtrl.text),
-        if (double.tryParse(_gordCtrl.text) != null) 'gordura_g':      double.parse(_gordCtrl.text),
-        if (double.tryParse(_pesoCtrl.text) != null) 'peso_g':         double.parse(_pesoCtrl.text),
+      // Com calorias digitadas grava como está; sem elas, a IA calcula pelo texto.
+      final kcal = double.tryParse(_kcalCtrl.text.replaceAll(',', '.'));
+      double? n(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.'));
+      final r = await SaudeApiService.registrarRefeicao({
+        'membro_id':         widget.membroId,
+        'familia_id':        widget.familiaId,
+        'tipo_refeicao':     _tipo,
+        'offline_timestamp': data,
+        'modalidade':        kcal != null ? 'manual' : 'texto',
+        'dados_entrada': {
+          'descricao': desc,
+          if (kcal != null) 'calorias_kcal': kcal,
+          if (n(_protCtrl) != null) 'proteina_g':    n(_protCtrl),
+          if (n(_carbCtrl) != null) 'carboidrato_g': n(_carbCtrl),
+          if (n(_gordCtrl) != null) 'gordura_g':     n(_gordCtrl),
+          if (n(_pesoCtrl) != null) 'peso_g':        n(_pesoCtrl),
+        },
       });
+      if (r['status'] == 'aguardando_clarificacao') {
+        _snack(r['pergunta_agente'] as String? ?? 'Conte as quantidades para a IA calcular.', AppColors.org);
+        return;
+      }
       ref.invalidate(refeicoesDiaProvider);
       ref.invalidate(extratoDiarioProvider);
       if (mounted) Navigator.pop(context);

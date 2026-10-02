@@ -29,8 +29,8 @@ class SaudeTab extends ConsumerWidget {
     final extratoAsync = ref.watch(extratoDiarioProvider(args));
     final streakAsync = ref.watch(streakProvider(membroId));
 
-    final calIngeridas = extratoAsync.asData?.value['calorias_ingeridas'] as num? ?? 0;
-    final calMeta = extratoAsync.asData?.value['meta_calorica'] as num? ?? 2000;
+    final calIngeridas = extratoAsync.asData?.value['calorias_consumidas_kcal'] as num? ?? 0;
+    final calMeta = extratoAsync.asData?.value['meta_calorica_kcal'] as num? ?? 2000;
     final streak = streakAsync.asData?.value ?? 1;
 
     return RefreshIndicator(

@@ -52,11 +52,10 @@ class _FormMetaSheetState extends ConsumerState<FormMetaSheet> {
     try {
       await FinanceiroExtService.criarMeta({
         'familia_id': familiaId,
-        'titulo': titulo,
-        'valor_alvo': _valorNumerico,
-        'valor_atual': 0.0,
+        'nome': titulo,
+        'valor_meta': _valorNumerico,
         'emoji': _emoji,
-        'data_prazo': _prazo != null ? DateFormat('yyyy-MM-dd').format(_prazo!) : null,
+        'prazo': _prazo != null ? DateFormat('yyyy-MM-dd').format(_prazo!) : null,
       });
 
       avisar('Meta criada com sucesso! 🎯');

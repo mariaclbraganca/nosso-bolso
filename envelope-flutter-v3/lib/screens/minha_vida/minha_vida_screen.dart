@@ -120,14 +120,11 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
 
             // ── Conteúdo do Segmento ──
             Expanded(
-              child: IndexedStack(
-                index: _segmento,
-                children: [
-                  SaudeTab(membroId: membroId, familiaId: familiaId),
-                  ExercicioTab(membroId: membroId),
-                  JejumTab(membroId: membroId, familiaId: familiaId),
-                ],
-              ),
+              child: switch (_segmento) {
+                0 => SaudeTab(membroId: membroId, familiaId: familiaId),
+                1 => ExercicioTab(membroId: membroId, familiaId: familiaId),
+                _ => JejumTab(membroId: membroId, familiaId: familiaId),
+              },
             ),
           ],
         ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants.dart';
 import '../../../core/providers/fixos_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
@@ -34,35 +33,34 @@ class _FixosTabState extends ConsumerState<FixosTab> {
     });
   }
 
-  Future<void> _togglePago(String id, bool pago) async {
+  /// Pagar gera a transação despesa_fixa no backend (o trigger debita o saldo
+  /// geral); se não houver saldo, o backend recusa e o fixo continua pendente.
+  Future<bool> _togglePago(String id, bool pago) async {
     try {
-      try {
-        await ApiService.patch('/fixos/$id', {'pago': pago});
-      } catch (_) {
-        await supabase.from('gastos_fixos').update({'pago': pago}).eq('id', id);
-      }
-      if (pago) {
-        NotificationService.cancelarAlertasFixo(id);
-      }
+      await ApiService.patch('/fixos/$id', {'pago': pago});
+      if (pago) NotificationService.cancelarAlertasFixo(id);
+      return true;
     } catch (e) {
-      avisar(mensagemErro(e), erro: true);
+      final msg = mensagemErro(e);
+      if (msg.toLowerCase().contains('saldo')) {
+        ref.geronimo('Sem saldo geral para pagar esse fixo. Lance a receita ou remaneje antes.');
+      } else {
+        avisar(msg, erro: true);
+      }
+      return false;
     }
   }
 
   Future<void> _marcarSelecionadosComoPagos() async {
     if (_selecionados.isEmpty) return;
-    try {
-      for (final id in _selecionados) {
-        await _togglePago(id, true);
-      }
-      avisar('${_selecionados.length} fixos marcados como pagos!');
-      setState(() {
-        _selecionados.clear();
-        _modoSelecao = false;
-      });
-    } catch (e) {
-      avisar(mensagemErro(e), erro: true);
+    var pagos = 0;
+    for (final id in _selecionados.toList()) {
+      if (!await _togglePago(id, true)) break;
+      pagos++;
+      _selecionados.remove(id);
     }
+    if (pagos > 0) avisar('$pagos ${pagos == 1 ? 'fixo pago' : 'fixos pagos'}.');
+    if (mounted) setState(() => _modoSelecao = _selecionados.isNotEmpty);
   }
 
   Future<void> _excluirFixo(String id, String nome) async {
@@ -83,11 +81,7 @@ class _FixosTabState extends ConsumerState<FixosTab> {
     );
     if (conf == true) {
       try {
-        try {
-          await ApiService.delete('/fixos/$id');
-        } catch (_) {
-          await supabase.from('gastos_fixos').delete().eq('id', id);
-        }
+        await ApiService.delete('/fixos/$id');
         avisar('Gasto fixo excluído.');
       } catch (e) {
         avisar(mensagemErro(e), erro: true);

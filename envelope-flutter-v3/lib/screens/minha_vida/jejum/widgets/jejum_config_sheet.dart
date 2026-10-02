@@ -36,7 +36,7 @@ class _JejumConfigSheetState extends ConsumerState<JejumConfigSheet> {
     setState(() => _salvando = true);
     try {
       await JejumApiService.salvarConfig(widget.usuarioId, {
-        'protocolo_padrao': _protocolo,
+        'protocolo': _protocolo,
         'familia_id': widget.familiaId,
       });
       ref.invalidate(jejumConfigProvider);

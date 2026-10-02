@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/compras_provider.dart';
-import '../../../core/providers/usuarios_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
@@ -11,19 +10,13 @@ import '../../sheets/comum.dart';
 class FeedbackConsumoTab extends ConsumerWidget {
   const FeedbackConsumoTab({super.key});
 
-  Future<void> _enviarFeedback(
-    WidgetRef ref,
-    String itemId,
-    double pctConsumido,
-  ) async {
-    final perfil = ref.read(perfilUsuarioLogadoProvider).value;
-    final familiaId = perfil?['familia_id'] as String? ?? '';
-
+  /// status: 'acabou' | 'em_consumo' (ainda tem) | 'estragou'
+  Future<void> _enviarFeedback(WidgetRef ref, Map<String, dynamic> item, String status) async {
     try {
       await ApiService.patch('/api/v1/compras/feedback', {
-        'familia_id': familiaId,
-        'item_id': itemId,
-        'pct_consumido': pctConsumido,
+        'compra_id': item['compra_id'],
+        'nome_padronizado': item['nome_padronizado'],
+        'status': status,
       });
 
       ref.invalidate(feedbackPendenteProvider);
@@ -77,12 +70,12 @@ class FeedbackConsumoTab extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['nome_produto'] as String? ?? item['nome'] as String? ?? 'Produto',
+                      item['nome_padronizado'] as String? ?? 'Produto',
                       style: NBText.secao,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Comprado há cerca de ${item['dias_passados'] ?? 7} dias',
+                      _compradoHa(item['data_compra'] as String?),
                       style: NBText.legenda,
                     ),
                     const SizedBox(height: 12),
@@ -90,31 +83,31 @@ class FeedbackConsumoTab extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => _enviarFeedback(ref, item['id'] as String? ?? item['_id'] as String, 1.0),
+                            onPressed: () => _enviarFeedback(ref, item, 'acabou'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: NBColors.verde,
                               side: const BorderSide(color: NBColors.verde),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                            child: const Text('Consumiu tudo'),
+                            child: const Text('Acabou'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => _enviarFeedback(ref, item['id'] as String? ?? item['_id'] as String, 0.5),
+                            onPressed: () => _enviarFeedback(ref, item, 'em_consumo'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: NBColors.tinta,
                               side: const BorderSide(color: NBColors.linha),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                            child: const Text('Sobrou parte'),
+                            child: const Text('Ainda tem'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => _enviarFeedback(ref, item['id'] as String? ?? item['_id'] as String, 0.0),
+                            onPressed: () => _enviarFeedback(ref, item, 'estragou'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: NBColors.estouro,
                               side: const BorderSide(color: NBColors.estouroClaro),
@@ -134,5 +127,12 @@ class FeedbackConsumoTab extends ConsumerWidget {
         );
       },
     );
+  }
+
+  static String _compradoHa(String? data) {
+    final d = DateTime.tryParse(data ?? '');
+    if (d == null) return 'Compra anterior';
+    final dias = DateTime.now().difference(d).inDays;
+    return dias <= 1 ? 'Comprado ontem' : 'Comprado há $dias dias';
   }
 }

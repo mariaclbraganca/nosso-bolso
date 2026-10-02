@@ -24,8 +24,8 @@ class ContasCard extends StatelessWidget {
     final pago = conta['pago'] == true;
     final cat = conta['categoria'] as String? ?? 'outro';
     final emoji = emojiCategoria(cat);
-    final vencStr = conta['data_vencimento'] as String?;
-    final codigo = conta['codigo_barras'] as String? ?? conta['pix_copia_cola'] as String?;
+    final vencStr = conta['vencimento'] as String?;
+    final codigo = conta['observacao'] as String?;
 
     DateTime? venc;
     if (vencStr != null) venc = DateTime.tryParse(vencStr);
