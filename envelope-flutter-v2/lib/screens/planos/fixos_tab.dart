@@ -7,6 +7,7 @@ import '../../widgets/shared/error_state.dart';
 import '../../providers/mes_provider.dart';
 import '../../constants.dart';
 import '../../services/notification_service.dart';
+import '../../services/api_service.dart';
 import 'form_fixo_sheet.dart';
 
 class FixosTab extends ConsumerStatefulWidget {
@@ -52,12 +53,14 @@ class _FixosTabState extends ConsumerState<FixosTab> {
     final ids = _selecionados.toList();
 
     try {
-      await supabase
-          .from('gastos_fixos')
-          .update({'pago': true}).inFilter('id', ids);
-
-      // Cancela alertas para cada fixo marcado como pago
       for (final id in ids) {
+        try {
+          await ApiService.patch('/fixos/$id', {'pago': true});
+        } catch (_) {
+          await supabase
+              .from('gastos_fixos')
+              .update({'pago': true}).eq('id', id);
+        }
         NotificationService.cancelarAlertasFixo(id);
       }
 
@@ -82,12 +85,17 @@ class _FixosTabState extends ConsumerState<FixosTab> {
     }
   }
 
-  // ── Toggle pago via Supabase PATCH ────────────────────────────────────────
+  // ── Toggle pago via ApiService PATCH (atualiza saldo_geral conforme regra FIXOS_SEM_TRIGGER) ──
   Future<void> _togglePago(String id, bool novoValor) async {
     try {
-      await supabase
-          .from('gastos_fixos')
-          .update({'pago': novoValor}).eq('id', id);
+      try {
+        await ApiService.patch('/fixos/$id', {'pago': novoValor});
+      } catch (apiErr) {
+        // Fallback local se a API estiver fora
+        await supabase
+            .from('gastos_fixos')
+            .update({'pago': novoValor}).eq('id', id);
+      }
 
       // Cancela alertas quando marcado como pago
       if (novoValor) NotificationService.cancelarAlertasFixo(id);
@@ -203,6 +211,28 @@ class _FixosTabState extends ConsumerState<FixosTab> {
               _modoSelecao && _selecionados.isNotEmpty ? 140 : 100,
             ),
             children: [
+              // Propósito da aba
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: const Row(
+                  children: [
+                    Text('📌 ', style: TextStyle(fontSize: 14)),
+                    Expanded(
+                      child: Text(
+                        'Compromissos fixos e assinaturas mensais da família.',
+                        style: TextStyle(fontSize: 12, color: AppColors.mu),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // Botão Selecionar / Cancelar no topo
               if (fixos.isNotEmpty)
                 Align(
@@ -549,29 +579,32 @@ class _FixoItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Row(children: [
-                  Text(
-                    isPago ? 'Pago' : 'Pendente',
-                    style: AppTextStyles.caption.copyWith(
-                        color: statusColor, fontWeight: FontWeight.w700),
-                  ),
-                  if (!isPago && fixo['dia_vencimento'] != null) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppColors.org.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Vence dia ${fixo['dia_vencimento']}',
-                        style: AppTextStyles.caption.copyWith(
-                            color: AppColors.org, fontSize: 10),
-                      ),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    Text(
+                      isPago ? 'Pago' : 'Pendente',
+                      style: AppTextStyles.caption.copyWith(
+                          color: statusColor, fontWeight: FontWeight.w700),
                     ),
+                    if (!isPago && fixo['dia_vencimento'] != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.org.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Vence dia ${fixo['dia_vencimento']}',
+                          style: AppTextStyles.caption.copyWith(
+                              color: AppColors.org, fontSize: 10),
+                        ),
+                      ),
                   ],
-                ]),
+                ),
               ],
             ),
           ),

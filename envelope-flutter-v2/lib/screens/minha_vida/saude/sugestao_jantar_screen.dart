@@ -141,7 +141,19 @@ class _SugestaoJantarScreenState extends ConsumerState<SugestaoJantarScreen> {
               ),
               Row(children: [
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    setState(() {
+                      (_resultado?['itens_suspeitos'] as List?)?.removeWhere((x) => x['nome'] == item['nome']);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Item "${item['nome']}" confirmado no estoque! 🌿'),
+                        backgroundColor: AppColors.grn,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                   style: TextButton.styleFrom(minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 8)),
                   child: const Text('✅ Sim', style: TextStyle(color: AppColors.grn, fontSize: 12)),
                 ),

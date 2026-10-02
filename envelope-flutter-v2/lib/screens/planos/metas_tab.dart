@@ -6,6 +6,7 @@ import '../../widgets/shared/error_state.dart';
 import '../../services/financeiro_ext_service.dart';
 import '../../widgets/unicorn/unicorn_system.dart';
 import 'adicionar_meta_sheet.dart';
+import '../../utils/moeda.dart';
 
 class MetasTab extends ConsumerWidget {
   const MetasTab({super.key});
@@ -369,9 +370,8 @@ class _ContribuirSheetState extends ConsumerState<_ContribuirSheet> {
   }
 
   Future<void> _salvar() async {
-    final valor =
-        double.tryParse(_ctrl.text.replaceAll(',', '.'));
-    if (valor == null || valor <= 0) return;
+    final valor = parseMoeda(_ctrl.text);
+    if (valor <= 0) return;
 
     setState(() => _salvando = true);
     try {
@@ -448,12 +448,35 @@ class _ContribuirSheetState extends ConsumerState<_ContribuirSheet> {
               ),
             ),
           ]),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // Aviso pedagógico sobre cofrinho/metas
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.surf,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.bord, width: 0.5),
+            ),
+            child: const Row(
+              children: [
+                Text('💡 ', style: TextStyle(fontSize: 14)),
+                Expanded(
+                  child: Text(
+                    'As metas registram seu progresso planejado. Elas não debitam dos envelopes automaticamente.',
+                    style: TextStyle(fontSize: 11, color: AppColors.mu, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           TextField(
             controller: _ctrl,
             autofocus: true,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: TextInputType.number,
+            inputFormatters: [MoedaInputFormatter()],
             style: AppTextStyles.mono.copyWith(fontSize: 28),
             decoration: InputDecoration(
               hintText: '0,00',
@@ -466,7 +489,7 @@ class _ContribuirSheetState extends ConsumerState<_ContribuirSheet> {
               filled: false,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(

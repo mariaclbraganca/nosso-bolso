@@ -9,7 +9,9 @@ import '../../services/api_service.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../providers/fixos_provider.dart';
-import '../../widgets/unicorn/unicorn_system.dart';
+import '../../providers/astrix_provider.dart';
+import '../../widgets/mascote/astrix_painter.dart';
+import '../../widgets/unicorn/unicorn_system.dart' hide AstrixMood;
 import 'form_gasto_sheet.dart';
 import 'form_envelope_sheet.dart';
 import 'remanejar_sheet.dart';
@@ -31,6 +33,7 @@ class EnvelopeDetailSheet extends ConsumerStatefulWidget {
 
 class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
   final fmt = NumberFormat.simpleCurrency(locale: 'pt_BR');
+  bool _astrixAlertShown = false;
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +48,35 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
         final pct    = plan > 0 ? (saldo / plan).clamp(0.0, 1.0) : 0.0;
         final isNeg  = saldo < 0;
         final spent  = plan - saldo;
+        final nome   = (env['nome_envelope'] as String? ?? 'envelope').toLowerCase();
 
         Color barColor = AppColors.grn;
         if (isNeg) barColor = AppColors.red;
         else if (pct <= 0.2) barColor = AppColors.red;
         else if (pct <= 0.5) barColor = AppColors.org;
+
+        // Astrix avisa uma vez quando o envelope estoura ou está quase no limite.
+        if (!_astrixAlertShown) {
+          if (isNeg) {
+            _astrixAlertShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.astrix(
+                'Xiii... o envelope "$nome" estourou 😬\nQuer remanejá-lo?',
+                mood: AstrixMood.sad,
+              );
+            });
+          } else if (pct <= 0.2 && plan > 0) {
+            _astrixAlertShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref.astrix(
+                'Psst! O envelope "$nome" está quase no limite 🔔\nCuidado com os próximos gastos!',
+                mood: AstrixMood.thinking,
+              );
+            });
+          }
+        }
 
         return Container(
           height: MediaQuery.of(context).size.height * 0.88,
@@ -121,20 +148,21 @@ class _EnvelopeDetailSheetState extends ConsumerState<EnvelopeDetailSheet> {
               ),
               Row(
                 children: [
-                  if (widget.isAdmin)
-                    IconButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => FormEnvelopeSheet(envelope: env),
-                        );
-                      },
-                      icon: const Icon(Icons.edit_outlined, color: AppColors.mu, size: 20),
-                    ),
                   IconButton(
+                    tooltip: 'Editar envelope',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => FormEnvelopeSheet(envelope: env),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_outlined, color: AppColors.mu, size: 20),
+                  ),
+                  IconButton(
+                    tooltip: 'Fechar',
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded, color: AppColors.mu),
                   ),

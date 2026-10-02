@@ -8,6 +8,7 @@ import '../../providers/envelopes_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
 import '../../utils/moeda.dart';
+import 'widgets/form_gasto_widgets.dart';
 
 class FormGastoSheet extends ConsumerStatefulWidget {
   final String? initialEnvelopeId;
@@ -25,7 +26,7 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
   String? _envelopeSelecionadoId;
   XFile? _comprovante;
   bool _carregando = false;
-
+  String _formaPagamento = 'credito';
 
   @override
   void initState() {
@@ -67,7 +68,6 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
       if (perfil == null) throw Exception('Usuário não autenticado');
 
       final valor = parseMoeda(_valorController.text);
-
       final data = <String, dynamic>{
         'valor': valor,
         'tipo': 'despesa',
@@ -77,14 +77,30 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
         'descricao': _descricaoController.text.trim().isEmpty
             ? null
             : _descricaoController.text.trim(),
+        'forma_pagamento': _formaPagamento,
       };
-
-      // TODO: upload do comprovante e adicionar comprovante_url
-      // if (_comprovante != null) { ... }
 
       await ApiService.post('/transacoes/', data);
 
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        HapticFeedback.mediumImpact();
+        Navigator.of(context).pop(true);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text('Gasto de R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')} registrado!'),
+              ],
+            ),
+            backgroundColor: AppColors.grn,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,13 +117,12 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final envelopesAsync = ref.watch(envelopesProvider);
-    final envelopes = envelopesAsync.value ?? [];
+    final envelopes = ref.watch(envelopesProvider).value ?? [];
     final bottom = MediaQuery.of(context).viewInsets.bottom + 20;
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        maxHeight: MediaQuery.of(context).size.height * 0.95,
       ),
       decoration: const BoxDecoration(
         color: AppColors.card,
@@ -116,283 +131,110 @@ class _FormGastoSheetState extends ConsumerState<FormGastoSheet> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.pagePad,
-            0,
-            AppSpacing.pagePad,
-            bottom,
-          ),
+          padding: EdgeInsets.fromLTRB(AppSpacing.pagePad, 0, AppSpacing.pagePad, bottom),
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
               child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12, bottom: 20),
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.mu.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(2),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 20),
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.mu.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                // Cabeçalho
-                Text('Registrar gasto 💸', style: AppTextStyles.title),
-                const SizedBox(height: 4),
-                Text(
-                  'máx. 4 toques ⚡',
-                  style: AppTextStyles.caption,
-                ),
-                const SizedBox(height: 24),
-
-                // Campo Valor
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surf,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
-                    border: Border.all(
-                      color: AppColors.red.withOpacity(0.3),
-                      width: 1,
-                    ),
+                  Text('Registrar gasto 💸', style: AppTextStyles.title),
+                  const SizedBox(height: 4),
+                  Text('máx. 4 toques ⚡', style: AppTextStyles.caption),
+                  const SizedBox(height: 24),
+                  GastoValorInput(controller: _valorController),
+                  const SizedBox(height: 20),
+                  Text('Envelope', style: AppTextStyles.bodySm.copyWith(color: AppColors.mu)),
+                  const SizedBox(height: 8),
+                  GastoEnvelopeGrid(
+                    envelopes: envelopes,
+                    envelopeSelecionadoId: _envelopeSelecionadoId,
+                    onSelect: (id) => setState(() => _envelopeSelecionadoId = id),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+                  const SizedBox(height: 20),
+                  Text('Forma de pagamento', style: AppTextStyles.bodySm.copyWith(color: AppColors.mu)),
+                  const SizedBox(height: 8),
+                  FormaPagamentoChips(
+                    formaPagamento: _formaPagamento,
+                    onSelect: (f) => setState(() => _formaPagamento = f),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  const SizedBox(height: 20),
+                  Row(
                     children: [
-                      Text(
-                        'R\$',
-                        style: AppTextStyles.titleSm.copyWith(
-                          color: AppColors.red.withOpacity(0.7),
+                      Expanded(
+                        child: TextFormField(
+                          key: const Key('campo_descricao'),
+                          controller: _descricaoController,
+                          style: AppTextStyles.body,
+                          decoration: InputDecoration(
+                            hintText: 'Descrição (opcional)',
+                            hintStyle: AppTextStyles.body.copyWith(color: AppColors.mu),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          key: const Key('campo_valor'),
-                          controller: _valorController,
-                          autofocus: true,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[\d,.]'),
+                      GestureDetector(
+                        onTap: _pickImagem,
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: _comprovante != null ? AppColors.acc.withOpacity(0.15) : AppColors.surf,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+                            border: Border.all(
+                              color: _comprovante != null ? AppColors.acc : AppColors.bord,
                             ),
-                          ],
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.mono.copyWith(
-                            fontSize: 44,
-                            color: AppColors.red,
-                            fontWeight: FontWeight.w700,
                           ),
-                          decoration: InputDecoration(
-                            filled: false,
-                            border: InputBorder.none,
-                            hintText: '0,00',
-                            hintStyle: AppTextStyles.mono.copyWith(
-                              fontSize: 44,
-                              color: AppColors.red.withOpacity(0.3),
-                            ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Informe o valor';
-                            }
-                            final n = parseMoeda(v);
-                            if (n <= 0) return 'Valor inválido';
-                            return null;
-                          },
+                          child: _comprovante != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+                                  child: Image.file(File(_comprovante!.path), fit: BoxFit.cover),
+                                )
+                              : const Icon(Icons.camera_alt_outlined, color: AppColors.mu, size: 22),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // Label envelopes
-                Text('Envelope', style: AppTextStyles.bodySm.copyWith(color: AppColors.mu)),
-                const SizedBox(height: 8),
-
-                // Grid de envelopes
-                if (envelopes.isEmpty)
-                  Center(
-                    child: Text(
-                      'Nenhum envelope encontrado',
-                      style: AppTextStyles.caption,
-                    ),
-                  )
-                else
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 3.2,
-                      crossAxisSpacing: AppSpacing.cardGap,
-                      mainAxisSpacing: AppSpacing.cardGap,
-                    ),
-                    itemCount: envelopes.length,
-                    itemBuilder: (context, index) {
-                      final env = envelopes[index];
-                      final id = env['id'] as String;
-                      final selecionado = _envelopeSelecionadoId == id;
-                      final emoji = env['emoji'] as String? ?? '📦';
-                      final nome = env['nome_envelope'] as String? ?? '—';
-
-                      return GestureDetector(
-                        onTap: () => setState(
-                          () => _envelopeSelecionadoId = id,
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      key: const Key('btn_registrar_gasto'),
+                      onPressed: _carregando ? null : _registrar,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                        foregroundColor: AppColors.tx,
+                        disabledBackgroundColor: AppColors.red.withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
                         ),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          decoration: BoxDecoration(
-                            color: selecionado
-                                ? AppColors.acc.withOpacity(0.12)
-                                : AppColors.surf,
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.radiusChip,
-                            ),
-                            border: Border.all(
-                              color: selecionado
-                                  ? AppColors.acc
-                                  : AppColors.bord,
-                              width: selecionado ? 1.5 : 1,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 0,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(emoji, style: const TextStyle(fontSize: 16)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  nome,
-                                  style: AppTextStyles.bodySm.copyWith(
-                                    color: selecionado
-                                        ? AppColors.acc
-                                        : AppColors.tx,
-                                    fontWeight: selecionado
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                        elevation: 0,
+                      ),
+                      child: _carregando
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.tx),
+                            )
+                          : Text('Registrar gasto', style: AppTextStyles.titleSm.copyWith(color: AppColors.tx)),
+                    ),
                   ),
-                const SizedBox(height: 20),
-
-                // Campo descrição + botão câmera
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        key: const Key('campo_descricao'),
-                        controller: _descricaoController,
-                        style: AppTextStyles.body,
-                        decoration: InputDecoration(
-                          hintText: 'Descrição (opcional)',
-                          hintStyle: AppTextStyles.body.copyWith(
-                            color: AppColors.mu,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _pickImagem,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: _comprovante != null
-                              ? AppColors.acc.withOpacity(0.15)
-                              : AppColors.surf,
-                          borderRadius: BorderRadius.circular(
-                            AppSpacing.radiusInput,
-                          ),
-                          border: Border.all(
-                            color: _comprovante != null
-                                ? AppColors.acc
-                                : AppColors.bord,
-                          ),
-                        ),
-                        child: _comprovante != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusInput,
-                                ),
-                                child: Image.file(
-                                  File(_comprovante!.path),
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.camera_alt_outlined,
-                                color: AppColors.mu,
-                                size: 22,
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Botão registrar
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    key: const Key('btn_registrar_gasto'),
-                    onPressed: _carregando ? null : _registrar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.red,
-                      foregroundColor: AppColors.tx,
-                      disabledBackgroundColor: AppColors.red.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _carregando
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.tx,
-                            ),
-                          )
-                        : Text(
-                            'Registrar gasto',
-                            style: AppTextStyles.titleSm.copyWith(
-                              color: AppColors.tx,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+                ],
               ),
             ),
           ),

@@ -12,6 +12,9 @@ import 'insights_screen.dart';
 import 'pin_screen.dart';
 import 'simulador_gastos_screen.dart';
 import '../unicorn_splash_screen.dart';
+import '../extrato/extrato_pdf.dart';
+import '../extrato/extrato_csv.dart';
+import '../../providers/mes_provider.dart';
 
 class ConfigHubScreen extends ConsumerWidget {
   const ConfigHubScreen({super.key});
@@ -158,18 +161,50 @@ class ConfigHubScreen extends ConsumerWidget {
                     builder: (_) => const NotificationSettingsScreen()),
               ),
             ),
-            const _Divider(),
             _MenuItem(
               emoji: '📊',
               label: 'Exportar dados',
-              subtitle: 'Baixar relatório em PDF',
-              showChevron: false,
-              trailing: const Icon(Icons.open_in_new,
-                  color: AppColors.mu, size: 16),
-              onTap: () => launchUrl(
-                Uri.parse('https://enqltolmazmrkdghitae.supabase.co/storage/v1/object/public/exports/'),
-                mode: LaunchMode.externalApplication,
-              ),
+              subtitle: 'Gerar relatório em PDF ou planilha CSV',
+              onTap: () {
+                final mes = ref.read(mesAtualProvider);
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: AppColors.card,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+                  ),
+                  builder: (ctx) => SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Exportar Extrato do Mês', style: AppTextStyles.titleSm),
+                          const SizedBox(height: 16),
+                          ListTile(
+                            leading: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.org),
+                            title: const Text('Exportar em PDF'),
+                            subtitle: const Text('Ideal para impressão e visualização'),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              exportarPdf(context, ref, mes);
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.table_chart_outlined, color: AppColors.blu),
+                            title: const Text('Exportar em CSV'),
+                            subtitle: const Text('Ideal para Excel e planilhas'),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              exportarCsv(context, ref, mes);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ]),
 
@@ -253,12 +288,12 @@ class ConfigHubScreen extends ConsumerWidget {
               const Text('🦄', style: TextStyle(fontSize: 28)),
               const SizedBox(height: 4),
               const Text(
-                'Envelope App v2',
+                'Nosso Bolso v2',
                 style: TextStyle(color: AppColors.mu, fontSize: 11),
               ),
-              const Text(
-                'Feito com amor pela família Silva 💚',
-                style: TextStyle(color: AppColors.mu, fontSize: 10),
+              Text(
+                'Feito com amor para a $nomeFamilia 💚',
+                style: const TextStyle(color: AppColors.mu, fontSize: 10),
               ),
             ]),
           ),

@@ -57,7 +57,7 @@ Future<void> _iniciar() async {
   try {
     await Supabase.initialize(
       url: supabaseUrl,
-      publishableKey: supabaseAnonKey,
+      anonKey: supabaseAnonKey,
       realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
     );
   } catch (e, st) {

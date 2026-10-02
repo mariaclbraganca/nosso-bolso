@@ -231,18 +231,25 @@ Regras:
     String tipo,
   ) async {
     const endpoint = '/api/v1/compras/notificacao-nubank';
+    final bodyBase = {
+      'estabelecimento': estabelecimento,
+      'valor': valor,
+      'data': data,
+      'tipo': tipo,
+    };
     try {
-      final session = Supabase.instance.client.auth.currentSession;
+      // Em background o Supabase pode não existir neste isolate — acessar
+      // .client lança LateInitializationError. Protege e trata como sem sessão.
+      Session? session;
+      try {
+        session = Supabase.instance.client.auth.currentSession;
+      } catch (_) {
+        session = null;
+      }
       if (session == null) {
-        // App capturou em background sem sessão carregada no isolate. NÃO perde
-        // a compra: enfileira p/ enviar quando o app abrir com sessão válida.
-        // (Requisito: zero gasto perdido.)
-        await NotificacaoFilaService.enfileirar(endpoint, {
-          'estabelecimento': estabelecimento,
-          'valor': valor,
-          'data': data,
-          'tipo': tipo,
-        });
+        // App capturou em background sem sessão. NÃO perde: enfileira p/ enviar
+        // quando o app abrir. (Requisito: zero gasto perdido.)
+        await NotificacaoFilaService.enfileirar(endpoint, bodyBase);
         return;
       }
 

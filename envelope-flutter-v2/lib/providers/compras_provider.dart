@@ -67,3 +67,7 @@ final comprasFalhasProvider =
   } catch (_) {}
   return [];
 });
+
+/// Itens checados na lista inteligente de compras (mantido durante a sessão do app)
+final itensChecadosListaProvider = StateProvider<Set<String>>((ref) => <String>{});
+

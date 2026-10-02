@@ -14,10 +14,13 @@ import '../../widgets/unicorn/unicorn_system.dart';
 import '../sheets/envelope_detail_sheet.dart';
 import '../sheets/form_envelope_sheet.dart';
 import '../config/config_hub_screen.dart';
+import '../retrospectiva_screen.dart';
 import '../../services/notification_service.dart';
 import '../../services/ifood_notification_service.dart';
 import '../sheets/abastecer_sheet.dart';
 import 'widgets/jejum_chip_home.dart';
+import '../../providers/dia_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +37,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _verificarPermissao();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepararAlarmeFechamento());
+  }
+
+  /// Abre o fechamento se o app foi aberto pelo alarme e, na primeira vez,
+  /// explica e pede as permissões do alarme das 23h30.
+  Future<void> _prepararAlarmeFechamento() async {
+    if (await NotificationService.lancadoPeloAlarme()) {
+      NotificationService.abrirFechamentoDia();
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('alarme_fechamento_permissao') == true || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surf,
+        title: const Text('Alarme das 23h30 🌙'),
+        content: const Text(
+          'Todo dia às 23h30 o celular vai tocar para a família fechar o dia: '
+          'conferir os gastos e confirmar os envelopes. Leva 30 segundos.\n\n'
+          'Na próxima tela, permita notificações, alarmes e tela cheia.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Ativar'),
+          ),
+        ],
+      ),
+    );
+    await NotificationService.pedirPermissoesAlarme();
+    await NotificationService.agendarAlarmeFechamento();
+    await prefs.setBool('alarme_fechamento_permissao', true);
   }
 
   Future<void> _verificarPermissao() async {
@@ -44,6 +80,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Monitora mudanças nos envelopes para disparar notificação quando negativo.
+    // Alguém da família já fechou hoje → não toca o alarme de hoje neste celular.
+    ref.listen<AsyncValue<Map<String, dynamic>>>(resumoDiaProvider, (_, next) {
+      if (next.asData?.value['fechado'] == true) {
+        NotificationService.agendarAlarmeFechamento(hojeFechado: true);
+      }
+    });
+
     ref.listen<AsyncValue<List<Map<String, dynamic>>>>(
       envelopesProvider,
       (_, next) {
@@ -82,7 +125,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(envelopesProvider.future),
+        onRefresh: () {
+          ref.invalidate(resumoDiaProvider);
+          return ref.refresh(envelopesProvider.future);
+        },
         color: AppColors.acc,
         backgroundColor: AppColors.surf,
         child: CustomScrollView(
@@ -91,6 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverToBoxAdapter(
               child: _SaldoCard(saldo: saldoLivre),
             ),
+            const SliverToBoxAdapter(child: _FechamentoDiaCard()),
             if (membroId != null && familiaId != null)
               SliverToBoxAdapter(
                 child: Padding(
@@ -247,14 +294,44 @@ class _Header extends StatelessWidget {
         ),
         Positioned(
           top: h + 8,
-          right: 4,
-          child: IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ConfigHubScreen()),
-            ),
-            icon: const Icon(Icons.settings_rounded, color: AppColors.mu, size: 20),
-            tooltip: 'Configurações',
+          right: 8,
+          child: Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    final mesAtual = DateFormat('yyyy-MM').format(DateTime.now());
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => RetrospectivaScreen(mes: mesAtual)),
+                    );
+                  },
+                  icon: const Icon(Icons.auto_graph_rounded, color: AppColors.acc, size: 20),
+                  tooltip: 'Retrospectiva do mês',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ConfigHubScreen()),
+                  ),
+                  icon: const Icon(Icons.settings_rounded, color: AppColors.tx, size: 20),
+                  tooltip: 'Configurações',
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -290,7 +367,7 @@ class _SaldoCard extends ConsumerWidget {
           ),
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
           border: Border.all(
-            color: isPositivo ? AppColors.acc.withOpacity(0.2) : AppColors.red.withOpacity(0.3),
+            color: isPositivo ? AppColors.acc.withOpacity(0.2) : AppColors.dred.withOpacity(0.4),
             width: 0.5,
           ),
         ),
@@ -301,21 +378,22 @@ class _SaldoCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
                     fmt.format(saldo),
-                    style: AppTextStyles.monoLg.copyWith(color: isPositivo ? AppColors.tx : AppColors.red),
+                    style: AppTextStyles.monoLg.copyWith(color: isPositivo ? AppColors.tx : AppColors.dred),
                   ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _InfoChip(
                   label: '$totalEnvelopes envelope${totalEnvelopes == 1 ? '' : 's'}',
                   icon: Icons.account_balance_wallet_rounded,
                   color: AppColors.acc,
                 ),
-                const SizedBox(width: 8),
                 _InfoChip(
                   label: isPositivo ? 'Saldo positivo ✓' : 'Saldo negativo ⚠',
                   icon: isPositivo ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                  color: isPositivo ? AppColors.grn : AppColors.red,
+                  color: isPositivo ? AppColors.grn : AppColors.dred,
                 ),
               ],
             ),
@@ -362,12 +440,15 @@ class _EnvelopeCard extends StatelessWidget {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     final saldo = (envelope['saldo_atual'] as num?)?.toDouble() ?? 0;
     final planejado = (envelope['valor_planejado'] as num?)?.toDouble() ?? 1;
-    final pct = (saldo / planejado).clamp(0.0, 1.0);
+    final isNeg = saldo < 0;
+    final pct = planejado > 0 ? (saldo / planejado).clamp(0.0, 1.0) : 0.0;
     final emoji = envelope['emoji'] as String? ?? '📦';
     final nome = envelope['nome_envelope'] as String? ?? '';
 
+    // NEGATIVE_OK: saldo < 0 → #8B0000 (dred)
     Color barColor;
-    if (pct > 0.5) barColor = AppColors.grn;
+    if (isNeg) barColor = AppColors.dred;
+    else if (pct > 0.5) barColor = AppColors.grn;
     else if (pct > 0.2) barColor = AppColors.org;
     else barColor = AppColors.red;
 
@@ -383,7 +464,7 @@ class _EnvelopeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
-          border: Border.all(color: AppColors.bord, width: 0.5),
+          border: Border.all(color: isNeg ? AppColors.dred.withOpacity(0.35) : AppColors.bord, width: 0.5),
         ),
         child: Column(
           children: [
@@ -393,7 +474,7 @@ class _EnvelopeCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: barColor.withOpacity(0.1),
+                    color: barColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
@@ -410,16 +491,16 @@ class _EnvelopeCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(fmt.format(saldo), style: AppTextStyles.monoSm.copyWith(color: barColor)),
+                Text(fmt.format(saldo), style: AppTextStyles.monoSm.copyWith(color: barColor, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: pct,
+                value: isNeg ? 1.0 : pct,
                 minHeight: 5,
-                backgroundColor: AppColors.bord,
+                backgroundColor: isNeg ? AppColors.dred.withOpacity(0.2) : AppColors.bord,
                 valueColor: AlwaysStoppedAnimation(barColor),
               ),
             ),
@@ -427,15 +508,24 @@ class _EnvelopeCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${(pct * 100).toStringAsFixed(0)}% do planejado', style: AppTextStyles.caption),
-                if (saldo < 0)
+                Text(
+                  isNeg
+                      ? 'Estourado em ${fmt.format(saldo.abs())}'
+                      : '${(pct * 100).toStringAsFixed(0)}% do planejado',
+                  style: AppTextStyles.caption.copyWith(
+                    color: isNeg ? AppColors.dred : AppColors.mu,
+                    fontWeight: isNeg ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                if (isNeg)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.red.withOpacity(0.1),
+                      color: AppColors.dred.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
+                      border: Border.all(color: AppColors.dred.withOpacity(0.4), width: 0.5),
                     ),
-                    child: Text('Negativo', style: AppTextStyles.caption.copyWith(color: AppColors.red)),
+                    child: Text('Negativo', style: AppTextStyles.caption.copyWith(color: AppColors.dred, fontWeight: FontWeight.w700)),
                   ),
               ],
             ),
@@ -719,6 +809,76 @@ class _BannerPermissaoNotif extends StatelessWidget {
           const SizedBox(width: 8),
           const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.mu, size: 14),
         ]),
+      ),
+    );
+  }
+}
+
+
+/// Card do ritual diário: quanto dá pra gastar por dia, streak e pendências.
+class _FechamentoDiaCard extends ConsumerWidget {
+  const _FechamentoDiaCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = ref.watch(resumoDiaProvider).asData?.value;
+    if (r == null || r.isEmpty) return const SizedBox.shrink();
+
+    final fmt = NumberFormat.simpleCurrency(locale: 'pt_BR');
+    final porDia = r['pode_gastar_por_dia'] as num?;
+    final pendentes = (r['pendentes'] as List? ?? []).length;
+    final streak = (r['streak'] as num?)?.toInt() ?? 0;
+    final fechado = r['fechado'] == true;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePad, AppSpacing.cardGap, AppSpacing.pagePad, 0),
+      child: Material(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          onTap: NotificationService.abrirFechamentoDia,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+              border: Border.all(color: pendentes > 0 ? AppColors.org : AppColors.bord),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Dá pra gastar hoje',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.mu)),
+                      const SizedBox(height: 2),
+                      Text(
+                        porDia == null ? '—' : '${fmt.format(porDia)}/dia',
+                        style: AppTextStyles.monoLg.copyWith(
+                            color: (porDia ?? 1) <= 0 ? AppColors.red : AppColors.acc),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        pendentes > 0
+                            ? '$pendentes ${pendentes == 1 ? 'compra' : 'compras'} para resolver ›'
+                            : fechado ? 'Dia fechado ✅' : 'Fechar o dia ›',
+                        style: AppTextStyles.bodySm.copyWith(
+                            color: pendentes > 0 ? AppColors.org : AppColors.mu),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 26)),
+                    Text('$streak', style: AppTextStyles.titleSm.copyWith(color: AppColors.gold)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

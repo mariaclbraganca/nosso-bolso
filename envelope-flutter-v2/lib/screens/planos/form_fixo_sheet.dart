@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../providers/mes_provider.dart';
 import '../../constants.dart';
+import '../../utils/moeda.dart';
 
 /// Bottom sheet para adicionar ou editar gasto fixo.
 /// Persiste diretamente no Supabase (tabela gastos_fixos).
@@ -30,7 +32,10 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
     super.initState();
     if (_isEditing) {
       _nomeCtrl.text = widget.fixo!['nome'] as String? ?? '';
-      _valorCtrl.text = (widget.fixo!['valor'] as num?)?.toString() ?? '';
+      final valorNum = (widget.fixo!['valor'] as num?)?.toDouble() ?? 0;
+      _valorCtrl.text = valorNum > 0
+          ? NumberFormat.currency(locale: 'pt_BR', symbol: '').format(valorNum).trim()
+          : '';
       _recorrente = widget.fixo!['recorrente'] as bool? ?? false;
       _diaVencimento = widget.fixo!['dia_vencimento'] as int?;
     }
@@ -45,8 +50,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
 
   Future<void> _salvar() async {
     final nome = _nomeCtrl.text.trim();
-    final valor =
-        double.tryParse(_valorCtrl.text.replaceAll(',', '.')) ?? 0.0;
+    final valor = parseMoeda(_valorCtrl.text);
 
     if (nome.isEmpty || valor <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,21 +77,23 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
         }).eq('id', widget.fixo!['id'] as String);
       } else {
         final mes = ref.read(mesAtualProvider);
-        await supabase.from('gastos_fixos').insert({
-          'nome': nome,
-          'valor': valor,
-          'mes': mes,
-          'familia_id': perfil['familia_id'],
-          'recorrente': _recorrente,
-          'pago': false,
-          'dia_vencimento': _diaVencimento,
-        });
+        final inserts = <Map<String, dynamic>>[
+          {
+            'nome': nome,
+            'valor': valor,
+            'mes': mes,
+            'familia_id': perfil['familia_id'],
+            'recorrente': _recorrente,
+            'pago': false,
+            'dia_vencimento': _diaVencimento,
+          }
+        ];
 
         if (_recorrente) {
           String mesAtual = mes;
           for (int i = 0; i < 11; i++) {
             mesAtual = mesProximo(mesAtual);
-            await supabase.from('gastos_fixos').insert({
+            inserts.add({
               'nome': nome,
               'valor': valor,
               'mes': mesAtual,
@@ -98,6 +104,9 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
             });
           }
         }
+
+        // Inserção atômica em lote (evita falha parcial se a rede oscilar)
+        await supabase.from('gastos_fixos').insert(inserts);
       }
 
       if (mounted) {
@@ -317,6 +326,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
           TextField(
             controller: _valorCtrl,
             keyboardType: TextInputType.number,
+            inputFormatters: [MoedaInputFormatter()],
             style: AppTextStyles.body,
             decoration: InputDecoration(
               labelText: 'VALOR MENSAL (R\$)',

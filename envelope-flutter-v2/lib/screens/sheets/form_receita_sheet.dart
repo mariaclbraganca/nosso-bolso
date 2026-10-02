@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../services/api_service.dart';
 import '../../utils/moeda.dart';
 import 'abastecer_sheet.dart';
-
-const _origens = [
-  ('Salário', Icons.work_outline),
-  ('Freelance', Icons.laptop_outlined),
-  ('Investimento', Icons.trending_up_outlined),
-  ('Presente', Icons.card_giftcard_outlined),
-  ('Outros', Icons.more_horiz),
-];
+import 'widgets/form_receita_widgets.dart';
 
 class FormReceitaSheet extends ConsumerStatefulWidget {
   const FormReceitaSheet({super.key});
@@ -38,7 +30,6 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
 
   Future<void> _confirmar() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _carregando = true);
     try {
       final perfil = ref.read(perfilUsuarioLogadoProvider).value;
@@ -51,14 +42,27 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
         'valor': valor,
         'usuario_id': perfil['id'],
         'familia_id': perfil['familia_id'],
-        'descricao': obs.isEmpty
-            ? _origemSelecionada
-            : '$_origemSelecionada - $obs',
+        'descricao': obs.isEmpty ? _origemSelecionada : '$_origemSelecionada - $obs',
       });
 
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop(true);
-      await _perguntarDistribuir();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text('Receita de R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')} registrada no Saldo Geral!'),
+            ],
+          ),
+          backgroundColor: AppColors.grn,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      await perguntarDistribuirReceita(context, const AbastecerSheet());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -70,44 +74,6 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
       }
     } finally {
       if (mounted) setState(() => _carregando = false);
-    }
-  }
-
-  Future<void> _perguntarDistribuir() async {
-    final ctx = context;
-    final resposta = await showDialog<bool>(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
-          side: const BorderSide(color: AppColors.bord, width: 0.5),
-        ),
-        title: Text('Distribuir nos envelopes?', style: AppTextStyles.titleSm),
-        content: Text(
-          'Deseja distribuir essa receita nos seus envelopes agora?',
-          style: AppTextStyles.body.copyWith(color: AppColors.mu),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(c).pop(false),
-            child: Text('Depois', style: AppTextStyles.body.copyWith(color: AppColors.mu)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(c).pop(true),
-            child: Text('Sim, agora', style: AppTextStyles.body.copyWith(color: AppColors.acc)),
-          ),
-        ],
-      ),
-    );
-
-    if (resposta == true && mounted) {
-      await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const AbastecerSheet(),
-      );
     }
   }
 
@@ -123,19 +89,13 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.pagePad,
-            0,
-            AppSpacing.pagePad,
-            bottom,
-          ),
+          padding: EdgeInsets.fromLTRB(AppSpacing.pagePad, 0, AppSpacing.pagePad, bottom),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12, bottom: 20),
@@ -149,144 +109,19 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
                     ),
                   ),
                 ),
-
-                // Cabeçalho
                 Text('Registrar receita 💰', style: AppTextStyles.title),
                 const SizedBox(height: 4),
-                Text(
-                  'vai direto para o Saldo Geral ⚡',
-                  style: AppTextStyles.caption,
-                ),
+                Text('vai direto para o Saldo Geral ⚡', style: AppTextStyles.caption),
                 const SizedBox(height: 24),
-
-                // Campo Valor
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surf,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
-                    border: Border.all(
-                      color: AppColors.grn.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'R\$',
-                        style: AppTextStyles.titleSm.copyWith(
-                          color: AppColors.grn.withOpacity(0.7),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _valorController,
-                          autofocus: true,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[\d,.]'),
-                            ),
-                          ],
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.mono.copyWith(
-                            fontSize: 44,
-                            color: AppColors.grn,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          decoration: InputDecoration(
-                            filled: false,
-                            border: InputBorder.none,
-                            hintText: '0,00',
-                            hintStyle: AppTextStyles.mono.copyWith(
-                              fontSize: 44,
-                              color: AppColors.grn.withOpacity(0.3),
-                            ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Informe o valor';
-                            final n = parseMoeda(v);
-                            if (n <= 0) return 'Valor inválido';
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ReceitaValorInput(controller: _valorController),
                 const SizedBox(height: 20),
-
-                // Origem
-                Text(
-                  'Origem',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.mu),
-                ),
+                Text('Origem', style: AppTextStyles.bodySm.copyWith(color: AppColors.mu)),
                 const SizedBox(height: 8),
-                SizedBox(
-                  height: 40,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _origens.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, i) {
-                      final (label, icon) = _origens[i];
-                      final sel = _origemSelecionada == label;
-                      return GestureDetector(
-                        onTap: () => setState(() => _origemSelecionada = label),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: sel
-                                ? AppColors.grn.withOpacity(0.15)
-                                : AppColors.surf,
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.radiusChip,
-                            ),
-                            border: Border.all(
-                              color: sel ? AppColors.grn : AppColors.bord,
-                              width: sel ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                icon,
-                                size: 15,
-                                color: sel ? AppColors.grn : AppColors.mu,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                label,
-                                style: AppTextStyles.bodySm.copyWith(
-                                  color: sel ? AppColors.grn : AppColors.tx,
-                                  fontWeight: sel
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                ReceitaOrigemChips(
+                  origemSelecionada: _origemSelecionada,
+                  onSelect: (origem) => setState(() => _origemSelecionada = origem),
                 ),
                 const SizedBox(height: 20),
-
-                // Observação
                 TextFormField(
                   controller: _obsController,
                   style: AppTextStyles.body,
@@ -296,8 +131,6 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Botão confirmar
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -316,17 +149,9 @@ class _FormReceitaSheetState extends ConsumerState<FormReceitaSheet> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.tx,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.tx),
                           )
-                        : Text(
-                            'Confirmar receita',
-                            style: AppTextStyles.titleSm.copyWith(
-                              color: AppColors.tx,
-                            ),
-                          ),
+                        : Text('Confirmar receita', style: AppTextStyles.titleSm.copyWith(color: AppColors.tx)),
                   ),
                 ),
               ],

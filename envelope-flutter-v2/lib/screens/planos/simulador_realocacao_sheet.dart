@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/patrimonio_provider.dart';
 import '../../services/bcb_service.dart';
+import '../../utils/moeda.dart';
 
 // ── Destinos de realocação disponíveis ────────────────────────────────────────
 
@@ -86,7 +87,9 @@ class _SimuladorRealocacaoSheetState
     if (_contaSelecionada != null) {
       final saldo = (_contaSelecionada!['saldo_atual'] as num?)?.toDouble() ?? 0;
       _valor = saldo;
-      _valorCtrl.text = saldo.toStringAsFixed(2).replaceAll('.', ',');
+      _valorCtrl.text = saldo > 0
+          ? NumberFormat.currency(locale: 'pt_BR', symbol: '').format(saldo).trim()
+          : '';
     }
     _carregarTaxas();
   }
@@ -98,12 +101,25 @@ class _SimuladorRealocacaoSheetState
   }
 
   Future<void> _carregarTaxas() async {
-    final taxas = await BcbService.buscar();
-    if (mounted) setState(() { _taxas = taxas; _carregandoTaxas = false; });
+    try {
+      final taxas = await BcbService.buscar();
+      if (mounted) setState(() { _taxas = taxas; _carregandoTaxas = false; });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _taxas = const TaxasBrasil(
+            selicMensal: 1.15,
+            cdiMensal: 1.14,
+            ipcaAnual: 5.5,
+            dataReferencia: 'estimada (offline)',
+          );
+          _carregandoTaxas = false;
+        });
+      }
+    }
   }
 
-  double _parse(String v) =>
-      double.tryParse(v.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+  double _parse(String v) => parseMoeda(v);
 
   // Juros compostos: P * (1 + r)^n
   double _projetar(double principal, double taxaMensal, int meses) =>
@@ -230,6 +246,7 @@ class _SimuladorRealocacaoSheetState
             TextField(
               controller: _valorCtrl,
               keyboardType: TextInputType.number,
+              inputFormatters: [MoedaInputFormatter()],
               style: AppTextStyles.body,
               onChanged: (v) => setState(() => _valor = _parse(v)),
               decoration: InputDecoration(

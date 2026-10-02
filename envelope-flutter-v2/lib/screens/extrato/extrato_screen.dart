@@ -132,6 +132,9 @@ class _ExtratoHeader extends ConsumerWidget {
                   Text(
                     mesLabelLongo(mes),
                     style: AppTextStyles.titleSm,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -146,33 +149,64 @@ class _ExtratoHeader extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 4),
-          // Ações
-          _HeaderAction(
-            icon: Icons.summarize_outlined,
-            cor: AppColors.acc,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ResumoMensalScreen()),
+          // Ação primária: Resumo
+          Tooltip(
+            message: 'Resumo mensal',
+            child: _HeaderAction(
+              icon: Icons.summarize_outlined,
+              cor: AppColors.acc,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ResumoMensalScreen()),
+              ),
             ),
           ),
           const SizedBox(width: 4),
-          _HeaderAction(
-            icon: Icons.delete_outline,
-            cor: AppColors.red,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LixeiraScreen()),
+          // Menu overflow: Lixeira, PDF, CSV
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.mu, size: 20),
+            color: AppColors.card,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              side: const BorderSide(color: AppColors.bord, width: 0.5),
             ),
-          ),
-          const SizedBox(width: 4),
-          _HeaderAction(
-            icon: Icons.picture_as_pdf_outlined,
-            cor: AppColors.org,
-            onTap: () => exportarPdf(context, ref, mes),
-          ),
-          const SizedBox(width: 4),
-          _HeaderAction(
-            icon: Icons.table_chart_outlined,
-            cor: AppColors.blu,
-            onTap: () => exportarCsv(context, ref, mes),
+            onSelected: (value) {
+              switch (value) {
+                case 'lixeira':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LixeiraScreen()),
+                  );
+                case 'pdf':
+                  exportarPdf(context, ref, mes);
+                case 'csv':
+                  exportarCsv(context, ref, mes);
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'lixeira',
+                child: Row(children: [
+                  Icon(Icons.delete_outline, color: AppColors.red, size: 18),
+                  SizedBox(width: 10),
+                  Text('Lixeira', style: TextStyle(color: AppColors.tx, fontSize: 14)),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'pdf',
+                child: Row(children: [
+                  Icon(Icons.picture_as_pdf_outlined, color: AppColors.org, size: 18),
+                  SizedBox(width: 10),
+                  Text('Exportar PDF', style: TextStyle(color: AppColors.tx, fontSize: 14)),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'csv',
+                child: Row(children: [
+                  Icon(Icons.table_chart_outlined, color: AppColors.blu, size: 18),
+                  SizedBox(width: 10),
+                  Text('Exportar CSV', style: TextStyle(color: AppColors.tx, fontSize: 14)),
+                ]),
+              ),
+            ],
           ),
         ],
       ),

@@ -12,16 +12,20 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  final _nameController     = TextEditingController();
-  final _emailController    = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _nameController            = TextEditingController();
+  final _emailController           = TextEditingController();
+  final _passwordController        = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -29,21 +33,49 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final name     = _nameController.text.trim();
     final email    = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
+    final confirm  = _confirmPasswordController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) { _showError('Preencha todos os campos'); return; }
-    if (password.length < 6) { _showError('A senha deve ter pelo menos 6 caracteres'); return; }
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      _showError('Preencha todos os campos');
+      return;
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      _showError('Digite um e-mail válido');
+      return;
+    }
+    if (password.length < 6) {
+      _showError('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    if (password != confirm) {
+      _showError('As senhas não coincidem');
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
       await ref.read(authServiceProvider).signUpWithEmail(email, password, name);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Conta criada! Verifique seu email se necessário.'), backgroundColor: AppColors.grn),
+          const SnackBar(
+            content: Text('Conta criada com sucesso! Seja bem-vindo 🎉'),
+            backgroundColor: AppColors.grn,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) _showError('Erro ao cadastrar: $e');
+      final errStr = e.toString().toLowerCase();
+      String msgAmigavel = 'Não foi possível cadastrar no momento.';
+      if (errStr.contains('already registered') || errStr.contains('already in use')) {
+        msgAmigavel = 'Este e-mail já está cadastrado. Tente entrar.';
+      } else if (errStr.contains('network') || errStr.contains('socket') || errStr.contains('connection')) {
+        msgAmigavel = 'Erro de conexão. Verifique sua internet.';
+      } else if (errStr.contains('password')) {
+        msgAmigavel = 'A senha informada não é forte o suficiente.';
+      }
+      if (mounted) _showError(msgAmigavel);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -51,7 +83,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.red),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -74,38 +110,60 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePad),
               child: Column(
                 children: [
-                  const SizedBox(height: 60),
-                  const Icon(Icons.person_add_outlined, size: 60, color: AppColors.acc),
-                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.tx),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Voltar',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Icon(Icons.person_add_outlined, size: 56, color: AppColors.acc),
+                  const SizedBox(height: 12),
                   Text(
                     'CRIAR CONTA',
-                    style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2, color: AppColors.tx),
+                    style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2, color: AppColors.tx),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text('Comece sua jornada financeira hoje', style: AppTextStyles.caption),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 24),
 
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppColors.card,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppColors.bord),
                     ),
                     child: Column(
                       children: [
-                        _field(_nameController,     'Seu Nome',             Icons.person_outline,  false),
-                        const SizedBox(height: 16),
-                        _field(_emailController,    'Email',                Icons.email_outlined,  false),
-                        const SizedBox(height: 16),
-                        _field(_passwordController, 'Senha (mín. 6 chars)', Icons.lock_outline,    true),
-                        const SizedBox(height: 32),
+                        _field(_nameController, 'Seu Nome', Icons.person_outline, false, null),
+                        const SizedBox(height: 12),
+                        _field(_emailController, 'Email', Icons.email_outlined, false, null, type: TextInputType.emailAddress),
+                        const SizedBox(height: 12),
+                        _field(
+                          _passwordController, 'Senha (mín. 6 chars)', Icons.lock_outline, _obscurePassword,
+                          IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.mu, size: 20),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _field(
+                          _confirmPasswordController, 'Confirmar Senha', Icons.lock_outline, _obscureConfirmPassword,
+                          IconButton(
+                            icon: Icon(_obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.mu, size: 20),
+                            onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         ElevatedButton(
                           onPressed: _isLoading ? null : _handleSignUp,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.acc,
                             foregroundColor: AppColors.bg,
-                            minimumSize: const Size.fromHeight(56),
+                            minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusBtn)),
                             elevation: 0,
                           ),
@@ -117,11 +175,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text('Já tem conta? Entrar agora', style: AppTextStyles.body.copyWith(color: AppColors.mu)),
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -131,15 +190,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );
   }
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, bool obscure) {
+  Widget _field(
+    TextEditingController ctrl,
+    String label,
+    IconData icon,
+    bool obscure,
+    Widget? suffix, {
+    TextInputType type = TextInputType.text,
+  }) {
     return TextField(
       controller: ctrl,
       obscureText: obscure,
+      keyboardType: type,
       style: AppTextStyles.body,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: AppTextStyles.caption,
         prefixIcon: Icon(icon, color: AppColors.mu, size: 20),
+        suffixIcon: suffix,
         filled: true,
         fillColor: AppColors.surf,
         border:        OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusBtn), borderSide: const BorderSide(color: AppColors.bord)),

@@ -17,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading       = false;
   bool _isGoogleLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -29,12 +30,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email    = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (email.isEmpty || password.isEmpty) { _showError('Preencha email e senha'); return; }
+    if (!email.contains('@') || !email.contains('.')) { _showError('Digite um e-mail válido'); return; }
 
     setState(() => _isLoading = true);
     try {
       await ref.read(authServiceProvider).signInWithEmail(email, password);
     } catch (e) {
-      if (mounted) _showError('Erro ao entrar: $e');
+      final err = e.toString().toLowerCase();
+      String msg = 'Erro ao entrar. Tente novamente.';
+      if (err.contains('invalid login credentials') || err.contains('invalid_credentials')) {
+        msg = 'E-mail ou senha incorretos.';
+      } else if (err.contains('network') || err.contains('socket') || err.contains('connection')) {
+        msg = 'Erro de conexão. Verifique sua internet.';
+      } else if (err.contains('email not confirmed')) {
+        msg = 'Confirme seu e-mail antes de fazer login.';
+      }
+      if (mounted) _showError(msg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -115,9 +126,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       child: Column(
                         children: [
-                          _field(_emailController,    'Email',  Icons.email_outlined,  false, key: const Key('campo_email')),
+                          _field(
+                            _emailController,
+                            'Email',
+                            Icons.email_outlined,
+                            false,
+                            key: const Key('campo_email'),
+                            type: TextInputType.emailAddress,
+                          ),
                           const SizedBox(height: 16),
-                          _field(_passwordController, 'Senha',  Icons.lock_outline,    true,  key: const Key('campo_senha')),
+                          _field(
+                            _passwordController,
+                            'Senha',
+                            Icons.lock_outline,
+                            _obscurePassword,
+                            key: const Key('campo_senha'),
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: AppColors.mu,
+                                size: 20,
+                              ),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -171,11 +205,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Image.network(
-                                  'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
-                                  height: 20,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.login, color: AppColors.tx, size: 20),
-                                ),
+                                // Ícone local — não depende de internet
+                                const Icon(Icons.g_mobiledata_rounded, color: AppColors.tx, size: 28),
                                 const SizedBox(width: 12),
                                 Text('Entrar com Google', style: AppTextStyles.body),
                               ],
@@ -210,16 +241,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: color, blurRadius: size, spreadRadius: size / 2)]),
   );
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, bool obscure, {Key? key}) {
+  Widget _field(
+    TextEditingController ctrl,
+    String label,
+    IconData icon,
+    bool obscure, {
+    Key? key,
+    Widget? suffix,
+    TextInputType type = TextInputType.text,
+  }) {
     return TextField(
       key: key,
       controller: ctrl,
       obscureText: obscure,
+      keyboardType: type,
       style: AppTextStyles.body,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: AppTextStyles.caption,
         prefixIcon: Icon(icon, color: AppColors.mu, size: 20),
+        suffixIcon: suffix,
         filled: true,
         fillColor: AppColors.surf,
         border:        OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusBtn), borderSide: const BorderSide(color: AppColors.bord)),

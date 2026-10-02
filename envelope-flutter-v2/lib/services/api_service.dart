@@ -3,6 +3,43 @@ import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode, defaultTarge
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 
+/// Erro de API que carrega a mensagem `detail` do backend e o status HTTP.
+///
+/// O backend do Nosso Bolso devolve erros no formato `{"detail": "..."}`.
+/// Em vez de jogar o body cru numa Exception genérica, esta classe extrai o
+/// `detail` para a UI poder mostrar uma mensagem limpa ao usuário — por exemplo,
+/// o 400 de "saldo insuficiente" ao tentar pagar um fixo.
+class ApiException implements Exception {
+  final String detail;
+  final int statusCode;
+  const ApiException(this.detail, this.statusCode);
+
+  /// true quando é o 400 de saldo insuficiente ao pagar um fixo.
+  bool get isSaldoInsuficiente =>
+      statusCode == 400 && detail.toLowerCase().contains('saldo');
+
+  @override
+  String toString() => detail;
+}
+
+/// Extrai a mensagem `detail` de uma resposta de erro do backend.
+String _extrairDetail(String body, int status) {
+  try {
+    final parsed = jsonDecode(body);
+    if (parsed is Map && parsed['detail'] != null) {
+      final d = parsed['detail'];
+      // FastAPI pode devolver detail como string ou como lista (validação)
+      if (d is String) return d;
+      if (d is List && d.isNotEmpty) {
+        final first = d.first;
+        if (first is Map && first['msg'] != null) return first['msg'].toString();
+      }
+      return d.toString();
+    }
+  } catch (_) {/* body não era JSON */}
+  return 'Erro $status';
+}
+
 class ApiService {
   static const String _envUrl = String.fromEnvironment('API_URL');
   static const String _prodUrl = 'https://nosso-bolso-api.onrender.com';
@@ -59,7 +96,7 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
     }
-    throw Exception('Falha ao criar: ${response.body}');
+    throw ApiException(_extrairDetail(response.body, response.statusCode), response.statusCode);
   }
 
   /// PUT genérico
@@ -87,7 +124,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
-    throw Exception('Falha ao atualizar (patch): ${response.body}');
+    throw ApiException(_extrairDetail(response.body, response.statusCode), response.statusCode);
   }
 
   /// DELETE genérico com familia_id opcional

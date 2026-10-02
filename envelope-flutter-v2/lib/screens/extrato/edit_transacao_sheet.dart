@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/envelopes_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/moeda.dart';
 
 /// Sheet para editar uma transação existente.
 /// Abre via showModalBottomSheet — sem Scaffold próprio.
@@ -19,6 +21,7 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
   late TextEditingController _descricaoCtrl;
   late TextEditingController _valorCtrl;
   String? _envelopeId;
+  DateTime _data = DateTime.now();
   bool _salvando = false;
   String? _erro;
 
@@ -30,9 +33,15 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
     );
     final val = (widget.transacao['valor'] as num?)?.toDouble() ?? 0.0;
     _valorCtrl = TextEditingController(
-      text: val.toStringAsFixed(2).replaceAll('.', ','),
+      text: val > 0
+          ? NumberFormat.currency(locale: 'pt_BR', symbol: '').format(val).trim()
+          : '',
     );
     _envelopeId = widget.transacao['envelope_id']?.toString();
+    final dataStr = widget.transacao['data']?.toString();
+    if (dataStr != null && dataStr.isNotEmpty) {
+      _data = DateTime.tryParse(dataStr) ?? DateTime.now();
+    }
   }
 
   @override
@@ -42,10 +51,7 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
     super.dispose();
   }
 
-  double? _parseValor() {
-    final raw = _valorCtrl.text.replaceAll('.', '').replaceAll(',', '.');
-    return double.tryParse(raw);
-  }
+  double? _parseValor() => parseMoeda(_valorCtrl.text);
 
   Future<void> _salvar() async {
     final id = widget.transacao['id']?.toString();
@@ -61,14 +67,20 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
       return;
     }
 
-    setState(() { _salvando = true; _erro = null; });
+    final isReceita = (widget.transacao['tipo']?.toString() ?? '') == 'receita';
+    final payload = {
+      'descricao': _descricaoCtrl.text.trim(),
+      'valor': valor,
+      'data': DateFormat('yyyy-MM-dd').format(_data),
+      if (!isReceita && _envelopeId != null) 'envelope_id': _envelopeId,
+    };
 
     try {
-      await ApiService.patch('/transacoes/$id', {
-        'descricao': _descricaoCtrl.text.trim(),
-        'valor': valor,
-        if (_envelopeId != null) 'envelope_id': _envelopeId,
-      });
+      try {
+        await ApiService.put('/transacoes/$id', payload);
+      } catch (_) {
+        await ApiService.patch('/transacoes/$id', payload);
+      }
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -84,6 +96,7 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
     final envelopesAsync = ref.watch(envelopesProvider);
     final envelopes = envelopesAsync.value ?? [];
     final mq = MediaQuery.of(context);
+    final isReceita = (widget.transacao['tipo']?.toString() ?? '') == 'receita';
 
     return Container(
       decoration: const BoxDecoration(
@@ -131,7 +144,8 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
                     width: 200,
                     child: TextField(
                       controller: _valorCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoedaInputFormatter()],
                       textAlign: TextAlign.center,
                       style: AppTextStyles.monoLg.copyWith(color: AppColors.acc),
                       decoration: InputDecoration(
@@ -173,68 +187,138 @@ class _EditTransacaoSheetState extends ConsumerState<EditTransacaoSheet> {
 
             const SizedBox(height: AppSpacing.sectionGap),
 
-            // Seletor de Envelope
-            Text('Envelope', style: AppTextStyles.caption),
+            // Seletor de Data
+            Text('Data da Transação', style: AppTextStyles.caption),
             const SizedBox(height: AppSpacing.itemGap),
-
-            if (envelopesAsync.isLoading)
-              const Center(
-                child: SizedBox(
-                  width: 24, height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.acc),
-                ),
-              )
-            else
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: AppSpacing.cardGap,
-                mainAxisSpacing: AppSpacing.cardGap,
-                childAspectRatio: 3.0,
-                children: envelopes.map((env) {
-                  final id = env['id']?.toString() ?? '';
-                  final nome = env['nome_envelope'] as String? ?? '';
-                  final emoji = env['emoji'] as String? ?? '💰';
-                  final selected = _envelopeId == id;
-
-                  return GestureDetector(
-                    onTap: () => setState(() => _envelopeId = id),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.acc.withOpacity(0.12)
-                            : AppColors.surf,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
-                        border: Border.all(
-                          color: selected ? AppColors.acc : AppColors.bord,
-                          width: selected ? 1.0 : 0.5,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(emoji, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              nome,
-                              style: AppTextStyles.bodySm.copyWith(
-                                color: selected ? AppColors.acc : AppColors.tx,
-                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (selected)
-                            const Icon(Icons.check_circle, color: AppColors.acc, size: 14),
-                        ],
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _data,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                  builder: (context, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.dark(
+                        primary: AppColors.acc,
+                        surface: AppColors.card,
                       ),
                     ),
-                  );
-                }).toList(),
+                    child: child!,
+                  ),
+                );
+                if (picked != null) setState(() => _data = picked);
+              },
+              borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusInput),
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.acc),
+                    const SizedBox(width: 10),
+                    Text(
+                      DateFormat('dd/MM/yyyy').format(_data),
+                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.edit_calendar_rounded, size: 16, color: AppColors.mu),
+                  ],
+                ),
               ),
+            ),
+
+            const SizedBox(height: AppSpacing.sectionGap),
+
+            if (isReceita) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surf,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+                  border: Border.all(color: AppColors.bord, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppColors.grn, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Receitas entram diretamente no Saldo Geral e não pertencem a envelopes.',
+                        style: AppTextStyles.caption.copyWith(color: AppColors.mu),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Seletor de Envelope
+              Text('Envelope', style: AppTextStyles.caption),
+              const SizedBox(height: AppSpacing.itemGap),
+
+              if (envelopesAsync.isLoading)
+                const Center(
+                  child: SizedBox(
+                    width: 24, height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.acc),
+                  ),
+                )
+              else
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: AppSpacing.cardGap,
+                  mainAxisSpacing: AppSpacing.cardGap,
+                  childAspectRatio: 3.0,
+                  children: envelopes.map((env) {
+                    final id = env['id']?.toString() ?? '';
+                    final nome = env['nome_envelope'] as String? ?? '';
+                    final emoji = env['emoji'] as String? ?? '💰';
+                    final selected = _envelopeId == id;
+
+                    return GestureDetector(
+                      onTap: () => setState(() => _envelopeId = id),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.acc.withOpacity(0.12)
+                              : AppColors.surf,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
+                          border: Border.all(
+                            color: selected ? AppColors.acc : AppColors.bord,
+                            width: selected ? 1.0 : 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(emoji, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                nome,
+                                style: AppTextStyles.bodySm.copyWith(
+                                  color: selected ? AppColors.acc : AppColors.tx,
+                                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (selected)
+                              const Icon(Icons.check_circle, color: AppColors.acc, size: 14),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
 
             const SizedBox(height: AppSpacing.sectionGap),
 

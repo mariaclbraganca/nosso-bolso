@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../widgets/unicorn/astrix_painter.dart';
+import '../widgets/mascote/astrix_painter.dart';
 
 class AstrixMessage {
   final String text;

@@ -66,14 +66,29 @@ class IfoodNotificationService {
     }
   }
 
+  /// Entry-point do ISOLATE DE BACKGROUND (app fechado). Roda sem Supabase/
+  /// sessão — por isso o processamento nunca deve depender deles: captura,
+  /// parseia e ENFILEIRA local (SharedPreferences). O envio real acontece
+  /// quando o app abre e drena a fila. Blinda contra esquecer o app fechado.
   @pragma('vm:entry-point')
   static void _onNotificacao(NotificationEvent evt) {
+    // Garante o binding p/ plugins (SharedPreferences) funcionarem no isolate.
+    WidgetsFlutterBinding.ensureInitialized();
     _processarTodos(evt);
   }
 
   static Future<void> _processarTodos(NotificationEvent evt) async {
-    await _processarIfood(evt);
-    await NubankNotificationService.processar(evt);
+    // Cada um protegido: um erro num não impede o outro nem derruba o isolate.
+    try {
+      await _processarIfood(evt);
+    } catch (e) {
+      debugPrint('[iFood] erro no processamento: $e');
+    }
+    try {
+      await NubankNotificationService.processar(evt);
+    } catch (e) {
+      debugPrint('[Nubank] erro no processamento: $e');
+    }
   }
 
   static Future<void> _processarIfood(NotificationEvent evt) async {
@@ -116,24 +131,31 @@ class IfoodNotificationService {
     double valor,
     String data,
   ) async {
-    final session = Supabase.instance.client.auth.currentSession;
-    // familia_id vem do user_metadata gravado no login
-    final familiaId =
-        session?.user.userMetadata?['familia_id'] as String? ?? '';
-
     const endpoint = '/api/v1/compras/notificacao-ifood';
-    final body = {
-      'familia_id': familiaId,
+    final bodyBase = {
       'estabelecimento': estabelecimento,
       'valor': valor,
       'data': data,
     };
 
-    // Sem sessão/família ainda: enfileira p/ enviar quando logar/reconectar.
+    // Em background (app fechado) o Supabase não existe neste isolate —
+    // acessar Supabase.instance.client lança LateInitializationError. Protege:
+    // se não houver sessão pronta, enfileira e sai (o app drena ao abrir).
+    Session? session;
+    try {
+      session = Supabase.instance.client.auth.currentSession;
+    } catch (_) {
+      session = null;
+    }
+    final familiaId =
+        session?.user.userMetadata?['familia_id'] as String? ?? '';
+
     if (session == null || familiaId.isEmpty) {
-      await NotificacaoFilaService.enfileirar(endpoint, body);
+      await NotificacaoFilaService.enfileirar(endpoint, bodyBase);
       return;
     }
+
+    final body = {...bodyBase, 'familia_id': familiaId};
 
     try {
       final resp = await http

@@ -51,6 +51,18 @@ class LixeiraScreen extends ConsumerWidget {
             color: AppColors.tx, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          lixeiraAsync.maybeWhen(
+            data: (items) => items.isNotEmpty
+                ? TextButton.icon(
+                    icon: const Icon(Icons.delete_sweep_rounded, color: AppColors.red, size: 18),
+                    label: const Text('Esvaziar', style: TextStyle(color: AppColors.red, fontSize: 13, fontWeight: FontWeight.w600)),
+                    onPressed: () => _esvaziarLixeira(context, ref, items),
+                  )
+                : const SizedBox.shrink(),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),
           child: Container(height: 0.5, color: AppColors.bord),
@@ -319,6 +331,68 @@ class LixeiraScreen extends ConsumerWidget {
               style: AppTextStyles.bodySm.copyWith(color: AppColors.tx)),
             backgroundColor: AppColors.red,
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _esvaziarLixeira(
+    BuildContext context,
+    WidgetRef ref,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          side: const BorderSide(color: AppColors.bord, width: 0.5),
+        ),
+        title: Text('Esvaziar lixeira?', style: AppTextStyles.titleSm),
+        content: Text(
+          'Deseja excluir permanentemente todas as ${items.length} transações da lixeira? Esta ação não pode ser desfeita.',
+          style: AppTextStyles.bodySm.copyWith(color: AppColors.mu),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancelar', style: AppTextStyles.bodySm),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusBtn),
+              ),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Esvaziar tudo', style: AppTextStyles.bodySm.copyWith(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final ids = items.map((e) => e['id']?.toString()).whereType<String>().toList();
+      await Future.wait(ids.map((id) => ApiService.delete('/transacoes/$id/permanente').catchError((_) {})));
+      ref.invalidate(lixeiraProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lixeira esvaziada com sucesso!', style: AppTextStyles.bodySm.copyWith(color: AppColors.tx)),
+            backgroundColor: AppColors.surf,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.red),
         );
       }
     }

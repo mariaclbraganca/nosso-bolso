@@ -76,6 +76,28 @@ class ContasTab extends ConsumerWidget {
             100,
           ),
           children: [
+            // Propósito da aba
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.cardGap),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surf,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.bord, width: 0.5),
+              ),
+              child: const Row(
+                children: [
+                  Text('🧾 ', style: TextStyle(fontSize: 14)),
+                  Expanded(
+                    child: Text(
+                      'Boletos e contas variáveis de consumo (luz, água, internet).',
+                      style: TextStyle(fontSize: 12, color: AppColors.mu),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Resumo
             resumoAsync.when(
               data: (r) => _ResumoCard(resumo: r),

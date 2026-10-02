@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/usuarios_provider.dart';
 import '../../constants.dart';
+import '../../utils/moeda.dart';
 
 // ─────────────────────────────────────────────
 // Perfis de família disponíveis no onboarding
@@ -184,7 +185,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, _Perfil.solteiro),
-              child: Text('PULAR', style: AppTextStyles.caption.copyWith(color: AppColors.mu)),
+              child: Text('PULAR (usar padrão)', style: AppTextStyles.caption.copyWith(color: AppColors.mu)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, selecionado ?? _Perfil.solteiro),
@@ -215,7 +216,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // ─────────────────────────────────────────────
   void _createFamily() async {
     final name  = _familyController.text.trim();
-    final renda = double.tryParse(_saldoController.text.replaceAll(',', '.')) ?? 0.0;
+    final renda = parseMoeda(_saldoController.text);
     if (name.isEmpty) return;
 
     // Abre o dialog de perfil antes de criar
@@ -382,6 +383,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Container(
@@ -438,7 +440,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                   _buildCard(
                     title: 'ENTRAR EM FAMÍLIA',
-                    subtitle: 'Use o código de convite de alguém',
+                    subtitle: 'Peça o código de convite para quem criou a família',
                     controller: _codeController,
                     hint: 'Código de Acesso (Ex: BOLSO-1234)',
                     btnText: 'Entrar na Família',
@@ -485,7 +487,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           _field(controller, hint, false),
           if (extraController != null) ...[
             const SizedBox(height: 12),
-            _field(extraController, extraHint ?? '', true, isNumber: true),
+            _field(extraController, extraHint ?? '', false, isNumber: true, isMoeda: true),
           ],
           const SizedBox(height: 16),
           ElevatedButton(
@@ -515,11 +517,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  Widget _field(TextEditingController ctrl, String hint, bool obscure, {bool isNumber = false}) {
+  Widget _field(TextEditingController ctrl, String hint, bool obscure, {bool isNumber = false, bool isMoeda = false}) {
     return TextField(
       controller: ctrl,
       obscureText: obscure,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      inputFormatters: isMoeda ? [MoedaInputFormatter()] : null,
       style: AppTextStyles.body,
       decoration: InputDecoration(
         hintText: hint,

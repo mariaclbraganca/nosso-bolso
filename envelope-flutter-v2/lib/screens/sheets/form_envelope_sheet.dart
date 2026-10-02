@@ -29,9 +29,16 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
   final _formKey = GlobalKey<FormState>();
 
   String _emojiSelecionado = '📦';
-  bool _eReserva = false;
   bool _carregando = false;
   bool _excluindo = false;
+  // Natureza do dinheiro: consumo (zera todo mês) | objetivo (acumula) | reserva (segurança)
+  String _natureza = 'consumo';
+
+  static const _naturezas = [
+    {'valor': 'consumo', 'emoji': '🔄', 'titulo': 'Consumo', 'sub': 'Zera todo mês', 'cor': AppColors.blu},
+    {'valor': 'objetivo', 'emoji': '🎯', 'titulo': 'Objetivo', 'sub': 'Acumula sempre', 'cor': AppColors.pur},
+    {'valor': 'reserva', 'emoji': '🛡️', 'titulo': 'Reserva', 'sub': 'Sua segurança', 'cor': AppColors.grn},
+  ];
 
   bool get _editando => widget.envelope != null;
 
@@ -47,11 +54,12 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
         _metaMensalController.text =
             NumberFormat('#,##0.00', 'pt_BR').format(meta);
       }
-      _eReserva = env['e_reserva'] as bool? ?? false;
-      final metaTotal = (env['meta_total'] as num?)?.toDouble() ?? 0;
-      if (metaTotal > 0) {
+      final isReserva = env['is_reserva'] as bool? ?? false;
+      _natureza = (env['natureza'] as String?) ?? (isReserva ? 'reserva' : 'consumo');
+      final valorObjetivo = (env['valor_objetivo'] as num?)?.toDouble() ?? 0;
+      if (valorObjetivo > 0) {
         _metaTotalController.text =
-            NumberFormat('#,##0.00', 'pt_BR').format(metaTotal);
+            NumberFormat('#,##0.00', 'pt_BR').format(valorObjetivo);
       }
     }
   }
@@ -83,9 +91,10 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
         'nome_envelope': _nomeController.text.trim(),
         'emoji': _emojiSelecionado,
         'valor_planejado': _parseValor(_metaMensalController.text),
-        'e_reserva': _eReserva,
-        'meta_total':
-            _eReserva ? _parseValor(_metaTotalController.text) : null,
+        'natureza': _natureza,
+        'is_reserva': _natureza == 'reserva',
+        'valor_objetivo':
+            _natureza != 'consumo' ? _parseValor(_metaTotalController.text) : null,
         'familia_id': perfil['familia_id'],
         'usuario_id': perfil['id'],
       };
@@ -93,12 +102,29 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
       if (_editando) {
         final id = widget.envelope!['id'] as String;
         await ApiService.put('/envelopes/$id', data);
-        if (mounted) Navigator.of(context).pop(true);
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          Navigator.of(context).pop(true);
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Envelope "${data['nome_envelope']}" atualizado! ✨'),
+              backgroundColor: AppColors.grn,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       } else {
         await ApiService.post('/envelopes/', data);
         if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop(true);
-        await _perguntarAbastecer();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Envelope "${data['nome_envelope']}" criado com sucesso! ✨'),
+            backgroundColor: AppColors.grn,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -385,47 +411,61 @@ class _FormEnvelopeSheetState extends ConsumerState<FormEnvelopeSheet> {
                 ),
                 const SizedBox(height: 20),
 
-                // Switch reserva
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surf,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusCard),
-                    border: const Border.fromBorderSide(
-                      BorderSide(color: AppColors.bord, width: 0.5),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('É Reserva?', style: AppTextStyles.body),
-                            Text(
-                              'Separa o dinheiro como meta de longo prazo',
-                              style: AppTextStyles.caption,
+                // Natureza do dinheiro
+                Text(
+                  'Natureza do dinheiro',
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.mu),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: _naturezas.map((o) {
+                    final selecionado = _natureza == o['valor'];
+                    final cor = o['cor'] as Color;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _natureza = o['valor'] as String),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: selecionado ? cor.withOpacity(0.15) : AppColors.surf,
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+                            border: Border.all(
+                              color: selecionado ? cor : AppColors.bord,
+                              width: selecionado ? 1.5 : 0.5,
                             ),
-                          ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(o['emoji'] as String, style: const TextStyle(fontSize: 20)),
+                              const SizedBox(height: 6),
+                              Text(
+                                o['titulo'] as String,
+                                style: AppTextStyles.bodySm.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: selecionado ? cor : AppColors.tx,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                o['sub'] as String,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.caption,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      Switch(
-                        value: _eReserva,
-                        onChanged: (v) => setState(() => _eReserva = v),
-                      ),
-                    ],
-                  ),
+                    );
+                  }).toList(),
                 ),
 
-                // Campo valor objetivo (visível se reserva)
+                // Campo valor objetivo (visível se objetivo/reserva)
                 AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  child: _eReserva
+                  child: _natureza != 'consumo'
                       ? Padding(
                           padding: const EdgeInsets.only(top: 16),
                           child: Column(

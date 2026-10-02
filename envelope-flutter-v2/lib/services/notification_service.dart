@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'app_navigator.dart';
+import '../screens/fechamento_dia/fechamento_dia_screen.dart';
 
 // ── IDs fixos por tipo de notificação ────────────────────────────────────────
 class _NId {
@@ -15,6 +17,7 @@ class _NId {
   static const hidratacaoLembrete  = 6;
   static const resumoFinanceiro    = 7;
   static const contaVencimento     = 100; // +id da conta para não colidir
+  static const alarmeFechamento    = 50000; // +dia do mês (50001..50031)
 }
 
 class NotificationService {
@@ -46,11 +49,29 @@ class NotificationService {
     final payload = r.payload ?? '';
     debugPrint('[Notification] tapped: $payload');
     switch (payload) {
+      case payloadFechamentoDia:
+        abrirFechamentoDia();
       case 'financeiro':
         navegarParaAba(navExtrato);
       case 'nutricao':
         navegarParaAba(navVida);
     }
+  }
+
+  /// App aberto (a frio) pelo alarme das 23h30 → abrir direto o fechamento.
+  static Future<bool> lancadoPeloAlarme() async {
+    final d = await _plugin.getNotificationAppLaunchDetails();
+    return (d?.didNotificationLaunchApp ?? false) &&
+        d?.notificationResponse?.payload == payloadFechamentoDia;
+  }
+
+  static void abrirFechamentoDia() {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+    nav.push(MaterialPageRoute(
+      settings: const RouteSettings(name: 'fechamento_dia'),
+      builder: (_) => const FechamentoDiaScreen(),
+    ));
   }
 
   // ── Permissão (Android 13+) ───────────────────────────────────────────────
@@ -416,6 +437,90 @@ class NotificationService {
     );
   }
 
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FECHAMENTO DO DIA — alarme das 23h30 (toca e vibra até alguém abrir)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static const payloadFechamentoDia = 'fechamento_dia';
+  static const _diasAgendados = 14; // se ninguém abrir o app, ainda toca por 2 semanas
+
+  static int _idAlarme(DateTime d) => _NId.alarmeFechamento + d.day;
+
+  /// Pede (uma vez) as permissões de alarme exato e de tela cheia (Android 14+).
+  static Future<void> pedirPermissoesAlarme() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+    await android.requestNotificationsPermission();
+    await android.requestExactAlarmsPermission();
+    await android.requestFullScreenIntentPermission();
+  }
+
+  /// Agenda o alarme das 23h30 para os próximos dias. Chamado na abertura do
+  /// app e após fechar o dia — [hojeFechado] pula o alarme de hoje.
+  static Future<void> agendarAlarmeFechamento({bool hojeFechado = false}) async {
+    for (var dia = 1; dia <= 31; dia++) {
+      await _plugin.cancel(_NId.alarmeFechamento + dia);
+    }
+    if (!await _isEnabled('notif_fechamento_dia')) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+    var dt = tz.TZDateTime(tz.local, now.year, now.month, now.day, 23, 30);
+    if (hojeFechado || dt.isBefore(now)) dt = dt.add(const Duration(days: 1));
+
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'fechamento_dia_v1',
+        'Fechamento do dia (alarme)',
+        channelDescription: 'Alarme das 23h30 para fechar o dia da família',
+        importance: Importance.max,
+        priority: Priority.max,
+        category: AndroidNotificationCategory.alarm,
+        fullScreenIntent: true,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        sound: const UriAndroidNotificationSound('content://settings/system/alarm_alert'),
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        additionalFlags: Int32List.fromList([4]), // FLAG_INSISTENT: repete som até interagir
+        ongoing: true,
+        autoCancel: false,
+        visibility: NotificationVisibility.public,
+        actions: const [
+          AndroidNotificationAction('resolver', 'Resolver agora', showsUserInterface: true),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < _diasAgendados; i++) {
+      final quando = dt.add(Duration(days: i));
+      await _plugin.zonedSchedule(
+        _idAlarme(quando),
+        'Fechamento do dia 🌙',
+        'Hora de conferir os gastos da família e fechar o dia.',
+        quando,
+        details,
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payloadFechamentoDia,
+      );
+    }
+  }
+
+  /// Para o alarme que está tocando agora (ao abrir a tela de fechamento).
+  /// Cancela só o que está na bandeja — os próximos agendados continuam.
+  static Future<void> silenciarAlarmeAtivo() async {
+    final ativas = await _plugin.getActiveNotifications();
+    for (final n in ativas) {
+      final id = n.id ?? 0;
+      if (id > _NId.alarmeFechamento && id <= _NId.alarmeFechamento + 31) {
+        await _plugin.cancel(id);
+      }
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Cancelar tudo
   // ─────────────────────────────────────────────────────────────────────────
@@ -426,5 +531,6 @@ class NotificationService {
     await agendarLembretesRefeicao();
     await agendarLembreteStreak();
     await agendarResumoFinanceiro();
+    await agendarAlarmeFechamento();
   }
 }

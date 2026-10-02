@@ -183,12 +183,12 @@ class _RelatoriosConteudo extends ConsumerWidget {
           _SectionLabel('Budget por Envelope'),
           const SizedBox(height: AppSpacing.cardGap),
           ...envelopes.map((env) {
-            final planejado = (env['valor_planejado'] as num?)?.toDouble() ?? 0;
-            final saldo = (env['saldo_atual'] as num?)?.toDouble() ?? 0;
-            final gasto = planejado - saldo;
-            final pct = planejado > 0 ? (gasto / planejado).clamp(0.0, 1.2) : 0.0;
             final nome = env['nome_envelope'] as String? ?? '';
             final emoji = env['emoji'] as String? ?? '💰';
+            final planejado = (env['valor_planejado'] as num?)?.toDouble() ?? 0;
+            final saldo = (env['saldo_atual'] as num?)?.toDouble() ?? 0;
+            final gasto = gastosPorEnvelope[nome] ?? 0.0;
+            final pct = planejado > 0 ? (gasto / planejado).clamp(0.0, 1.2) : 0.0;
 
             Color barColor;
             if (pct <= 0.6) barColor = AppColors.grn;
@@ -413,6 +413,15 @@ const _pieColors = [
   AppColors.pur,
   AppColors.gold,
   AppColors.grn,
+  Color(0xFF00B4D8), // Ciano oceano
+  Color(0xFFFF70A6), // Rosa suave
+  Color(0xFF70D6FF), // Azul claro
+  Color(0xFFFF9770), // Coral
+  Color(0xFFE9FF70), // Lima neon
+  Color(0xFF9B5DE5), // Roxo elétrico
+  Color(0xFFF15BB5), // Magenta
+  Color(0xFF00F5D4), // Turquesa
+  Color(0xFFFEE440), // Amarelo sol
 ];
 
 class _PieChartEnvelopes extends StatelessWidget {

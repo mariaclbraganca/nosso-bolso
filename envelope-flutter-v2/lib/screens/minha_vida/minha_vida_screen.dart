@@ -75,41 +75,47 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
           const Spacer(),
           // Seletor de membro (só aparece se família tem >1 membro)
           if (membros.length > 1)
-            GestureDetector(
-              onTap: () => _selecionarMembro(context, membros),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.surf,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
-                  border: Border.all(color: AppColors.bord),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 9,
-                      backgroundColor: AppColors.grn.withOpacity(0.25),
-                      child: Text(
-                        membroNome.isNotEmpty ? membroNome[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          color: AppColors.grn,
-                          fontWeight: FontWeight.bold,
+            Flexible(
+              child: GestureDetector(
+                onTap: () => _selecionarMembro(context, membros),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surf,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
+                    border: Border.all(color: AppColors.bord),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 9,
+                        backgroundColor: AppColors.grn.withOpacity(0.25),
+                        child: Text(
+                          membroNome.isNotEmpty ? membroNome[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppColors.grn,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      membroNome,
-                      style: AppTextStyles.bodySm.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.tx,
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          membroNome,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySm.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.tx,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.expand_more_rounded, size: 14, color: AppColors.mu),
-                  ],
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down, color: AppColors.mu, size: 16),
+                    ],
+                  ),
                 ),
               ),
             )

@@ -85,7 +85,7 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen>
                 unselectedLabelStyle: AppTextStyles.bodySm,
                 tabs: [
                   const Tab(text: '📌  Fixos'),
-                  const Tab(text: '🏦  Contas'),
+                  const Tab(text: '🧾  Boletos'),
                   const Tab(text: '🎯  Metas'),
                   if (isAdmin) const Tab(text: '💰  Patrimônio'),
                 ],

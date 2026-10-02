@@ -1,3 +1,6 @@
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+
 /// Parsing robusto de valores monetários digitados pelo usuário.
 ///
 /// O teclado do usuário pode usar vírgula (pt-BR: "1.050,00") ou ponto
@@ -34,3 +37,45 @@ double parseMoeda(String texto) {
 
   return double.tryParse(normalizado) ?? 0;
 }
+
+/// Formatter para campos de entrada monetária em tempo real (estilo centavos).
+class MoedaInputFormatter extends TextInputFormatter {
+  final int maxDigitos;
+  final bool incluirSimbolo;
+
+  MoedaInputFormatter({this.maxDigitos = 11, this.incluirSimbolo = false});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    String apenasDigitos = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (apenasDigitos.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    if (apenasDigitos.length > maxDigitos) {
+      apenasDigitos = apenasDigitos.substring(0, maxDigitos);
+    }
+
+    final double valor = double.parse(apenasDigitos) / 100.0;
+    final formatter = NumberFormat.currency(
+      locale: 'pt_BR',
+      symbol: incluirSimbolo ? 'R\$ ' : '',
+      decimalDigits: 2,
+    );
+
+    final novoTexto = formatter.format(valor).trim();
+
+    return TextEditingValue(
+      text: novoTexto,
+      selection: TextSelection.collapsed(offset: novoTexto.length),
+    );
+  }
+}
+

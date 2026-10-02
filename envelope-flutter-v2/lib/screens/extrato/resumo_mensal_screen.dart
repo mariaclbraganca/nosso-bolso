@@ -80,10 +80,22 @@ class ResumoMensalScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Resumo', style: AppTextStyles.caption),
+                        Text('Resumo Mensal', style: AppTextStyles.caption),
                         Text(mesTitulo, style: AppTextStyles.titleSm),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, color: AppColors.tx, size: 24),
+                    tooltip: 'Mês anterior',
+                    onPressed: () => ref.read(mesAtualProvider.notifier).state = mesAnterior(mes),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, color: AppColors.tx, size: 24),
+                    tooltip: 'Próximo mês',
+                    onPressed: () => ref.read(mesAtualProvider.notifier).state = mesProximo(mes),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
