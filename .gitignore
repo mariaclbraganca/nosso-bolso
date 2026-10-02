@@ -11,3 +11,5 @@
 !.github/**
 !docs/
 !docs/**
+!envelope-flutter-v3/
+!envelope-flutter-v3/**
