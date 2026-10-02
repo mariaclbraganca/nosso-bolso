@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from fastapi import Depends, APIRouter, HTTPException, BackgroundTasks, Query
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_membro_da_familia
 from datetime import datetime, timezone
 from bson import ObjectId
 
@@ -54,7 +55,8 @@ def _serialize_list(docs: list) -> list:
 # ── Anamnese e Perfil Metabólico ─────────────────────────────────────────────
 
 @router.post("/anamnese/chat")
-async def anamnese_chat(payload: dict):
+async def anamnese_chat(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     historico = payload.get("historico_mensagens", [])
     if not historico:
         historico = [{"role": "user", "content": "Pode começar a anamnese."}]
@@ -66,7 +68,9 @@ async def anamnese_chat(payload: dict):
 
 
 @router.post("/anamnese/pausar")
-async def pausar_monitoramento(payload: dict):
+async def pausar_monitoramento(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
+    assert_membro_da_familia(user, payload.get("membro_id"))
     membro_id = payload.get("membro_id")
     if not membro_id:
         raise HTTPException(status_code=422, detail="membro_id obrigatório")
@@ -85,7 +89,9 @@ async def pausar_monitoramento(payload: dict):
 
 
 @router.get("/perfil-metabolico/{membro_id}")
-async def get_perfil_metabolico(membro_id: str):
+async def get_perfil_metabolico(membro_id: str,
+    user: AuthUser = Depends(get_current_user)):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_perfil_metabolico_col()
     doc = col.find_one({"membro_id": membro_id})
     if not doc:
@@ -94,12 +100,15 @@ async def get_perfil_metabolico(membro_id: str):
 
 
 @router.post("/perfil-metabolico")
-async def criar_perfil_metabolico(payload: dict):
+async def criar_perfil_metabolico(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """Cria ou substitui o perfil metabólico (upsert).
 
     Comportamento de upsert permite que 'Refazer Anamnese' funcione
     sem precisar deletar o perfil existente primeiro.
     """
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
@@ -133,7 +142,9 @@ async def criar_perfil_metabolico(payload: dict):
 
 
 @router.patch("/perfil-metabolico/{membro_id}")
-async def atualizar_perfil_metabolico(membro_id: str, payload: dict):
+async def atualizar_perfil_metabolico(membro_id: str, payload: dict,
+    user: AuthUser = Depends(get_current_user)):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_perfil_metabolico_col()
     perfil = col.find_one({"membro_id": membro_id})
     if not perfil:
@@ -153,7 +164,9 @@ async def atualizar_perfil_metabolico(membro_id: str, payload: dict):
 
 
 @router.post("/perfil-metabolico/{membro_id}/calcular")
-async def recalcular_metabolico(membro_id: str):
+async def recalcular_metabolico(membro_id: str,
+    user: AuthUser = Depends(get_current_user)):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_perfil_metabolico_col()
     perfil = col.find_one({"membro_id": membro_id})
     if not perfil:
@@ -249,13 +262,16 @@ def _montar_doc_refeicao(
 
 
 @router.post("/refeicao/registrar")
-async def registrar_refeicao(payload: dict, background_tasks: BackgroundTasks):
+async def registrar_refeicao(payload: dict, background_tasks: BackgroundTasks,
+    user: AuthUser = Depends(get_current_user)):
     """
     Processa foto/áudio/texto → macros → salva.
     Suporta: fator de cocção (V1), replicar_para (V3), cheat meal (V6),
     offline timestamp (V9), gordura de preparo (V21), etanol (V26).
     Pós-confirmação: debita estoque via BackgroundTask (V2).
     """
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     modalidade = payload.get("modalidade", "texto")
     familia_id = payload.get("familia_id")
     membro_id  = payload.get("membro_id")
@@ -316,7 +332,9 @@ async def registrar_refeicao(payload: dict, background_tasks: BackgroundTasks):
 async def listar_refeicoes(
     membro_id: str = Query(...),
     data: str = Query(..., description="yyyy-MM-dd"),
+    user: AuthUser = Depends(get_current_user),
 ):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_refeicoes_col()
     docs = list(col.find(
         {"membro_id": membro_id, "data_refeicao": data, "deleted_at": None},
@@ -326,7 +344,8 @@ async def listar_refeicoes(
 
 
 @router.patch("/refeicao/{refeicao_id}")
-async def editar_refeicao(refeicao_id: str, payload: dict):
+async def editar_refeicao(refeicao_id: str, payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     col = get_registro_refeicoes_col()
     try:
         oid = ObjectId(refeicao_id)
@@ -336,6 +355,7 @@ async def editar_refeicao(refeicao_id: str, payload: dict):
     doc = col.find_one({"_id": oid, "deleted_at": None})
     if not doc:
         raise HTTPException(status_code=404, detail="Refeição não encontrada")
+    assert_membro_da_familia(user, doc.get("membro_id"))
 
     campos_editaveis = {
         k: v for k, v in payload.items()
@@ -349,7 +369,8 @@ async def editar_refeicao(refeicao_id: str, payload: dict):
 
 
 @router.delete("/refeicao/{refeicao_id}")
-async def deletar_refeicao(refeicao_id: str):
+async def deletar_refeicao(refeicao_id: str,
+    user: AuthUser = Depends(get_current_user)):
     col = get_registro_refeicoes_col()
     try:
         oid = ObjectId(refeicao_id)
@@ -359,6 +380,7 @@ async def deletar_refeicao(refeicao_id: str):
     doc = col.find_one({"_id": oid, "deleted_at": None})
     if not doc:
         raise HTTPException(status_code=404, detail="Refeição não encontrada")
+    assert_membro_da_familia(user, doc.get("membro_id"))
 
     col.update_one({"_id": oid}, {"$set": {"deleted_at": _now()}})
     return {"status": "deletado", "refeicao_id": refeicao_id}
@@ -368,8 +390,10 @@ async def deletar_refeicao(refeicao_id: str):
 async def listar_refeicoes_recentes(
     membro_id: str = Query(...),
     limite: int = Query(10, ge=1, le=50),
+    user: AuthUser = Depends(get_current_user),
 ):
     """Últimas 'limite' refeições distintas (por descrição) para atalhos rápidos."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_refeicoes_col()
     docs = list(col.find(
         {"membro_id": membro_id, "deleted_at": None, "is_jejum": {"$ne": True}},
@@ -421,11 +445,13 @@ def _somar_macros_refeicoes(docs: list) -> dict:
 async def extrato_diario(
     membro_id: str = Query(...),
     data: str = Query(..., description="yyyy-MM-dd"),
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Saldo de macros do dia: meta - consumido.
     Etanol separado (V26). Calorias de exercício stub zerado (V10).
     """
+    membro_id = assert_membro_da_familia(user, membro_id)
     perfil_col = get_perfil_metabolico_col()
     perfil = perfil_col.find_one({"membro_id": membro_id})
     if not perfil:
@@ -487,12 +513,17 @@ async def sugerir_jantar_endpoint(
     familia_id: str = Query(...),
     membro_ids: str = Query(..., description="UUID(s) separados por vírgula — suporte familiar (V18)"),
     itens_ausentes: str = Query("", description="Nomes separados por vírgula de itens que o usuário confirmou ausentes (V28)"),
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Sugestão de jantar: saldo macros + Cesta de Foco (V13) +
     coerência gastronômica (V16) + refeição modular por perfil familiar (V18) +
     micro-inventário preditivo (V28).
     """
+    familia_id = assert_mesma_familia(user, familia_id)
+    for _membro in membro_ids.split(","):
+        if _membro.strip():
+            assert_membro_da_familia(user, _membro.strip())
     ids = [m.strip() for m in membro_ids.split(",") if m.strip()]
     ausentes = [n.strip() for n in itens_ausentes.split(",") if n.strip()]
     try:
@@ -505,8 +536,10 @@ async def sugerir_jantar_endpoint(
 async def historico(
     membro_id: str = Query(...),
     periodo: str = Query("mensal", description="semanal | mensal"),
+    user: AuthUser = Depends(get_current_user),
 ):
     """Dados agregados para gráficos de evolução calórica e de peso (fl_chart ready)."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     from datetime import timedelta
 
     agora = _now()
@@ -568,8 +601,11 @@ async def historico(
 async def morning_digest(
     membro_id: str = Query(...),
     familia_id: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
     """Morning Digest consolidado (V25) — chamado pelo app no launch."""
+    membro_id = assert_membro_da_familia(user, membro_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     from ia_saude.agente_digest import gerar_morning_digest
     try:
         return await gerar_morning_digest(membro_id, familia_id)
@@ -583,12 +619,14 @@ async def morning_digest(
 async def buscar_produto_barcode(
     barcode: str,
     familia_id: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Busca macros por código de barras.
     Prioridade: SEFAZ local → OpenFoodFacts.
     Auditoria cruzada de peso/shrinkflation (V27).
     """
+    familia_id = assert_mesma_familia(user, familia_id)
     import httpx
     from ia_compras.mongo_client import get_dicionario_collection
 
@@ -677,8 +715,11 @@ def _parse_quantity(quantity_str: str) -> float | None:
 async def astrix_insights(
     membro_id:  str = Query(...),
     familia_id: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
     """Relatório semanal com IA correlacionando finanças, nutrição e exercício."""
+    membro_id = assert_membro_da_familia(user, membro_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     from ia_saude.agente_insights import (
         gerar_insights_semanais,
         resumir_semana_financeira,
@@ -703,8 +744,11 @@ async def astrix_insights(
 # ── Hidratação ────────────────────────────────────────────────────────────────
 
 @router.post("/hidratacao")
-async def registrar_hidratacao(payload: dict):
+async def registrar_hidratacao(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """Registra volume ingerido (copo padrão 250ml ou valor customizado) (V5)."""
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
@@ -750,8 +794,10 @@ async def registrar_hidratacao(payload: dict):
 async def get_hidratacao(
     membro_id: str = Query(...),
     data: str = Query(..., description="yyyy-MM-dd"),
+    user: AuthUser = Depends(get_current_user),
 ):
     """Total de água ingerida no dia vs meta."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_hidratacao_col()
     doc = col.find_one({"membro_id": membro_id, "data": data})
     if not doc:
@@ -772,8 +818,11 @@ async def get_hidratacao(
 # ── Análise de Cardápio (Restaurante) — V20 ──────────────────────────────────
 
 @router.post("/analisar-cardapio")
-async def analisar_cardapio(payload: dict):
+async def analisar_cardapio(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """OCR do cardápio + ranking por adequação ao perfil (V20)."""
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id  = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
@@ -857,8 +906,11 @@ Retorne APENAS JSON:
 # ── Progresso Físico ──────────────────────────────────────────────────────────
 
 @router.post("/progresso-fisico")
-async def registrar_progresso_fisico(payload: dict):
+async def registrar_progresso_fisico(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """Upload de foto corporal + análise qualitativa pela IA."""
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id  = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
@@ -898,8 +950,10 @@ async def registrar_progresso_fisico(payload: dict):
 
 
 @router.get("/progresso-fisico/{membro_id}")
-async def listar_progresso_fisico(membro_id: str):
+async def listar_progresso_fisico(membro_id: str,
+    user: AuthUser = Depends(get_current_user)):
     """Lista histórico de fotos de progresso do membro."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     col  = get_fotos_progresso_col()
     docs = list(col.find(
         {"membro_id": membro_id},
@@ -910,13 +964,18 @@ async def listar_progresso_fisico(membro_id: str):
 
 
 @router.delete("/progresso-fisico/{foto_id}")
-async def deletar_foto_progresso(foto_id: str):
+async def deletar_foto_progresso(foto_id: str,
+    user: AuthUser = Depends(get_current_user)):
     """Remove foto de progresso."""
     col = get_fotos_progresso_col()
     try:
         oid = ObjectId(foto_id)
     except Exception:
         raise HTTPException(status_code=422, detail="foto_id inválido")
+    doc = col.find_one({"_id": oid}, {"membro_id": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Foto não encontrada")
+    assert_membro_da_familia(user, doc.get("membro_id"))
     result = col.delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Foto não encontrada")
@@ -926,8 +985,11 @@ async def deletar_foto_progresso(foto_id: str):
 # ── Peso ──────────────────────────────────────────────────────────────────────
 
 @router.post("/peso")
-async def registrar_peso(payload: dict):
+async def registrar_peso(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """Registra pesagem. Média móvel de 7 dias usada para decisões clínicas (V24)."""
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id  = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     if not membro_id or not familia_id:
@@ -951,11 +1013,13 @@ async def registrar_peso(payload: dict):
 
 
 @router.get("/peso/{membro_id}")
-async def historico_peso(membro_id: str):
+async def historico_peso(membro_id: str,
+    user: AuthUser = Depends(get_current_user)):
     """
     Histórico de peso com média móvel de 7 dias (V24).
     Nunca retorna pesagem isolada para decisões clínicas.
     """
+    membro_id = assert_membro_da_familia(user, membro_id)
     col  = get_registro_peso_col()
     docs = list(col.find(
         {"membro_id": membro_id},
@@ -974,8 +1038,10 @@ async def historico_peso(membro_id: str):
 # ── Monitoramento Mensal ──────────────────────────────────────────────────────
 
 @router.get("/monitoramento/{membro_id}")
-async def relatorio_monitoramento(membro_id: str):
+async def relatorio_monitoramento(membro_id: str,
+    user: AuthUser = Depends(get_current_user)):
     """Relatório mensal gerado pela IA com adesão, variação de peso e diagnóstico."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     try:
         doc = await gerar_relatorio_mensal(membro_id)
         return doc
@@ -984,8 +1050,10 @@ async def relatorio_monitoramento(membro_id: str):
 
 
 @router.patch("/monitoramento/{membro_id}/aprovar-ajuste")
-async def aprovar_ajuste_protocolo(membro_id: str, payload: dict):
+async def aprovar_ajuste_protocolo(membro_id: str, payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     """Aplica ajuste de protocolo sugerido pelo agente de monitoramento."""
+    membro_id = assert_membro_da_familia(user, membro_id)
     relatorio_id = payload.get("relatorio_id")
     if not relatorio_id:
         raise HTTPException(status_code=422, detail="relatorio_id obrigatório")
@@ -1021,11 +1089,14 @@ async def aprovar_ajuste_protocolo(membro_id: str, payload: dict):
 # ── Preparo em Lote (Batch Cooking) — V11/V22 ────────────────────────────────
 
 @router.post("/preparo-lote")
-async def criar_preparo_lote(payload: dict, background_tasks: BackgroundTasks):
+async def criar_preparo_lote(payload: dict, background_tasks: BackgroundTasks,
+    user: AuthUser = Depends(get_current_user)):
     """
     Cozinhei para a semana: debita estoque cru imediatamente,
     cria item temporário com TTL culinário (V11/V22).
     """
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     familia_id = payload.get("familia_id")
     membro_id  = payload.get("membro_id")
     if not familia_id or not membro_id:
@@ -1068,8 +1139,10 @@ async def criar_preparo_lote(payload: dict, background_tasks: BackgroundTasks):
 
 
 @router.get("/preparo-lote")
-async def listar_preparos_lote(familia_id: str = Query(...)):
+async def listar_preparos_lote(familia_id: str = Query(...),
+    user: AuthUser = Depends(get_current_user)):
     """Lista marmitas/preparos ativos com porções restantes."""
+    familia_id = assert_mesma_familia(user, familia_id)
     col  = get_preparo_lote_col()
     docs = list(col.find(
         {"familia_id": familia_id, "porcoes_restantes": {"$gt": 0}},
@@ -1084,12 +1157,15 @@ async def listar_preparos_lote(familia_id: str = Query(...)):
 async def lista_compras_contextual(
     membro_id: str = Query(...),
     familia_id: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
     """
     Sugere lista de compras com contexto financeiro:
     verifica saldo do envelope, sugere remanejamento se necessário (V19).
     ROI proteico por faixa de orçamento (V23).
     """
+    membro_id = assert_membro_da_familia(user, membro_id)
+    familia_id = assert_mesma_familia(user, familia_id)
     from ia_compras.agente_orcamento import (
         consultar_saldo_envelope,
         encontrar_envelopes_com_folga,
@@ -1137,5 +1213,6 @@ async def lista_compras_contextual(
 # ── Biofeedback / IoT (stub reservado — V29) ─────────────────────────────────
 
 @router.post("/biofeedback/telemetria")
-async def receber_telemetria(payload: dict):
+async def receber_telemetria(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
     return {"status": "recebido", "processado": False, "msg": "IoT endpoint reservado — integração pendente"}

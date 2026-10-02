@@ -122,3 +122,33 @@ def assert_mesmo_usuario(user: AuthUser, usuario_id_no_payload) -> str:
             detail="usuario_id do payload não bate com o do token",
         )
     return user.id
+
+
+def assert_membro_da_familia(user: AuthUser, membro_id) -> str:
+    """Garante que `membro_id` é o próprio usuário ou alguém da família dele.
+
+    Rotas de saúde recebem o membro por parâmetro; sem esta checagem qualquer
+    usuário logado leria ou alteraria dados de saúde de outra família.
+    """
+    if not membro_id:
+        raise HTTPException(status_code=422, detail="membro_id é obrigatório")
+    membro_id = str(membro_id)
+    if membro_id == user.id:
+        return membro_id
+    try:
+        res = (
+            get_supabase().table("usuarios")
+            .select("familia_id")
+            .eq("id", membro_id)
+            .maybe_single()
+            .execute()
+        )
+        dados = res.data if res is not None else None
+    except Exception:
+        dados = None
+    if not dados or str(dados.get("familia_id")) != user.familia_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Membro não pertence à sua família",
+        )
+    return membro_id

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import Depends, APIRouter, HTTPException, Query
+from auth import AuthUser, get_current_user, assert_mesma_familia, assert_membro_da_familia
 from datetime import datetime, timezone
 from bson import ObjectId
 
@@ -33,7 +34,9 @@ def get_catalogo():
 def get_exercicio_dia(
     membro_id: str = Query(...),
     data: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_exercicio_col()
     doc = col.find_one({"membro_id": membro_id, "data": data})
     if not doc:
@@ -50,7 +53,10 @@ def get_exercicio_dia(
 # ── Registrar exercício ────────────────────────────────────────────────────────
 
 @router_exercicio.post("/exercicio/registrar")
-def registrar_exercicio(payload: dict):
+def registrar_exercicio(payload: dict,
+    user: AuthUser = Depends(get_current_user)):
+    assert_membro_da_familia(user, payload.get("membro_id"))
+    payload["familia_id"] = assert_mesma_familia(user, payload.get("familia_id"))
     membro_id  = payload.get("membro_id")
     familia_id = payload.get("familia_id")
     data       = payload.get("data")
@@ -114,7 +120,9 @@ def deletar_exercicio(
     exercicio_item_id: str,
     membro_id: str = Query(...),
     data: str = Query(...),
+    user: AuthUser = Depends(get_current_user),
 ):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_exercicio_col()
     doc = col.find_one({"membro_id": membro_id, "data": data})
     if not doc:
@@ -150,7 +158,9 @@ def deletar_exercicio(
 def get_historico_exercicio(
     membro_id: str = Query(...),
     dias: int = Query(30),
+    user: AuthUser = Depends(get_current_user),
 ):
+    membro_id = assert_membro_da_familia(user, membro_id)
     col = get_registro_exercicio_col()
     docs = list(
         col.find({"membro_id": membro_id}, sort=[("data", -1)], limit=max(1, dias))
