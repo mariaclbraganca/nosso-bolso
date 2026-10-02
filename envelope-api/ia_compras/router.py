@@ -29,6 +29,11 @@ def scrape_nfce(
       - Celular: Gemini (não bloqueado pelo Google)
     """
     from ia_compras.scraper_sefaz import raspar_nfce, extrair_texto_nota, SefazIndisponivelError
+    from ia_compras.models_compras import validar_url_nfce
+    try:
+        qr_code_url = validar_url_nfce(qr_code_url)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     try:
         html = raspar_nfce(qr_code_url)
         texto_limpo = extrair_texto_nota(html)
@@ -374,10 +379,21 @@ def registrar_feedback(
     compra = col.find_one({"compra_id": payload.compra_id, "familia_id": user.familia_id})
     if not compra:
         raise HTTPException(404, "Compra nao encontrada para esta familia")
-    result = col.update_one(
-        {"compra_id": payload.compra_id, "itens.nome_padronizado": payload.nome_padronizado},
-        {"$set": {"itens.$.status_consumo": payload.status.value}}
-    )
+    if payload.status.value == "em_consumo":
+        from datetime import timedelta
+        nova_data = (datetime.now() + timedelta(days=7)).isoformat()
+        result = col.update_one(
+            {"compra_id": payload.compra_id, "itens.nome_padronizado": payload.nome_padronizado},
+            {"$set": {
+                "itens.$.status_consumo": "ativo",
+                "itens.$.data_feedback_estimada": nova_data,
+            }}
+        )
+    else:
+        result = col.update_one(
+            {"compra_id": payload.compra_id, "itens.nome_padronizado": payload.nome_padronizado},
+            {"$set": {"itens.$.status_consumo": payload.status.value}}
+        )
     if result.matched_count == 0:
         raise HTTPException(404, "Item nao encontrado")
     return {"status": payload.status.value}

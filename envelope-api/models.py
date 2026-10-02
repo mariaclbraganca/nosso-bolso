@@ -83,6 +83,7 @@ class TransacaoUpdate(BaseModel):
     valor: Optional[float] = None
     descricao: Optional[str] = None
     envelope_id: Optional[UUID] = None
+    data: Optional[date] = None
 
     @field_validator('valor')
     @classmethod

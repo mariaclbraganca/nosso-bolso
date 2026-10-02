@@ -1,8 +1,18 @@
+from urllib.parse import urlparse
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
+
+
+def validar_url_nfce(v: str) -> str:
+    """O backend baixa essa URL; só portais fiscais (*.gov.br) são aceitos."""
+    url = urlparse((v or "").strip())
+    host = (url.hostname or "").lower()
+    if url.scheme not in ("http", "https") or not (host == "gov.br" or host.endswith(".gov.br")):
+        raise ValueError("URL não é de um portal de NFC-e da SEFAZ (*.gov.br)")
+    return v.strip()
 
 
 class CategoriaItem(str, Enum):
@@ -25,6 +35,7 @@ class StatusConsumo(str, Enum):
     ATIVO = "ativo"
     ACABOU = "acabou"
     ESTRAGOU = "estragou"
+    EM_CONSUMO = "em_consumo"
 
 
 class StatusIntegracao(str, Enum):
@@ -47,9 +58,7 @@ class IngestaoRequest(BaseModel):
     @field_validator("qr_code_url")
     @classmethod
     def url_valida(cls, v):
-        if "nfce" not in v.lower() and "sefaz" not in v.lower():
-            raise ValueError("URL não parece ser de uma NFC-e da SEFAZ")
-        return v
+        return validar_url_nfce(v)
 
 
 class FeedbackItemRequest(BaseModel):

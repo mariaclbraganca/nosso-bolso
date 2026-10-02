@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from auth import AuthUser, get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 from routes import envelopes, transacoes, dashboard, abastecer, fixos, remanejar, insights, notificacoes, configuracoes, parcelas, fechamento, reconciliacao, dia
 from routes.configuracoes import carregar_config_do_supabase
@@ -69,7 +70,10 @@ def health():
 
 
 @app.get("/debug/sefaz")
-def debug_sefaz(chave: str = "52260627289076000305652140001007211479511937"):
+def debug_sefaz(
+    chave: str = "52260627289076000305652140001007211479511937",
+    user: AuthUser = Depends(get_current_user),
+):
     """Testa se o Render consegue acessar a SEFAZ-GO."""
     try:
         from ia_compras.scraper_http import criar_sessao, _DEFAULT_TIMEOUT
@@ -92,7 +96,7 @@ def debug_sefaz(chave: str = "52260627289076000305652140001007211479511937"):
 
 
 @app.get("/debug/keys")
-def debug_keys():
+def debug_keys(user: AuthUser = Depends(get_current_user)):
     import os
     chaves = {}
     for sufixo in ("", "_1", "_2", "_3"):

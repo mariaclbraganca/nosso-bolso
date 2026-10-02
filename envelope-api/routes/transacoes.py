@@ -202,6 +202,7 @@ def exportar_extrato(
         return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=extrato_{familia_id}.pdf"})
 
 @router.put("/{transacao_id}")
+@router.patch("/{transacao_id}")
 def editar_transacao(
     transacao_id: str,
     payload: TransacaoUpdate,
@@ -218,6 +219,9 @@ def editar_transacao(
 
     if 'envelope_id' in update_data:
         update_data['envelope_id'] = str(update_data['envelope_id']) if update_data['envelope_id'] else None
+
+    if 'data' in update_data:
+        update_data['data'] = str(update_data['data'])
 
     # BOLA Fix: Sempre incluir familia_id em operações de escrita
     result = db.table("transacoes").update(update_data) \

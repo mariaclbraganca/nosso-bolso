@@ -1,4 +1,4 @@
-﻿*
+*
 !.gitignore
 !vercel.json
 !envelope-api/
@@ -7,6 +7,8 @@
 !envelope-flutter/**
 !envelope-flutter-v2/
 !envelope-flutter-v2/**
+!envelope-flutter-v3/
+!envelope-flutter-v3/**
 !.github/
 !.github/**
 !docs/
