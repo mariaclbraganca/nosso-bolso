@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/transacoes_provider.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../sheets/sheet_abastecer.dart';
 import '../../sheets/sheet_remanejar.dart';
 
-class HomeGradeEnvelopes extends StatelessWidget {
+class HomeGradeEnvelopes extends ConsumerWidget {
   const HomeGradeEnvelopes({super.key, required this.envelopes});
   final List<Map<String, dynamic>> envelopes;
 
@@ -15,7 +17,8 @@ class HomeGradeEnvelopes extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
     final ordenados = [...envelopes]..sort((a, b) => _ordem(a).compareTo(_ordem(b)));
     return LayoutBuilder(
       builder: (context, c) {
@@ -30,7 +33,8 @@ class HomeGradeEnvelopes extends StatelessWidget {
                 width: largura,
                 child: CartaoEnvelope(
                   env: env,
-                  onTap: () => EstadoEnvelope(env).estourado
+                  gastoMes: gastos[env['id']] ?? 0.0,
+                  onTap: () => EstadoEnvelope(env, gastoMes: gastos[env['id']] ?? 0.0).estourado
                       ? abrirSheet(context, SheetRemanejar(destinoId: env['id'] as String))
                       : abrirSheet(context, SheetAbastecer(envelopeId: env['id'] as String)),
                 ),
@@ -41,3 +45,4 @@ class HomeGradeEnvelopes extends StatelessWidget {
     );
   }
 }
+

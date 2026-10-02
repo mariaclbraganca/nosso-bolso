@@ -86,15 +86,12 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
               ),
             ),
             Expanded(
-              child: IndexedStack(
-                index: _aba.index.clamp(0, isAdmin ? 3 : 2),
-                children: [
-                  const FixosTab(),
-                  const ContasTab(),
-                  const MetasTab(),
-                  if (isAdmin) const PatrimonioTab(),
-                ],
-              ),
+              child: switch (_aba) {
+                AbaPlanos.fixos => const FixosTab(),
+                AbaPlanos.boletos => const ContasTab(),
+                AbaPlanos.metas => const MetasTab(),
+                AbaPlanos.patrimonio => const PatrimonioTab(),
+              },
             ),
           ],
         ),

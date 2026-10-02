@@ -52,6 +52,20 @@ final transacoesComDetalhesProvider = Provider<List<Map<String, dynamic>>>((ref)
   }).toList();
 });
 
+/// Gastos do mês por envelope_id (somente despesas reais confirmadas no período)
+final gastosPorEnvelopeNoMesProvider = Provider<Map<String, double>>((ref) {
+  final transacoes = ref.watch(transacoesComDetalhesProvider);
+  final mapa = <String, double>{};
+  for (final t in transacoes) {
+    if (t['tipo'] == 'despesa' && t['envelope_id'] != null) {
+      final envId = t['envelope_id'] as String;
+      final valor = (t['valor'] as num?)?.toDouble() ?? 0.0;
+      mapa[envId] = (mapa[envId] ?? 0.0) + valor;
+    }
+  }
+  return mapa;
+});
+
 /// Record para estatísticas rápidas
 class MesStats {
   final double totalReceita;

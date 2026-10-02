@@ -165,10 +165,17 @@ class ExtratoTransacaoCard extends ConsumerWidget {
                   Row(
                     children: [
                       if (!isReceita && envNome.isNotEmpty) ...[
-                        Text(envNome, style: NBText.legenda),
-                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            envNome,
+                            style: NBText.legenda,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
                         Text('·', style: NBText.legenda),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                       ],
                       if (usrNome.isNotEmpty) ...[
                         Text(usrNome, style: NBText.legenda),
@@ -179,6 +186,7 @@ class ExtratoTransacaoCard extends ConsumerWidget {
                       ],
                     ],
                   ),
+
                 ],
               ),
             ),

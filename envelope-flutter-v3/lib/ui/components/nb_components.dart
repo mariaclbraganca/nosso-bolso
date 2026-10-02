@@ -175,9 +175,9 @@ class BarraProgresso extends StatelessWidget {
   }
 }
 
-/// Estado visual de um envelope, derivado dos dados do Supabase.
+/// Estado visual de um envelope, derivado dos dados do Supabase e gastos do mês.
 class EstadoEnvelope {
-  EstadoEnvelope(Map<String, dynamic> env)
+  EstadoEnvelope(Map<String, dynamic> env, {this.gastoMes = 0.0})
       : natureza = NaturezaEnvelope.from(env),
         nome = (env['nome_envelope'] as String?) ?? 'Envelope',
         emoji = env['emoji'] as String?,
@@ -191,15 +191,20 @@ class EstadoEnvelope {
   final double saldo;
   final double planejado;
   final double objetivo;
+  final double gastoMes;
 
   bool get estourado => saldo < 0;
 
-  double get fracaoUsada {
+  bool get semPlanejamento => planejado <= 0;
+
+  bool get naoAbastecido => saldo == 0 && gastoMes == 0 && planejado > 0;
+
+  double get fracaoGasta {
     if (planejado <= 0) return 0;
-    return ((planejado - saldo) / planejado).clamp(0.0, 1.0);
+    return (gastoMes / planejado).clamp(0.0, 1.0);
   }
 
-  bool get noLimite => natureza == NaturezaEnvelope.consumo && !estourado && fracaoUsada > 0.85;
+  bool get noLimite => natureza == NaturezaEnvelope.consumo && !estourado && fracaoGasta > 0.85;
 
   double get fracaoObjetivo => objetivo > 0 ? (saldo / objetivo).clamp(0.0, 1.0) : 0;
 }
@@ -207,13 +212,19 @@ class EstadoEnvelope {
 /// Cartão de envelope com os 5 estados: consumo normal, no limite (>85%),
 /// estourado, reserva (acumula) e objetivo (progresso até a meta).
 class CartaoEnvelope extends StatelessWidget {
-  const CartaoEnvelope({super.key, required this.env, this.onTap});
+  const CartaoEnvelope({
+    super.key,
+    required this.env,
+    this.gastoMes = 0.0,
+    this.onTap,
+  });
   final Map<String, dynamic> env;
+  final double gastoMes;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final e = EstadoEnvelope(env);
+    final e = EstadoEnvelope(env, gastoMes: gastoMes);
     final estourado = e.estourado;
 
     final Color corValor = estourado
@@ -233,11 +244,19 @@ class CartaoEnvelope extends StatelessWidget {
     } else {
       switch (e.natureza) {
         case NaturezaEnvelope.consumo:
-          final pct = (e.fracaoUsada * 100).round();
-          barra = BarraProgresso(fracao: e.fracaoUsada, cor: e.noLimite ? NBColors.ambarBarra : NBColors.verde);
-          legenda = e.noLimite
-              ? Text('$pct% · no limite', style: NBText.legenda.copyWith(color: NBColors.ambarTexto, fontWeight: FontWeight.w700))
-              : Text('$pct% de ${brl(e.planejado, curto: true)}', style: NBText.legenda);
+          if (e.semPlanejamento) {
+            legenda = Text('Sem valor planejado', style: NBText.legenda);
+          } else if (e.naoAbastecido) {
+            legenda = Text('Não abastecido · abastecer ${brl(e.planejado, curto: true)}',
+                style: NBText.legenda.copyWith(color: NBColors.tintaSuave));
+          } else {
+
+            final pct = (e.fracaoGasta * 100).round();
+            barra = BarraProgresso(fracao: e.fracaoGasta, cor: e.noLimite ? NBColors.ambarBarra : NBColors.verde);
+            legenda = e.noLimite
+                ? Text('$pct% · no limite', style: NBText.legenda.copyWith(color: NBColors.ambarTexto, fontWeight: FontWeight.w700))
+                : Text('$pct% de ${brl(e.planejado, curto: true)}', style: NBText.legenda);
+          }
         case NaturezaEnvelope.reserva:
           legenda = Text(
             e.planejado > 0 ? 'Acumula · +${brl(e.planejado, curto: true)}' : 'Acumula',

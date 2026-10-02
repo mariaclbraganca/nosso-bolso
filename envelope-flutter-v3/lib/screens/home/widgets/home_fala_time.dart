@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/envelopes_provider.dart';
 import '../../../core/providers/insights_provider.dart';
 import '../../../core/providers/mes_provider.dart';
+import '../../../core/providers/transacoes_provider.dart';
 import '../../../core/services/app_navigator.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
@@ -16,7 +17,8 @@ class HomeFalaDoTime extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (envelopes.isEmpty) return const SizedBox.shrink();
     final saldo = ref.watch(saldoGeralProvider).value ?? 0;
-    final estados = envelopes.map(EstadoEnvelope.new).toList();
+    final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
+    final estados = envelopes.map((e) => EstadoEnvelope(e, gastoMes: gastos[e['id']] ?? 0.0)).toList();
     final estourados = estados
         .where((e) => e.estourado && e.natureza == NaturezaEnvelope.consumo)
         .toList();

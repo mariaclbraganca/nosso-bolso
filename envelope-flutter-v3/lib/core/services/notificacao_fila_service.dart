@@ -36,7 +36,12 @@ class NotificacaoFilaService {
   /// Seguro para chamar no init do app e após cada envio bem-sucedido.
   static Future<void> flush() async {
     try {
-      final session = Supabase.instance.client.auth.currentSession;
+      Session? session;
+      try {
+        session = Supabase.instance.client.auth.currentSession;
+      } catch (_) {
+        return; // Supabase ainda não inicializado
+      }
       if (session == null) return; // sem sessão não adianta tentar
 
       final prefs = await SharedPreferences.getInstance();
@@ -67,7 +72,7 @@ class NotificacaoFilaService {
           // Preenche campos que faltavam na captura em background.
           final f = body['familia_id'] as String?;
           if (f == null || f.isEmpty) body['familia_id'] = familiaId;
-          body.putIfAbsent('usuario_id', () => session.user.id);
+          body.putIfAbsent('usuario_id', () => session!.user.id);
           final resp = await http
               .post(
                 Uri.parse('${ApiService.baseUrl}${item['endpoint']}'),
