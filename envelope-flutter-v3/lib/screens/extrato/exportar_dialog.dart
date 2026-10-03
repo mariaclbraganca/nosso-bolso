@@ -2,21 +2,32 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/services/app_navigator.dart';
 import '../../ui/theme/nb_theme.dart';
+import 'extrato_pdf.dart';
 
-class ExportarDialog extends StatefulWidget {
+class ExportarDialog extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> transacoes;
   final String mes;
 
   const ExportarDialog({super.key, required this.transacoes, required this.mes});
 
   @override
-  State<ExportarDialog> createState() => _ExportarDialogState();
+  ConsumerState<ExportarDialog> createState() => _ExportarDialogState();
 }
 
-class _ExportarDialogState extends State<ExportarDialog> {
+class _ExportarDialogState extends ConsumerState<ExportarDialog> {
+  /// PDF com resumo, envelopes, lançamentos e análise da IA (mesmo da v2).
+  /// Usa o contexto do navegador raiz: este diálogo fecha antes de terminar.
+  Future<void> _exportarPDF() async {
+    final raiz = navigatorKey.currentContext;
+    Navigator.pop(context);
+    if (raiz != null && raiz.mounted) await exportarPdf(raiz, ref, widget.mes);
+  }
+
   bool _gerando = false;
 
   Future<void> _exportarCSV() async {
@@ -64,7 +75,8 @@ class _ExportarDialogState extends State<ExportarDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NBRadius.cartao)),
       title: Text('Exportar Extrato', style: NBText.secao),
       content: Text(
-        'Deseja exportar as ${widget.transacoes.length} transações do ciclo ${widget.mes} em formato de planilha CSV?',
+        '${widget.transacoes.length} lançamentos de ${widget.mes}. O PDF traz resumo, envelopes e uma análise da IA; '
+        'o CSV abre em planilhas.',
         style: NBText.corpo.copyWith(color: NBColors.tintaSuave),
       ),
       actions: [
@@ -72,12 +84,19 @@ class _ExportarDialogState extends State<ExportarDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
+        OutlinedButton.icon(
+          onPressed: _gerando ? null : _exportarPDF,
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+          label: const Text('PDF'),
+        ),
         FilledButton.icon(
           onPressed: _gerando ? null : _exportarCSV,
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
           icon: _gerando
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.share_rounded, size: 16),
-          label: const Text('Exportar CSV'),
+          label: const Text('CSV'),
         ),
       ],
     );
