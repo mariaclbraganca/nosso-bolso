@@ -93,9 +93,11 @@ void main() {
     expect(cafe.value, isFalse);
 
     final hidratacao = find.widgetWithText(SwitchListTile, 'Hidratação');
-    await t.scrollUntilVisible(hidratacao, 200);
-    await t.tap(hidratacao);
+    await t.ensureVisible(hidratacao);
     await t.pumpAndSettle();
+    await t.tap(find.descendant(of: hidratacao, matching: find.byType(Switch)));
+    await t.pumpAndSettle();
+    expect(t.widget<SwitchListTile>(hidratacao).value, isFalse);
     expect((await SharedPreferences.getInstance()).getBool('notif_hidratacao'), isFalse);
     expect(find.text('Alarme do fechamento do dia'), findsOneWidget);
   });
