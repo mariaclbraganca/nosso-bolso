@@ -1,3 +1,4 @@
+import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,7 +53,7 @@ void main() {
         'itens': [{'nome': 'Café', 'categoria': 'mercearia', 'quantidade_sugerida': 2, 'unidade': 'un', 'preco_estimado': 38.0, 'motivo': 'acaba em 5 dias'}],
         'custo_estimado_total': 38.0, 'saldo_envelope': 412.3, 'dentro_do_orcamento': true, 'dias_cobertura': 12,
       }),
-    ], child: const MaterialApp(home: ComprasScreen())));
+    ], child: MaterialApp(theme: nossoBolsoTheme(), home: const ComprasScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
     expect(find.textContaining('Assaí'), findsWidgets);
@@ -66,7 +67,7 @@ void main() {
       metasProvider.overrideWith((ref) async => [{'_id': 'm1', 'nome': 'Viagem', 'valor_meta': 6000.0, 'valor_atual': 3200.0, 'emoji': '✈️'}]),
       patrimonioProvider.overrideWith((ref) => Stream.value(<Map<String, dynamic>>[])),
       snapshotsPatrimonioProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
-    ], child: const MaterialApp(home: PlanosScreen())));
+    ], child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
     expect(find.textContaining('Aluguel'), findsWidgets);

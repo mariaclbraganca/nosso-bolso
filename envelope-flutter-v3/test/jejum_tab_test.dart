@@ -1,3 +1,4 @@
+import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,8 +22,9 @@ void main() {
             (ref) => Stream.value(null),
           ),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
+        child: MaterialApp(
+          theme: nossoBolsoTheme(),
+          home: const Scaffold(
             body: JejumTab(membroId: 'u1', familiaId: 'f1'),
           ),
         ),

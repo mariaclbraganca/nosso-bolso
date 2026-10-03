@@ -150,7 +150,7 @@ ThemeData nossoBolsoTheme() {
         foregroundColor: Colors.white,
         disabledBackgroundColor: NBColors.afundado,
         disabledForegroundColor: NBColors.tintaSuave,
-        minimumSize: const Size.fromHeight(54),
+        minimumSize: const Size(64, 54),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(NBRadius.cartao))),
         textStyle: GoogleFonts.figtree(fontSize: 16, fontWeight: FontWeight.w700),
       ),
@@ -158,7 +158,7 @@ ThemeData nossoBolsoTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: NBColors.tinta,
-        minimumSize: const Size.fromHeight(54),
+        minimumSize: const Size(64, 54),
         side: const BorderSide(color: NBColors.tinta, width: 1.5),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(NBRadius.cartao))),
         textStyle: GoogleFonts.figtree(fontSize: 16, fontWeight: FontWeight.w700),

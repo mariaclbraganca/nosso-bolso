@@ -71,7 +71,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: NBColors.papel,
                     foregroundColor: NBColors.verdeProfundo,
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size(64, 48),
                   ),
                   icon: const Icon(Icons.move_to_inbox_rounded, size: 18),
                   label: const Text('Abastecer'),
@@ -84,7 +84,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: claro, width: 1.5),
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size(64, 48),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('Receita'),

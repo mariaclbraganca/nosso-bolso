@@ -37,20 +37,25 @@ class CascaSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.92),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.92),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 0, NBSpacing.margemTela, NBSpacing.l),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: filhos),
+              padding: const EdgeInsets.fromLTRB(
+                  NBSpacing.margemTela, 0, NBSpacing.margemTela, NBSpacing.l),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: filhos),
             ),
           ),
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 0, NBSpacing.margemTela, NBSpacing.l),
+              padding: const EdgeInsets.fromLTRB(
+                  NBSpacing.margemTela, 0, NBSpacing.margemTela, NBSpacing.l),
               child: botao,
             ),
           ),
@@ -61,7 +66,12 @@ class CascaSheet extends StatelessWidget {
 }
 
 class BotaoPrincipal extends StatelessWidget {
-  const BotaoPrincipal({super.key, required this.rotulo, required this.onPressed, this.carregando = false, this.cor});
+  const BotaoPrincipal(
+      {super.key,
+      required this.rotulo,
+      required this.onPressed,
+      this.carregando = false,
+      this.cor});
   final String rotulo;
   final VoidCallback? onPressed;
   final bool carregando;
@@ -69,18 +79,28 @@ class BotaoPrincipal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: carregando ? null : onPressed,
-      style: cor == null ? null : FilledButton.styleFrom(backgroundColor: cor),
-      child: carregando
-          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-          : Text(rotulo, maxLines: 1, overflow: TextOverflow.ellipsis),
+    // Largura total aqui (e não no tema): botões do tema dentro de Row precisam de largura finita.
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: carregando ? null : onPressed,
+        style:
+            cor == null ? null : FilledButton.styleFrom(backgroundColor: cor),
+        child: carregando
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.4, color: Colors.white))
+            : Text(rotulo, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }
 
 class BotaoSecundario extends StatelessWidget {
-  const BotaoSecundario({super.key, required this.rotulo, required this.onPressed});
+  const BotaoSecundario(
+      {super.key, required this.rotulo, required this.onPressed});
   final String rotulo;
   final VoidCallback? onPressed;
 
@@ -91,7 +111,8 @@ class BotaoSecundario extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: NBColors.tinta,
         side: const BorderSide(color: NBColors.linha),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NBRadius.campo)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(NBRadius.campo)),
       ),
       child: Text(rotulo),
     );
@@ -115,9 +136,12 @@ class SeletorEnvelope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lista = envelopes.where((e) => e['id'] != excluirId && e['deleted_at'] == null).toList();
+    final lista = envelopes
+        .where((e) => e['id'] != excluirId && e['deleted_at'] == null)
+        .toList();
     if (lista.isEmpty) {
-      return Text('Nenhum envelope ainda. Crie um em Planos.', style: NBText.legenda);
+      return Text('Nenhum envelope ainda. Crie um em Planos.',
+          style: NBText.legenda);
     }
     return SizedBox(
       height: 76,
@@ -145,15 +169,23 @@ class SeletorEnvelope extends StatelessWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: e.natureza.forte, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                          color: e.natureza.forte, shape: BoxShape.circle),
                     ),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(e.nome, style: NBText.rotulo, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(
+                        child: Text(e.nome,
+                            style: NBText.rotulo,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                   ]),
                   const SizedBox(height: 4),
                   Text(brl(e.saldo),
                       style: NBText.corpo.copyWith(
-                          fontWeight: FontWeight.w700, color: e.estourado ? NBColors.estouro : NBColors.tintaSuave)),
+                          fontWeight: FontWeight.w700,
+                          color: e.estourado
+                              ? NBColors.estouro
+                              : NBColors.tintaSuave)),
                 ],
               ),
             ),
@@ -171,9 +203,11 @@ class Rotulo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: NBSpacing.s),
-        child: Text(texto, style: NBText.rotulo.copyWith(color: NBColors.tintaSuave)),
+        child: Text(texto,
+            style: NBText.rotulo.copyWith(color: NBColors.tintaSuave)),
       );
 }
 
 /// Documentos do MongoDB (contas, metas) chegam com `_id`, não `id`.
-String idMongo(Map<String, dynamic> doc) => (doc['_id'] ?? doc['id'] ?? '').toString();
+String idMongo(Map<String, dynamic> doc) =>
+    (doc['_id'] ?? doc['id'] ?? '').toString();
