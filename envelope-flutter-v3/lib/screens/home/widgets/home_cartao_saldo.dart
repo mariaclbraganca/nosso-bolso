@@ -4,9 +4,7 @@ import '../../../core/providers/envelopes_provider.dart';
 import '../../../core/providers/mes_provider.dart';
 import '../../../core/providers/transacoes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
-import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
-import '../../sheets/sheet_abastecer.dart';
 import '../../sheets/sheet_lancamento.dart';
 
 class HomeCartaoSaldo extends ConsumerWidget {
@@ -15,7 +13,10 @@ class HomeCartaoSaldo extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final saldo = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
-    final stats = ref.watch(totalStatsProvider);
+    final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
+    final podeGastar = (ref.watch(envelopesViseisProvider))
+        .where((e) => e['is_reserva'] != true)
+        .fold(0.0, (s, e) => s + ((e['valor_planejado'] as num?)?.toDouble() ?? 0) - (gastos[e['id']] ?? 0));
     final mes = ref.watch(mesAtualProvider);
     final gastoCiclo = ref.watch(statsPorMesProvider(mes)).totalDespesa;
     final aoVivo = _ultimoLancamento(ref);
@@ -31,7 +32,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Saldo geral · fora dos envelopes',
+            'Saldo em conta',
             style: NBText.rotulo.copyWith(color: claro, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
@@ -67,14 +68,14 @@ class HomeCartaoSaldo extends ConsumerWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => abrirSheet(context, const SheetAbastecer()),
+                  onPressed: () => abrirLancamento(context, tipo: TipoLancamento.receita, descricao: 'Resgate da reserva'),
                   style: FilledButton.styleFrom(
                     backgroundColor: NBColors.papel,
                     foregroundColor: NBColors.verdeProfundo,
                     minimumSize: const Size(64, 48),
                   ),
-                  icon: const Icon(Icons.move_to_inbox_rounded, size: 18),
-                  label: const Text('Abastecer'),
+                  icon: const Icon(Icons.savings_outlined, size: 18),
+                  label: const Text('Resgatar reserva'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -87,7 +88,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
                     minimumSize: const Size(64, 48),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Receita'),
+                  label: const Text('Nova receita'),
                 ),
               ),
             ],
@@ -97,8 +98,8 @@ class HomeCartaoSaldo extends ConsumerWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _MiniValor(rotulo: 'Nos envelopes', valor: stats['available'] ?? 0)),
-              Expanded(child: _MiniValor(rotulo: 'Gasto no ciclo', valor: gastoCiclo)),
+              Expanded(child: _MiniValor(rotulo: 'Orçamento disponível', valor: podeGastar)),
+              Expanded(child: _MiniValor(rotulo: 'Gastos do mês', valor: gastoCiclo)),
             ],
           ),
         ],

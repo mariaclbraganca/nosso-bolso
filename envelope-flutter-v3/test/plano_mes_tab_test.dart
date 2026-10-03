@@ -54,6 +54,6 @@ void main() {
     expect(find.text('todo mês'), findsOneWidget);
     expect(find.text(brl(870.80)), findsOneWidget); // fatura projetada 620,80 + 250
     expect(find.text('Mercado'), findsOneWidget);
-    expect(find.textContaining('Próximos meses'), findsOneWidget);
+    expect(find.text('Projeção dos próximos meses'), findsOneWidget);
   });
 }

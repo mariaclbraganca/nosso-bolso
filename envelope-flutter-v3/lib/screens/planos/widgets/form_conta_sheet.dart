@@ -162,7 +162,7 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
           contentPadding: EdgeInsets.zero,
           value: _recorrente,
           onChanged: (v) => setState(() => _recorrente = v),
-          title: Text('Repete todo mês', style: NBText.corpo),
+          title: Text('Recorrente (todo mês)', style: NBText.corpo),
           subtitle: Text('Ao pagar, o boleto do mês seguinte já fica lançado', style: NBText.legenda),
         ),
       ],

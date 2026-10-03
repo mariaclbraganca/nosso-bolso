@@ -146,7 +146,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
           contentPadding: EdgeInsets.zero,
           value: _recorrente,
           onChanged: (v) => setState(() => _recorrente = v),
-          title: Text('Repete todo mês', style: NBText.corpo),
+          title: Text('Recorrente (todo mês)', style: NBText.corpo),
           subtitle: Text('Aparece de novo automaticamente nos próximos meses', style: NBText.legenda),
         ),
       ],

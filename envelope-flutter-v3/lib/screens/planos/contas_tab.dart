@@ -162,13 +162,13 @@ class ContasTab extends ConsumerWidget {
             const Padding(padding: EdgeInsets.all(16), child: TopoSheet(titulo: 'Nova conta')),
             ListTile(
               leading: const Icon(Icons.event_repeat_rounded),
-              title: const Text('Conta mensal'),
+              title: const Text('Conta recorrente'),
               subtitle: const Text('Aluguel, Unimed, faculdade… só o dia do vencimento'),
               onTap: () => Navigator.pop(ctx, 'fixo'),
             ),
             ListTile(
               leading: const Icon(Icons.receipt_long_rounded),
-              title: const Text('Boleto'),
+              title: const Text('Boleto avulso'),
               subtitle: const Text('Com data, categoria e código de barras ou PIX para copiar'),
               onTap: () => Navigator.pop(ctx, 'boleto'),
             ),
@@ -200,7 +200,7 @@ class ContasTab extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('CONTAS DO MÊS', style: NBText.eyebrow),
+                    Text('CONTAS A PAGAR', style: NBText.eyebrow),
                     const SizedBox(height: 4),
                     Text(brl(total), style: NBText.valorCartao),
                     Text('${contas.where((c) => c['pago'] == true).length} de ${contas.length} pagas', style: NBText.legenda),

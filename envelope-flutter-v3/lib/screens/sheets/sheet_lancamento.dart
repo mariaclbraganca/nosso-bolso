@@ -13,13 +13,14 @@ import 'sheet_abastecer.dart';
 enum TipoLancamento { gasto, receita }
 
 Future<void> abrirLancamento(BuildContext context,
-        {TipoLancamento tipo = TipoLancamento.gasto, String? envelopeId}) =>
-    abrirSheet(context, SheetLancamento(tipoInicial: tipo, envelopeInicial: envelopeId));
+        {TipoLancamento tipo = TipoLancamento.gasto, String? envelopeId, String? descricao}) =>
+    abrirSheet(context, SheetLancamento(tipoInicial: tipo, envelopeInicial: envelopeId, descricaoInicial: descricao));
 
 class SheetLancamento extends ConsumerStatefulWidget {
-  const SheetLancamento({super.key, this.tipoInicial = TipoLancamento.gasto, this.envelopeInicial});
+  const SheetLancamento({super.key, this.tipoInicial = TipoLancamento.gasto, this.envelopeInicial, this.descricaoInicial});
   final TipoLancamento tipoInicial;
   final String? envelopeInicial;
+  final String? descricaoInicial;
 
   @override
   ConsumerState<SheetLancamento> createState() => _SheetLancamentoState();
@@ -29,7 +30,7 @@ class _SheetLancamentoState extends ConsumerState<SheetLancamento> {
   late TipoLancamento _tipo = widget.tipoInicial;
   late String? _envelopeId = widget.envelopeInicial;
   final _valor = TextEditingController();
-  final _descricao = TextEditingController();
+  late final _descricao = TextEditingController(text: widget.descricaoInicial);
   String _forma = 'pix';
   bool _salvando = false;
 

@@ -50,9 +50,9 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
   Widget build(BuildContext context) {
     final mes = ref.watch(mesAtualProvider);
     final abasMap = <AbaPlanos, String>{
-      AbaPlanos.mes: '📊 Mês',
-      AbaPlanos.contas: '🧾 Contas',
-      AbaPlanos.metas: '🎯 Metas',
+      AbaPlanos.mes: 'Resumo',
+      AbaPlanos.contas: 'Contas a pagar',
+      AbaPlanos.metas: 'Metas',
     };
 
     return Scaffold(

@@ -65,7 +65,7 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
     if (!mounted) return;
     setState(() => _salvando = false);
     if (falhas.isEmpty) {
-      avisar('Tetos salvos (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
+      avisar('Orçamento salvo (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
       Navigator.pop(context, true);
     } else {
       avisar('${falhas.length} envelope(s) não salvaram. Tente de novo.', erro: true);
@@ -85,8 +85,8 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
     return CascaSheet(
       filhos: [
         const TopoSheet(
-          titulo: 'Tetos do mês',
-          subtitulo: 'Quanto vocês se permitem gastar em cada envelope no dia a dia.',
+          titulo: 'Orçamento mensal',
+          subtitulo: 'Valor orçado para cada envelope no mês.',
         ),
         const SizedBox(height: NBSpacing.l),
         ResumoTetos(plano: plano, totalTetos: total),
@@ -116,7 +116,7 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
             ),
           ),
       ],
-      botao: BotaoPrincipal(rotulo: 'Salvar tetos', carregando: _salvando, onPressed: _salvar),
+      botao: BotaoPrincipal(rotulo: 'Salvar orçamento', carregando: _salvando, onPressed: _salvar),
     );
   }
 }
@@ -132,22 +132,22 @@ class ResumoTetos extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = plano;
     if (p == null) {
-      return CartaoNB(child: LinhaPrevia(rotulo: 'Total dos tetos', valor: totalTetos));
+      return CartaoNB(child: LinhaPrevia(rotulo: 'Total orçado', valor: totalTetos));
     }
     final sobra = p.totalEntradas.previsto - p.totalContas.previsto - p.cartaoComprometido;
     final resultado = sobra - totalTetos;
     return CartaoNB(
       child: Column(
         children: [
-          LinhaPrevia(rotulo: 'Entradas previstas', valor: p.totalEntradas.previsto),
-          LinhaPrevia(rotulo: '(−) Contas do mês', valor: -p.totalContas.previsto),
-          LinhaPrevia(rotulo: '(−) Cartão já comprometido', valor: -p.cartaoComprometido),
+          LinhaPrevia(rotulo: 'Receitas previstas', valor: p.totalEntradas.previsto),
+          LinhaPrevia(rotulo: '(−) Contas a pagar', valor: -p.totalContas.previsto),
+          LinhaPrevia(rotulo: '(−) Cartão: lançamentos futuros', valor: -p.cartaoComprometido),
           const Divider(height: 16),
-          LinhaPrevia(rotulo: 'Sobra para o dia a dia', valor: sobra),
-          LinhaPrevia(rotulo: '(−) Seus tetos', valor: -totalTetos),
+          LinhaPrevia(rotulo: 'Disponível para orçamento', valor: sobra),
+          LinhaPrevia(rotulo: '(−) Total orçado', valor: -totalTetos),
           const Divider(height: 16),
           LinhaPrevia(
-            rotulo: resultado >= 0 ? 'Ainda dá para distribuir' : 'Vai faltar (sai da reserva)',
+            rotulo: resultado >= 0 ? 'Saldo a distribuir' : 'Déficit (coberto pela reserva)',
             valor: resultado,
             corValor: resultado >= 0 ? NBColors.verde : NBColors.estouro,
           ),

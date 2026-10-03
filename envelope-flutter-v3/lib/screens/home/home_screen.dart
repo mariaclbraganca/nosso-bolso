@@ -120,7 +120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   TextButton.icon(
                     onPressed: () => abrirSheet(context, const SheetPlanejarMes()),
                     icon: const Icon(Icons.tune_rounded, size: 16),
-                    label: const Text('Planejar'),
+                    label: const Text('Orçamento'),
                   ),
                   TextButton.icon(
                     onPressed: () => abrirSheet(context, const SheetRemanejar()),

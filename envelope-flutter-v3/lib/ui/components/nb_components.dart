@@ -193,7 +193,14 @@ class EstadoEnvelope {
   final double objetivo;
   final double gastoMes;
 
-  bool get estourado => saldo < 0;
+  /// Consumo: estoura quando o gasto do mês passa do teto. Reserva/objetivo
+  /// acumulam saldo: estouram quando o saldo fica negativo.
+  bool get estourado => natureza == NaturezaEnvelope.consumo
+      ? planejado > 0 && gastoMes > planejado
+      : saldo < 0;
+
+  /// Quanto ainda dá para gastar no mês (negativo = passou do teto).
+  double get restante => planejado - gastoMes;
 
   bool get semPlanejamento => planejado <= 0;
 
@@ -242,22 +249,22 @@ class CartaoEnvelope extends StatelessWidget {
 
     if (estourado) {
       barra = const BarraProgresso(fracao: 1, cor: NBColors.estouro, trilho: NBColors.estouro);
-      legenda = Text('Estourou · remanejar', style: NBText.legenda.copyWith(color: NBColors.estouro, fontWeight: FontWeight.w700));
+      legenda = Text(
+        e.natureza == NaturezaEnvelope.consumo ? '${brl(-e.restante, curto: true)} acima do orçado' : 'Estourou · remanejar',
+        style: NBText.legenda.copyWith(color: NBColors.estouro, fontWeight: FontWeight.w700),
+      );
     } else {
       switch (e.natureza) {
         case NaturezaEnvelope.consumo:
           if (e.semPlanejamento) {
-            legenda = Text('Sem valor planejado', style: NBText.legenda);
-          } else if (e.naoAbastecido) {
-            legenda = Text('Não abastecido · abastecer ${brl(e.planejado, curto: true)}',
-                style: NBText.legenda.copyWith(color: NBColors.tintaSuave));
+            legenda = Text('Sem orçamento definido', style: NBText.legenda);
           } else {
 
             final pct = (e.fracaoGasta * 100).round();
             barra = BarraProgresso(fracao: e.fracaoGasta, cor: e.noLimite ? NBColors.ambarBarra : NBColors.verde);
             legenda = e.noLimite
-                ? Text('$pct% · no limite', style: NBText.legenda.copyWith(color: NBColors.ambarTexto, fontWeight: FontWeight.w700))
-                : Text('$pct% de ${brl(e.planejado, curto: true)}', style: NBText.legenda);
+                ? Text('$pct% do orçamento · atenção', style: NBText.legenda.copyWith(color: NBColors.ambarTexto, fontWeight: FontWeight.w700))
+                : Text('$pct% do orçamento (${brl(e.planejado, curto: true)})', style: NBText.legenda);
           }
         case NaturezaEnvelope.reserva:
           legenda = Text(
@@ -307,7 +314,12 @@ class CartaoEnvelope extends StatelessWidget {
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(brl(e.saldo, curto: semCentavos), style: NBText.valorCartao.copyWith(color: corValor)),
+                      // Consumo mostra o que resta do teto; reserva e objetivo, o saldo guardado.
+                      child: Text(
+                        brl(e.natureza == NaturezaEnvelope.consumo ? (e.semPlanejamento ? -e.gastoMes : e.restante) : e.saldo,
+                            curto: semCentavos),
+                        style: NBText.valorCartao.copyWith(color: corValor),
+                      ),
                     ),
                     if (barra != null) ...[const SizedBox(height: 8), barra],
                     const SizedBox(height: 8),

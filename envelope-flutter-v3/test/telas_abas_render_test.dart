@@ -73,10 +73,10 @@ void main() {
     ], child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.text('Salário'), findsOneWidget); // aba Mês abre primeiro
-    await abrirAbas(t, ['Contas']);
+    expect(find.text('Salário'), findsOneWidget); // aba Resumo abre primeiro
+    await abrirAbas(t, ['Contas a pagar']);
     expect(find.textContaining('Aluguel'), findsWidgets);
     expect(find.textContaining('Luz'), findsWidgets); // boleto na mesma lista
-    await abrirAbas(t, ['Metas', 'Mês']);
+    await abrirAbas(t, ['Metas', 'Resumo']);
   });
 }

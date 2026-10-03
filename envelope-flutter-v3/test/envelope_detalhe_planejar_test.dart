@@ -59,14 +59,14 @@ void main() {
         extras: [planoMesProvider.overrideWith((ref) => AsyncValue.data(plano))]));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    expect(find.text('Sobra para o dia a dia'), findsOneWidget);
+    expect(find.text('Disponível para orçamento'), findsOneWidget);
     expect(find.text(brl(2500)), findsOneWidget); // 5000 − 2000 − 500
-    expect(find.text(brl(-1500)), findsOneWidget); // tetos 1200 + 300
-    expect(find.text('Ainda dá para distribuir'), findsOneWidget);
+    expect(find.text(brl(-1500)), findsOneWidget); // limites 1200 + 300
+    expect(find.text('Saldo a distribuir'), findsOneWidget);
     expect(find.text(brl(1000)), findsOneWidget);
 
     await t.enterText(find.widgetWithText(TextField, '300,00'), '200000');
     await t.pumpAndSettle();
-    expect(find.text('Vai faltar (sai da reserva)'), findsOneWidget);
+    expect(find.text('Déficit (coberto pela reserva)'), findsOneWidget);
   });
 }

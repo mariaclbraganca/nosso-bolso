@@ -67,12 +67,12 @@ class ResumoPlano extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('COMO O MÊS FECHA', style: NBText.eyebrow),
+          Text('RESULTADO DO MÊS', style: NBText.eyebrow),
           const SizedBox(height: NBSpacing.s),
           Row(
             children: [
-              Expanded(child: _Numero('Planejado', plano.resultadoPrevisto)),
-              Expanded(child: _Numero('Com o que já aconteceu', proj)),
+              Expanded(child: _Numero('Previsto', plano.resultadoPrevisto)),
+              Expanded(child: _Numero('Projetado', proj)),
             ],
           ),
           const Divider(height: NBSpacing.xl),
@@ -87,11 +87,11 @@ class ResumoPlano extends StatelessWidget {
               Expanded(
                 child: Text(
                   proj >= 0
-                      ? 'O mês fecha sem mexer na reserva. Sobram ${brl(proj)}.'
+                      ? 'Superávit projetado de ${brl(proj)}, sem uso da reserva.'
                       : plano.faltaDaReserva > 0
-                          ? 'Precisa sair ${brl(plano.faltaDaReserva)} da reserva'
-                              '${plano.resgatesReserva > 0 ? ' (além dos ${brl(plano.resgatesReserva)} já resgatados)' : ''}.'
-                          : 'A reserva já cobriu o mês: ${brl(plano.resgatesReserva)} resgatados.',
+                          ? 'Déficit a cobrir com a reserva: ${brl(plano.faltaDaReserva)}'
+                              '${plano.resgatesReserva > 0 ? ' (já resgatados: ${brl(plano.resgatesReserva)})' : ''}.'
+                          : 'Déficit coberto pela reserva: ${brl(plano.resgatesReserva)} resgatados.',
                   style: NBText.rotulo.copyWith(color: proj >= 0 ? NBColors.verde : NBColors.tinta),
                 ),
               ),
@@ -166,17 +166,17 @@ class _BlocoEntradas extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Cabecalho(
-          'Entradas',
+          'Receitas',
           plano.totalEntradas,
           rotuloRealizado: 'recebido',
           acao: IconButton(
-            tooltip: 'Nova entrada',
+            tooltip: 'Nova receita prevista',
             onPressed: () => abrirSheet(context, SheetEntrada(mes: plano.mes)),
             icon: const Icon(Icons.add_circle_outline, color: NBColors.verde),
           ),
         ),
         if (plano.entradas.isEmpty)
-          Text('Cadastre salário, aluguel recebido, vale… para o app saber quanto entra.', style: NBText.legenda),
+          Text('Cadastre as receitas previstas: salário, aluguel recebido, vale alimentação.', style: NBText.legenda),
         for (final e in plano.entradas)
           CartaoNB(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
@@ -213,8 +213,8 @@ class _BlocoContas extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Cabecalho('Contas do mês', plano.totalContas, rotuloRealizado: 'pago'),
-        if (contas.isEmpty) Text('Nenhuma conta neste mês (aba Contas).', style: NBText.legenda),
+        _Cabecalho('Contas a pagar', plano.totalContas, rotuloRealizado: 'pago'),
+        if (contas.isEmpty) Text('Nenhuma conta a pagar neste mês.', style: NBText.legenda),
         for (final c in contas)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -232,7 +232,7 @@ class _BlocoContas extends StatelessWidget {
               ],
             ),
           ),
-        Text('Marque como pago na aba Contas.', style: NBText.legenda),
+        Text('Registre os pagamentos na aba Contas a pagar.', style: NBText.legenda),
       ],
     );
   }
@@ -255,8 +255,8 @@ class _BlocoCartao extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cartão · fatura de ${mesLabelLongo(mesFatura).toLowerCase()}', style: NBText.secao),
-                  Text('vence dia 7 e paga o que for gasto neste mês', style: NBText.legenda),
+                  Text('Cartão de crédito · Fatura de ${mesLabelLongo(mesFatura).toLowerCase()}', style: NBText.secao),
+                  Text('Vencimento dia 7 · inclui as compras no crédito deste mês', style: NBText.legenda),
                 ],
               ),
             ),
@@ -271,10 +271,10 @@ class _BlocoCartao extends ConsumerWidget {
         CartaoNB(
           child: Column(
             children: [
-              _LinhaValor('Já comprometido (parcelas e assinaturas)', plano.cartaoComprometido),
+              _LinhaValor('Lançamentos futuros (parcelas e assinaturas)', plano.cartaoComprometido),
               _LinhaValor('Compras no crédito neste mês', plano.gastoNoCartao),
               const Divider(),
-              _LinhaValor('Fatura projetada', plano.proximaFaturaProjetada, destaque: true),
+              _LinhaValor('Fatura prevista', plano.proximaFaturaProjetada, destaque: true),
             ],
           ),
         ),
@@ -294,7 +294,7 @@ class _BlocoCartao extends ConsumerWidget {
         if (itens.isNotEmpty)
           TextButton(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompromissosScreen())),
-            child: const Text('Gerenciar parcelas e assinaturas'),
+            child: const Text('Gerenciar lançamentos futuros'),
           ),
       ],
     );
@@ -329,7 +329,7 @@ class _BlocoDiaADia extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Cabecalho('Dia a dia (envelopes)', plano.totalDiaADia, rotuloRealizado: 'gasto'),
+        _Cabecalho('Orçamento por envelope', plano.totalDiaADia, rotuloRealizado: 'realizado'),
         for (final e in envs)
           if (plano.tetoDe(e) > 0 || plano.gastoDe(e) > 0)
             Padding(
@@ -353,7 +353,7 @@ class _BlocoDiaADia extends StatelessWidget {
                 ],
               ),
             ),
-        Text('O teto de cada envelope é o valor planejado (botão Planejar, na Home).', style: NBText.legenda),
+        Text('O limite de cada envelope se define no botão Planejar, na Home.', style: NBText.legenda),
       ],
     );
   }
@@ -371,8 +371,8 @@ class ProjecaoPlano extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Próximos meses', style: NBText.secao),
-        Text('Repetindo entradas e contas fixas, os mesmos tetos e as parcelas que ainda faltam.', style: NBText.legenda),
+        Text('Projeção dos próximos meses', style: NBText.secao),
+        Text('Repetindo entradas e contas fixas, os mesmos limites e as parcelas que ainda faltam.', style: NBText.legenda),
         const SizedBox(height: NBSpacing.s),
         CartaoNB(
           child: Column(
@@ -392,7 +392,7 @@ class ProjecaoPlano extends StatelessWidget {
                 const Divider(),
                 Text(
                   virada == null
-                      ? 'Nos próximos 6 meses ainda falta todo mês. Vale rever os tetos ou as contas.'
+                      ? 'Nos próximos 6 meses ainda falta todo mês. Vale rever os limites ou as contas.'
                       : virada == meses.first
                           ? 'A partir de ${mesLabelLongo(virada.mes).toLowerCase()} o mês já fecha sozinho.'
                           : 'O mês volta a fechar sozinho em ${mesLabelLongo(virada.mes).toLowerCase()}.',

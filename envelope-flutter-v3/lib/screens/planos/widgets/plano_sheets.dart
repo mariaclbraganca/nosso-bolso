@@ -45,8 +45,8 @@ class _SheetEntradaState extends ConsumerState<SheetEntrada> {
     final nome = _nome.text.trim();
     final valor = parseMoeda(_valor.text);
     final dia = int.tryParse(_dia.text);
-    if (nome.isEmpty || valor <= 0) return avisar('Informe o nome e o valor.', erro: true);
-    if (dia != null && (dia < 1 || dia > 31)) return avisar('Dia entre 1 e 31.', erro: true);
+    if (nome.isEmpty || valor <= 0) return avisar('Informe a descrição e o valor.', erro: true);
+    if (dia != null && (dia < 1 || dia > 31)) return avisar('Informe um dia entre 1 e 31.', erro: true);
     setState(() => _salvando = true);
     try {
       final dados = {'nome': nome, 'valor': valor, 'dia': dia, 'tipo': _tipo, 'recorrente': _recorrente};
@@ -84,29 +84,29 @@ class _SheetEntradaState extends ConsumerState<SheetEntrada> {
     return CascaSheet(
       filhos: [
         TopoSheet(
-          titulo: editando ? 'Editar entrada' : 'Nova entrada',
-          subtitulo: 'Dinheiro que deve entrar em ${mesLabelLongo(widget.mes).toLowerCase()}',
+          titulo: editando ? 'Editar receita prevista' : 'Nova receita prevista',
+          subtitulo: 'Competência: ${mesLabelLongo(widget.mes).toLowerCase()}',
         ),
         const SizedBox(height: NBSpacing.l),
         CampoValor(controller: _valor, rotulo: 'VALOR PREVISTO'),
         const SizedBox(height: NBSpacing.l),
         TextField(
           controller: _nome,
-          decoration: const InputDecoration(labelText: 'O QUE É', hintText: 'Ex: Salário, Aluguel da casa, Vale alimentação'),
+          decoration: const InputDecoration(labelText: 'DESCRIÇÃO', hintText: 'Ex.: Salário, Aluguel recebido, Vale-alimentação'),
         ),
         const SizedBox(height: NBSpacing.l),
         TextField(
           controller: _dia,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: 'DIA QUE CAI (opcional)'),
+          decoration: const InputDecoration(labelText: 'DIA DO RECEBIMENTO (opcional)'),
         ),
         if (editando) ...[
           const SizedBox(height: NBSpacing.l),
           TextField(
             controller: _recebido,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'VALOR QUE CAIU DE FATO (se diferente)', prefixText: 'R\$ '),
+            decoration: const InputDecoration(labelText: 'VALOR RECEBIDO (se diferente do previsto)', prefixText: 'R\$ '),
           ),
         ],
         const SizedBox(height: NBSpacing.l),
@@ -121,12 +121,12 @@ class _SheetEntradaState extends ConsumerState<SheetEntrada> {
           contentPadding: EdgeInsets.zero,
           value: _recorrente,
           onChanged: (v) => setState(() => _recorrente = v),
-          title: Text('Repete todo mês', style: NBText.corpo),
+          title: Text('Recorrente (todo mês)', style: NBText.corpo),
         ),
         if (editando)
           TextButton(
             onPressed: _excluir,
-            child: const Text('Excluir entrada', style: TextStyle(color: NBColors.estouro)),
+            child: const Text('Excluir receita prevista', style: TextStyle(color: NBColors.estouro)),
           ),
       ],
       botao: BotaoPrincipal(rotulo: 'Salvar', carregando: _salvando, onPressed: _salvar),
@@ -165,7 +165,7 @@ class _SheetCompromissoState extends ConsumerState<SheetCompromisso> {
     final total = int.tryParse(_total.text);
     if (_descricao.text.trim().isEmpty || valor <= 0) return avisar('Informe a descrição e o valor.', erro: true);
     if (!_assinatura && (atual == null || total == null || atual < 1 || atual > total)) {
-      return avisar('Informe a parcela: ex. 2 de 5.', erro: true);
+      return avisar('Informe a parcela. Ex.: 2 de 5.', erro: true);
     }
     setState(() => _salvando = true);
     try {
@@ -191,18 +191,18 @@ class _SheetCompromissoState extends ConsumerState<SheetCompromisso> {
     return CascaSheet(
       filhos: [
         TopoSheet(
-          titulo: 'Parcela ou assinatura',
+          titulo: 'Novo lançamento futuro',
           subtitulo: 'Na fatura de ${mesLabelLongo(widget.mesFatura).toLowerCase()}',
         ),
         const SizedBox(height: NBSpacing.l),
         CampoValor(controller: _valor, rotulo: 'VALOR POR MÊS'),
         const SizedBox(height: NBSpacing.l),
-        TextField(controller: _descricao, decoration: const InputDecoration(labelText: 'DESCRIÇÃO', hintText: 'Ex: Dentista, Netflix')),
+        TextField(controller: _descricao, decoration: const InputDecoration(labelText: 'DESCRIÇÃO', hintText: 'Ex.: Clínica odontológica, Netflix')),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: _assinatura,
           onChanged: (v) => setState(() => _assinatura = v),
-          title: Text('Assinatura (cobra todo mês, sem fim)', style: NBText.corpo),
+          title: Text('Assinatura (cobrança mensal recorrente)', style: NBText.corpo),
         ),
         if (!_assinatura)
           Row(
@@ -249,7 +249,7 @@ class CompromissosScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mesFatura = somarMeses(ref.watch(mesAtualProvider), 1);
     return Scaffold(
-      appBar: AppBar(title: const Text('Parcelas e assinaturas')),
+      appBar: AppBar(title: const Text('Lançamentos futuros')),
       body: ref.watch(compromissosCartaoProvider).when(
             loading: () => const UnicornCarregando(),
             error: (e, _) => UnicornErro(mensagem: mensagemErro(e), onTentar: () => ref.invalidate(compromissosCartaoProvider)),
@@ -259,7 +259,7 @@ class CompromissosScreen extends ConsumerWidget {
                   if (itemNaFatura(c, mesFatura) != null || mesesEntre(mesFatura, c['mes_fatura'] as String) > 0) c,
               ];
               if (ativos.isEmpty) {
-                return const UnicornVazio(titulo: 'Nada comprometido', texto: 'O cartão não tem parcelas nem assinaturas a vencer.');
+                return const UnicornVazio(titulo: 'Nenhum lançamento futuro', texto: 'Não há parcelas nem assinaturas nas próximas faturas.');
               }
               return ListView(
                 padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.s, NBSpacing.margemTela, NBSpacing.x4),
@@ -292,8 +292,8 @@ class CompromissosScreen extends ConsumerWidget {
 /// "assinatura" ou "última parcela na fatura de março de 2027".
 String _fimDoCompromisso(Map<String, dynamic> c) {
   final total = (c['total_parcelas'] as num?)?.toInt();
-  if (total == null) return 'assinatura · todo mês';
+  if (total == null) return 'Assinatura · cobrança mensal';
   final atual = (c['parcela_atual'] as num).toInt();
   final ultima = somarMeses(c['mes_fatura'] as String, total - atual);
-  return 'última parcela na fatura de ${mesLabelLongo(ultima).toLowerCase()}';
+  return 'Última parcela na fatura de ${mesLabelLongo(ultima).toLowerCase()}';
 }
