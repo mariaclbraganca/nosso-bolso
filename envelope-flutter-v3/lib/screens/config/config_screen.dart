@@ -7,6 +7,7 @@ import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
 import 'ia_config_screen.dart';
+import 'insights_astrix_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'pin_config_screen.dart';
 
@@ -152,6 +153,12 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
         titulo: 'Inteligência artificial',
         subtitulo: 'Chaves do Gemini usadas pelo app',
         abrir: () => abrir(const IaConfigScreen()),
+      ),
+      ItemConfig(
+        icone: Icons.insights_outlined,
+        titulo: 'Relatório da semana',
+        subtitulo: 'Nota e dicas do Astrix sobre finanças, alimentação e exercício',
+        abrir: () => abrir(const InsightsAstrixScreen()),
       ),
     ]),
     if (admin)
