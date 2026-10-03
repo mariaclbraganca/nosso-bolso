@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nosso_bolso_v3/core/providers/jejum_provider.dart';
 import 'package:nosso_bolso_v3/core/services/jejum_api_service.dart';
 import 'package:nosso_bolso_v3/core/services/jejum_notification_service.dart';
 import 'package:nosso_bolso_v3/screens/sheets/comum.dart';
@@ -43,12 +44,25 @@ class _JejumConclusaoSheetState extends ConsumerState<JejumConclusaoSheet> {
         sentimento: _sentimento,
       );
       JejumNotificationService.encerrar(); // sem await: não segura o fechamento da tela
+      ref.invalidate(jejumHistoricoProvider);
+      ref.invalidate(jejumConfigProvider);
       if (mounted) {
-        Navigator.pop(context);
-        final msg = status == 'completo'
-            ? 'Parabéns pelo seu jejum concluído! 🎉'
-            : 'Descanso acolhido com carinho! Amanhã é um novo dia. 🌸';
-        avisar(msg);
+        final nav = Navigator.of(context);
+        nav.pop();
+        if (status == 'completo') {
+          final h = widget.decorrido.inHours;
+          final m = widget.decorrido.inMinutes % 60;
+          nav.push(MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (ctx) => UnicornCelebracao(
+              titulo: 'Jejum concluído!',
+              texto: '${h}h${m.toString().padLeft(2, '0')} de cuidado com você. Que orgulho! 💜',
+              onContinuar: () => Navigator.pop(ctx),
+            ),
+          ));
+        } else {
+          avisar('Descanso acolhido com carinho! Amanhã é um novo dia. 🌸');
+        }
       }
     } catch (e) {
       if (mounted) avisar(mensagemErro(e), erro: true);

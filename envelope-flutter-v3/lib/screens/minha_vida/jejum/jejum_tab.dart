@@ -11,6 +11,9 @@ import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
 import 'widgets/jejum_config_sheet.dart';
 import 'widgets/jejum_conclusao_sheet.dart';
 import 'widgets/jejum_timer_display.dart';
+import 'widgets/jejum_extras.dart';
+import 'jejum_historico_view.dart';
+import 'jejum_insights_view.dart';
 
 class JejumTab extends ConsumerStatefulWidget {
   final String membroId;
@@ -29,6 +32,7 @@ class JejumTab extends ConsumerStatefulWidget {
 class _JejumTabState extends ConsumerState<JejumTab> {
   Timer? _timer;
   bool _iniciando = false;
+  int _aba = 0; // 0 hoje, 1 histórico, 2 insights
   String? _notificacaoDoRegistro; // evita reagendar a cada rebuild
 
   /// Notificação fixa com o tempo + marcos (12h, 16h, janela). Usa a config
@@ -76,7 +80,7 @@ class _JejumTabState extends ConsumerState<JejumTab> {
     }
   }
 
-  void _abrirConfig(String protoAtual) {
+  void _abrirConfig(String protoAtual, Map<String, dynamic> config) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -88,8 +92,25 @@ class _JejumTabState extends ConsumerState<JejumTab> {
         usuarioId: widget.membroId,
         familiaId: widget.familiaId,
         protocoloAtual: protoAtual,
+        config: config,
       ),
     );
+  }
+
+  Future<void> _usarSugestao(Map<String, dynamic> s) async {
+    try {
+      final proto = ProtocoloJejum.porId(s['protocolo'] as String? ?? '');
+      await JejumApiService.salvarConfig(widget.membroId, {
+        'protocolo': s['protocolo'],
+        if (proto?.horas != null) 'duracao_horas': proto!.horas,
+        if (s['janela_inicio'] != null) 'janela_inicio': s['janela_inicio'],
+        if (s['janela_fim'] != null) 'janela_fim': s['janela_fim'],
+      });
+      ref.invalidate(jejumConfigProvider);
+      avisar('Protocolo definido. Quando quiser, é só iniciar. ✨');
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    }
   }
 
   void _abrirConclusao(String regId, Duration decorrido, double metaHoras) {
@@ -110,6 +131,28 @@ class _JejumTabState extends ConsumerState<JejumTab> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Segmentado<int>(
+            opcoes: const {0: 'Hoje', 1: 'Histórico', 2: 'Insights'},
+            valor: _aba,
+            onChanged: (v) => setState(() => _aba = v),
+          ),
+        ),
+        Expanded(
+          child: switch (_aba) {
+            1 => JejumHistoricoView(membroId: widget.membroId),
+            2 => JejumInsightsView(membroId: widget.membroId),
+            _ => _hoje(context),
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _hoje(BuildContext context) {
     final args = (membroId: widget.membroId, familiaId: widget.familiaId);
     final configAsync = ref.watch(jejumConfigProvider(args));
     final ativoAsync = ref.watch(jejumAtivoProvider(widget.membroId));
@@ -124,6 +167,7 @@ class _JejumTabState extends ConsumerState<JejumTab> {
     final jokers = (jokersMes - jokersUsados).clamp(0, jokersMes);
 
     final ativo = ativoAsync.asData?.value;
+    final semHistorico = ((ref.watch(jejumHistoricoProvider(widget.membroId)).valueOrNull?['registros'] as List?) ?? const [1]).isEmpty;
     if (ativo != null) {
       _ligarNotificacoes(ativo, config);
     } else if (ativoAsync.hasValue) {
@@ -165,7 +209,7 @@ class _JejumTabState extends ConsumerState<JejumTab> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: () => _abrirConfig(protoId),
+                onPressed: () => _abrirConfig(protoId, config),
                 icon: const Icon(Icons.tune_rounded, size: 16),
                 label: Text(proto.label),
                 style: OutlinedButton.styleFrom(
@@ -178,6 +222,11 @@ class _JejumTabState extends ConsumerState<JejumTab> {
         ),
         const SizedBox(height: 20),
 
+        if (ativo == null && ativoAsync.hasValue && semHistorico) ...[
+          JejumOnboardingCard(membroId: widget.membroId, onUsar: _usarSugestao),
+          const SizedBox(height: 20),
+        ],
+
         // ── Timer Circular ──
         CartaoNB(
           child: Padding(
@@ -189,6 +238,26 @@ class _JejumTabState extends ConsumerState<JejumTab> {
                   metaHoras: metaHoras,
                   ativo: ativo != null,
                 ),
+                if (ativo != null) ...[
+                  const SizedBox(height: 12),
+                  if (textoProximaFase(decorrido) case final prox?)
+                    Text(prox, style: NBText.legenda, textAlign: TextAlign.center),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => abrirSheet(context, JejumFasesSheet(decorrido: decorrido)),
+                        icon: const Icon(Icons.timeline_rounded, size: 18),
+                        label: const Text('Fases'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => ajustarInicioJejum(context, ref, ativo, widget.membroId),
+                        icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                        label: const Text('Ajustar início'),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 20),
                 if (ativo != null)
                   BotaoPrincipal(
