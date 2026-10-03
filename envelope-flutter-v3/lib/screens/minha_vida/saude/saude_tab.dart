@@ -4,6 +4,7 @@ import 'package:nosso_bolso_v3/core/providers/saude_provider.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
+import 'perfil_metabolico_screen.dart';
 import 'widgets/hidratacao_card.dart';
 import 'widgets/refeicoes_card.dart';
 
@@ -32,6 +33,10 @@ class SaudeTab extends ConsumerWidget {
     final calIngeridas = extratoAsync.asData?.value['calorias_consumidas_kcal'] as num? ?? 0;
     final calMeta = extratoAsync.asData?.value['meta_calorica_kcal'] as num? ?? 2000;
     final streak = streakAsync.asData?.value ?? 1;
+    final temPlano = ref.watch(perfilMetabolicoProvider(membroId)).valueOrNull != null;
+    void abrirPlano() => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => PerfilMetabolicoScreen(membroId: membroId)),
+        );
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -45,6 +50,7 @@ class SaudeTab extends ConsumerWidget {
         children: [
           // ── Resumo de Calorias & Streak ──
           CartaoNB(
+            onTap: abrirPlano,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -90,6 +96,14 @@ class SaudeTab extends ConsumerWidget {
               ],
             ),
           ),
+          if (!temPlano) ...[
+            const SizedBox(height: 12),
+            PainelIA(
+              titulo: 'Sua meta ainda é genérica',
+              texto: 'Monte seu plano (idade, peso, altura e rotina) para eu calcular calorias e proteínas certas para você.',
+              onTap: abrirPlano,
+            ),
+          ],
           const SizedBox(height: 12),
 
           // ── Hidratação ──
