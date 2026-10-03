@@ -11,6 +11,19 @@ import 'widgets/form_patrimonio_sheet.dart';
 import 'widgets/patrimonio_grafico.dart';
 import 'widgets/patrimonio_ia_card.dart';
 import 'widgets/patrimonio_pin_sheet.dart';
+import 'widgets/patrimonio_meta_card.dart';
+import '../../../core/providers/fixos_provider.dart';
+
+/// "Poupança · Nubank · 0,85% a.m." — tipo, banco e rendimento quando houver.
+String subtituloConta(Map<String, dynamic> c) {
+  final tipo = FormPatrimonioSheetTipos.nome(c['tipo'] as String?);
+  final rend = (c['rendimento_mensal'] as num?)?.toDouble();
+  return [
+    tipo,
+    if ((c['banco'] as String?)?.isNotEmpty ?? false) c['banco'] as String,
+    if (rend != null && rend > 0) '${rend.toStringAsFixed(2).replaceAll('.', ',')}% a.m.',
+  ].join(' · ');
+}
 
 class PatrimonioTab extends ConsumerWidget {
   const PatrimonioTab({super.key});
@@ -96,6 +109,8 @@ class PatrimonioTab extends ConsumerWidget {
 
     final contas = ref.watch(patrimonioProvider).valueOrNull ?? [];
     final total = ref.watch(totalPatrimonioProvider);
+    final comMeta = contas.where((c) => ((c['meta_saldo'] as num?) ?? 0) > 0).toList();
+    final saldoLivre = ref.watch(saldoLivreProvider);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
@@ -124,6 +139,16 @@ class PatrimonioTab extends ConsumerWidget {
         const SizedBox(height: NBSpacing.l),
         const PatrimonioGrafico(),
         const PatrimonioIaCard(),
+        if (comMeta.isNotEmpty) ...[
+          const CabecalhoSecao(titulo: 'Metas de saldo'),
+          const SizedBox(height: NBSpacing.s),
+          for (final c in comMeta)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: PatrimonioMetaCard(key: ValueKey(c['id']), conta: c, saldoLivre: saldoLivre),
+            ),
+          const SizedBox(height: NBSpacing.m),
+        ],
         Row(
           children: [
             const Expanded(child: CabecalhoSecao(titulo: 'Bens e Contas')),
@@ -158,7 +183,7 @@ class PatrimonioTab extends ConsumerWidget {
                         children: [
                           Text(c['nome'] as String? ?? 'Ativo', style: NBText.secao),
                           const SizedBox(height: 2),
-                          Text((c['tipo'] as String? ?? 'outro').toUpperCase(), style: NBText.legenda),
+                          Text(subtituloConta(c), style: NBText.legenda),
                         ],
                       ),
                     ),

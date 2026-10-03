@@ -38,32 +38,54 @@ class PatrimonioIaCard extends ConsumerWidget {
                       cor: NBColors.verde,
                       fundo: NBColors.verdeClaro,
                     ),
+                    IconButton(
+                      tooltip: 'Analisar de novo',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => ref.invalidate(patrimonioAnaliseProvider),
+                      icon: const Icon(Icons.refresh_rounded, size: 18, color: NBColors.tintaSuave),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(analise.resumo, style: NBText.corpo),
+                for (final p in analise.pontosPositivos)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('✓ $p', style: NBText.legenda.copyWith(color: NBColors.verde)),
+                  ),
+                for (final a in analise.alertas)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('⚠ $a', style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
+                  ),
                 if (analise.sugestoes.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 10),
-                  Text('RECOMENDAÇÕES:', style: NBText.eyebrow),
-                  const SizedBox(height: 6),
-                  for (final sug in analise.sugestoes.take(2))
+                  Text('SUGESTÕES', style: NBText.eyebrow),
+                  for (final sug in analise.sugestoes)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('• ', style: TextStyle(color: NBColors.verde, fontWeight: FontWeight.bold)),
-                          Expanded(
-                            child: Text(
-                              '${sug.titulo}: ${sug.descricao}',
-                              style: NBText.legenda,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(child: Text(sug.titulo, style: NBText.rotulo.copyWith(fontSize: 14))),
+                              SeloNB(rotuloUrgencia(sug.urgencia),
+                                  cor: sug.urgencia == 'agora' ? NBColors.ambarTexto : NBColors.tintaSuave,
+                                  fundo: sug.urgencia == 'agora' ? NBColors.ambarClaro : NBColors.afundado),
+                            ],
                           ),
+                          const SizedBox(height: 2),
+                          Text(sug.descricao, style: NBText.legenda),
                         ],
                       ),
                     ),
+                ],
+                if (analise.distribuicaoIdeal.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text('Distribuição sugerida: ${analise.distribuicaoIdeal}', style: NBText.legenda),
                 ],
               ],
             ),
@@ -73,6 +95,12 @@ class PatrimonioIaCard extends ConsumerWidget {
     );
   }
 }
+
+String rotuloUrgencia(String u) => switch (u) {
+      'agora' => 'Agora',
+      'proximo_mes' => 'Próximo mês',
+      _ => 'Sem pressa',
+    };
 
 class _FallbackCard extends StatelessWidget {
   const _FallbackCard();

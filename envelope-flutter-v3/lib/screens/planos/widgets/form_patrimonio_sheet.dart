@@ -7,6 +7,11 @@ import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../sheets/comum.dart';
 
+abstract final class FormPatrimonioSheetTipos {
+  static String nome(String? id) =>
+      _FormPatrimonioSheetState.tipos.firstWhere((t) => t['id'] == id, orElse: () => {'nome': id ?? 'Outro'})['nome']!;
+}
+
 class FormPatrimonioSheet extends ConsumerStatefulWidget {
   final Map<String, dynamic>? contaParaEditar;
 
@@ -19,17 +24,22 @@ class FormPatrimonioSheet extends ConsumerStatefulWidget {
 class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
   final _nomeCtrl = TextEditingController();
   final _saldoCtrl = TextEditingController();
-  String _tipo = 'investimento';
+  final _bancoCtrl = TextEditingController();
+  final _rendimentoCtrl = TextEditingController();
+  final _metaCtrl = TextEditingController();
+  String _tipo = 'conta_corrente';
   bool _salvando = false;
 
-  static const _tipos = [
+  // Mesmos tipos da v2 (os que a tabela contas_patrimonio já recebe).
+  static const tipos = [
+    {'id': 'conta_corrente', 'nome': 'Conta corrente', 'emoji': '🏦'},
+    {'id': 'poupanca', 'nome': 'Poupança', 'emoji': '🐷'},
     {'id': 'investimento', 'nome': 'Investimento', 'emoji': '📈'},
-    {'id': 'conta_corrente', 'nome': 'Conta Bancária', 'emoji': '🏦'},
-    {'id': 'reserva', 'nome': 'Reserva Emergência', 'emoji': '🛡️'},
-    {'id': 'imovel', 'nome': 'Imóvel / Bem', 'emoji': '🏠'},
-    {'id': 'veiculo', 'nome': 'Veículo', 'emoji': '🚗'},
-    {'id': 'outro', 'nome': 'Outro Ativo', 'emoji': '💎'},
+    {'id': 'caixinha', 'nome': 'Caixinha', 'emoji': '📦'},
+    {'id': 'carteira', 'nome': 'Carteira física', 'emoji': '👛'},
   ];
+
+  static String _num(num? v) => v == null || v == 0 ? '' : v.toStringAsFixed(2).replaceAll('.', ',');
 
   @override
   void initState() {
@@ -39,7 +49,10 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
       _nomeCtrl.text = c['nome'] as String? ?? '';
       final saldo = (c['saldo_atual'] as num?)?.toDouble() ?? 0.0;
       _saldoCtrl.text = saldo > 0 ? saldo.toStringAsFixed(2).replaceAll('.', ',') : '';
-      _tipo = c['tipo'] as String? ?? 'investimento';
+      _tipo = c['tipo'] as String? ?? 'conta_corrente';
+      _bancoCtrl.text = c['banco'] as String? ?? '';
+      _rendimentoCtrl.text = _num(c['rendimento_mensal'] as num?);
+      _metaCtrl.text = _num(c['meta_saldo'] as num?);
     }
   }
 
@@ -47,12 +60,29 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
   void dispose() {
     _nomeCtrl.dispose();
     _saldoCtrl.dispose();
+    _bancoCtrl.dispose();
+    _rendimentoCtrl.dispose();
+    _metaCtrl.dispose();
     super.dispose();
   }
 
-  double get _saldoNumerico {
-    final t = _saldoCtrl.text.replaceAll('.', '').replaceAll(',', '.').trim();
-    return double.tryParse(t) ?? 0.0;
+  static double? _parse(String s) =>
+      double.tryParse(s.replaceAll('.', '').replaceAll(',', '.').trim());
+
+  double get _saldoNumerico => _parse(_saldoCtrl.text) ?? 0.0;
+
+  /// Campos gravados em contas_patrimonio (iguais aos da v2).
+  Map<String, dynamic> dadosConta(String nome) {
+    final meta = _parse(_metaCtrl.text);
+    return {
+      'nome': nome,
+      'tipo': _tipo,
+      'emoji': tipos.firstWhere((t) => t['id'] == _tipo, orElse: () => tipos.first)['emoji'],
+      'saldo_atual': _saldoNumerico,
+      'banco': _bancoCtrl.text.trim().isEmpty ? null : _bancoCtrl.text.trim(),
+      'rendimento_mensal': double.tryParse(_rendimentoCtrl.text.replaceAll(',', '.').trim()),
+      'meta_saldo': meta == null || meta <= 0 ? null : meta,
+    };
   }
 
   Future<void> _salvar() async {
@@ -61,8 +91,8 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
       avisar('Informe o nome da conta ou do bem.', erro: true);
       return;
     }
-    if (_saldoNumerico <= 0) {
-      avisar('Informe um saldo ou valor estimado maior que zero.', erro: true);
+    if (_saldoNumerico < 0) {
+      avisar('O saldo não pode ser negativo.', erro: true);
       return;
     }
 
@@ -74,19 +104,10 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
       final c = widget.contaParaEditar;
       if (c != null) {
         final id = c['id'] as String;
-        await supabase.from('contas_patrimonio').update({
-          'nome': nome,
-          'tipo': _tipo,
-          'saldo_atual': _saldoNumerico,
-        }).eq('id', id);
+        await supabase.from('contas_patrimonio').update(dadosConta(nome)).eq('id', id);
         avisar('Conta patrimonial atualizada!');
       } else {
-        await supabase.from('contas_patrimonio').insert({
-          'familia_id': familiaId,
-          'nome': nome,
-          'tipo': _tipo,
-          'saldo_atual': _saldoNumerico,
-        });
+        await supabase.from('contas_patrimonio').insert({'familia_id': familiaId, ...dadosConta(nome)});
         avisar('Conta patrimonial adicionada!');
       }
 
@@ -109,7 +130,7 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
       filhos: [
         TopoSheet(
           titulo: editando ? 'Editar Conta / Ativo' : 'Novo Ativo Patrimonial',
-          subtitulo: 'Cadastre investimentos, contas bancárias, imóveis ou veículos',
+          subtitulo: 'Contas, poupança, investimentos e caixinhas. Defina uma meta para acompanhar o prazo.',
         ),
         const SizedBox(height: NBSpacing.l),
         CampoValor(
@@ -123,8 +144,36 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
           style: NBText.corpo,
           decoration: const InputDecoration(
             labelText: 'NOME DO ATIVO',
-            hintText: 'Ex: Tesouro Selic, Nubank, Apto Centro...',
+            hintText: 'Ex: Reserva, Caixinha viagem, Tesouro Selic...',
           ),
+        ),
+        const SizedBox(height: NBSpacing.l),
+        TextField(
+          controller: _bancoCtrl,
+          style: NBText.corpo,
+          decoration: const InputDecoration(labelText: 'BANCO (opcional)', hintText: 'Ex: Nubank, Inter, Caixa'),
+        ),
+        const SizedBox(height: NBSpacing.l),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _rendimentoCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: NBText.corpo,
+                decoration: const InputDecoration(labelText: 'RENDIMENTO', suffixText: '% a.m.', hintText: '0,85'),
+              ),
+            ),
+            const SizedBox(width: NBSpacing.m),
+            Expanded(
+              child: TextField(
+                controller: _metaCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: NBText.corpo,
+                decoration: const InputDecoration(labelText: 'META DE SALDO', prefixText: 'R\$ ', hintText: 'opcional'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: NBSpacing.l),
         Text('TIPO DE ATIVO', style: NBText.eyebrow),
@@ -133,7 +182,7 @@ class _FormPatrimonioSheetState extends ConsumerState<FormPatrimonioSheet> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final t in _tipos)
+            for (final t in tipos)
               ChipNB(
                 rotulo: t['nome']!,
                 icone: Text(t['emoji']!, style: const TextStyle(fontSize: 14)),
