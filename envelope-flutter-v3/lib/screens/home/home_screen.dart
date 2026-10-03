@@ -21,6 +21,22 @@ import 'widgets/home_jejum_chip.dart';
 import 'widgets/home_grade_envelopes.dart';
 import 'widgets/home_ritual_alarme.dart';
 
+/// Envelopes que acabaram de ficar negativos (ainda não avisados nesta sessão).
+/// Atualiza [avisados]: quem voltou ao positivo sai, para avisar de novo depois.
+List<Map<String, dynamic>> novosNegativos(Set<String> avisados, List<Map<String, dynamic>> envelopes) {
+  final novos = <Map<String, dynamic>>[];
+  for (final env in envelopes) {
+    final id = env['id'] as String?;
+    if (id == null) continue;
+    if (((env['saldo_atual'] as num?) ?? 0) < 0) {
+      if (avisados.add(id)) novos.add(env);
+    } else {
+      avisados.remove(id);
+    }
+  }
+  return novos;
+}
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -29,6 +45,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _negativosAvisados = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +57,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Envelope ficou negativo: aviso local (respeita a chave notif_envelope_negativo).
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(envelopesProvider, (_, next) {
+      final envelopes = next.valueOrNull;
+      if (envelopes == null) return;
+      for (final env in novosNegativos(_negativosAvisados, envelopes)) {
+        NotificationService.notificarEnvelopeNegativo(
+          envelopeId: env['id'] as String,
+          nomeEnvelope: env['nome_envelope'] as String? ?? 'Envelope',
+          saldoAtual: (env['saldo_atual'] as num).toDouble(),
+        );
+      }
+    });
+
     // Alguém da família já fechou hoje: não toca o alarme de hoje neste celular.
     ref.listen<AsyncValue<Map<String, dynamic>>>(resumoDiaProvider, (_, next) {
       if (next.valueOrNull?['fechado'] == true) {
