@@ -4,7 +4,9 @@ import 'package:nosso_bolso_v3/core/providers/saude_provider.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
+import 'historico_saude_screen.dart';
 import 'perfil_metabolico_screen.dart';
+import 'widgets/macros_peso_cards.dart';
 import 'widgets/hidratacao_card.dart';
 import 'widgets/refeicoes_card.dart';
 
@@ -44,6 +46,7 @@ class SaudeTab extends ConsumerWidget {
         ref.invalidate(hidratacaoDiaProvider);
         ref.invalidate(refeicoesDiaProvider);
         ref.invalidate(streakProvider);
+        ref.invalidate(historicoPesoProvider);
       },
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -104,6 +107,15 @@ class SaudeTab extends ConsumerWidget {
               onTap: abrirPlano,
             ),
           ],
+          const SizedBox(height: 12),
+          MacrosCard(extrato: extratoAsync.valueOrNull),
+          const SizedBox(height: 12),
+          PesoCard(
+            membroId: membroId,
+            onHistorico: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => HistoricoSaudeScreen(membroId: membroId)),
+            ),
+          ),
           const SizedBox(height: 12),
 
           // ── Hidratação ──
