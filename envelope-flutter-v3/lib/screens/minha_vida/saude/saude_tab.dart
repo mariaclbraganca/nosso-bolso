@@ -6,6 +6,7 @@ import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
 import 'historico_saude_screen.dart';
 import 'perfil_metabolico_screen.dart';
+import 'sugestao_jantar_screen.dart';
 import 'widgets/macros_peso_cards.dart';
 import 'widgets/hidratacao_card.dart';
 import 'widgets/refeicoes_card.dart';
@@ -123,6 +124,29 @@ class SaudeTab extends ConsumerWidget {
             membroId: membroId,
             familiaId: familiaId,
             data: hoje,
+          ),
+          const SizedBox(height: 12),
+
+          CartaoNB(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SugestaoJantarScreen(membroId: membroId, familiaId: familiaId),
+            )),
+            child: Row(
+              children: [
+                const Text('🍽️', style: TextStyle(fontSize: 26)),
+                const SizedBox(width: NBSpacing.m),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Jantar com o que tem em casa', style: NBText.rotulo.copyWith(fontSize: 15)),
+                      Text('Sugestões a partir do estoque e do que falta de proteína hoje', style: NBText.legenda),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: NBColors.tintaSuave),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
 
