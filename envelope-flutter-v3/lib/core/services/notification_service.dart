@@ -126,17 +126,23 @@ class NotificationService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Agenda os 4 lembretes diários de refeição (repete todo dia no mesmo horário).
+  /// Cada refeição tem a própria chave (notif_cafe, notif_almoco...): desligar
+  /// uma não pode cancelar nem religar as outras.
   static Future<void> agendarLembretesRefeicao() async {
     if (!await _isEnabled('notif_refeicoes')) return;
 
     final slots = [
-      (_NId.cafeManhaLembrete,   7, 30, 'Café da manhã ☕',       'Hora do café! Não pule essa, tá?'),
-      (_NId.almocoLembrete,     12,  0, 'Almoço 🍽️',              'Já registrou o almoço hoje?'),
-      (_NId.lancheLembrete,     15, 30, 'Lanche da tarde 🍎',     'Um lancinho saudável agora?'),
-      (_NId.jantarLembrete,     19,  0, 'Jantar 🌙',              'Hora de registrar o jantar!'),
+      (_NId.cafeManhaLembrete, 'notif_cafe',    7, 30, 'Café da manhã ☕',       'Hora do café! Não pule essa, tá?'),
+      (_NId.almocoLembrete,    'notif_almoco', 12,  0, 'Almoço 🍽️',              'Já registrou o almoço hoje?'),
+      (_NId.lancheLembrete,    'notif_lanche', 15, 30, 'Lanche da tarde 🍎',     'Um lancinho saudável agora?'),
+      (_NId.jantarLembrete,    'notif_jantar', 19,  0, 'Jantar 🌙',              'Hora de registrar o jantar!'),
     ];
 
-    for (final (id, h, m, title, body) in slots) {
+    for (final (id, chave, h, m, title, body) in slots) {
+      if (!await _isEnabled(chave)) {
+        await _plugin.cancel(id);
+        continue;
+      }
       await _plugin.zonedSchedule(
         id,
         title,
@@ -241,6 +247,9 @@ class NotificationService {
   }
 
   /// Alerta de conta próxima do vencimento.
+  static Future<void> cancelarResumoFinanceiro() =>
+      _plugin.cancel(_NId.resumoFinanceiro);
+
   static Future<void> agendarAlertaConta({
     required int contaId,
     required String nomeConta,

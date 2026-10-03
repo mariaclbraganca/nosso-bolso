@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/screens/config/config_screen.dart';
 import 'package:nosso_bolso_v3/screens/config/notificacoes_screen.dart';
@@ -75,5 +76,27 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Sem permissão'), findsNWidgets(2));
     expect(find.text('Permitir notificações e alarmes'), findsOneWidget);
+  });
+
+  testWidgets('Lembretes ligam e desligam e ficam salvos', (t) async {
+    SharedPreferences.setMockInitialValues({'notif_cafe': false});
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        permissaoCapturaProvider.overrideWith((ref) async => true),
+        permissoesSistemaProvider.overrideWith((ref) async => (true, true)),
+      ],
+      child: MaterialApp(theme: nossoBolsoTheme(), home: const NotificacoesScreen()),
+    ));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    final cafe = t.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, 'Café da manhã'));
+    expect(cafe.value, isFalse);
+
+    final hidratacao = find.widgetWithText(SwitchListTile, 'Hidratação');
+    await t.scrollUntilVisible(hidratacao, 200);
+    await t.tap(hidratacao);
+    await t.pumpAndSettle();
+    expect((await SharedPreferences.getInstance()).getBool('notif_hidratacao'), isFalse);
+    expect(find.text('Alarme do fechamento do dia'), findsOneWidget);
   });
 }

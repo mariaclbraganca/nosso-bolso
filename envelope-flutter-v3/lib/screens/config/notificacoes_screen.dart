@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/ifood_notification_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../ui/components/nb_components.dart';
@@ -129,7 +130,99 @@ List<Widget> secoesNotificacoes(BuildContext context, WidgetRef ref) {
         child: const Text('Permitir notificações e alarmes'),
       ),
     ],
+    const _SecaoLembretes(),
   ];
+}
+
+/// Um lembrete que a pessoa pode ligar/desligar. [aplicar] reagenda ou cancela.
+class _Lembrete {
+  const _Lembrete(this.chave, this.titulo, this.quando, this.aplicar);
+  final String chave;
+  final String titulo;
+  final String quando;
+  final Future<void> Function(bool ligado) aplicar;
+}
+
+final _grupos = <(String, List<_Lembrete>)>[
+  ('LEMBRETES DE SAÚDE', [
+    _Lembrete('notif_cafe', 'Café da manhã', 'Às 7h30', (_) => NotificationService.agendarLembretesRefeicao()),
+    _Lembrete('notif_almoco', 'Almoço', 'Às 12h00', (_) => NotificationService.agendarLembretesRefeicao()),
+    _Lembrete('notif_lanche', 'Lanche da tarde', 'Às 15h30', (_) => NotificationService.agendarLembretesRefeicao()),
+    _Lembrete('notif_jantar', 'Jantar', 'Às 19h00', (_) => NotificationService.agendarLembretesRefeicao()),
+    _Lembrete('notif_streak', 'Sequência de registros', 'Às 20h se ainda não registrou nada no dia',
+        (on) => on ? NotificationService.agendarLembreteStreak() : NotificationService.cancelarLembreteStreak()),
+    _Lembrete('notif_hidratacao', 'Hidratação', 'Quando ainda não registrou água no dia', (_) async {}),
+  ]),
+  ('LEMBRETES DO DINHEIRO', [
+    _Lembrete('notif_fechamento_dia', 'Alarme do fechamento do dia', 'Todo dia às 23h30',
+        (_) => NotificationService.agendarAlarmeFechamento()),
+    _Lembrete('notif_financeiro', 'Resumo semanal', 'Segunda-feira às 9h, como estão os envelopes',
+        (on) => on ? NotificationService.agendarResumoFinanceiro() : NotificationService.cancelarResumoFinanceiro()),
+    _Lembrete('notif_contas', 'Contas a vencer', '2 dias antes de cada vencimento', (_) async {}),
+    _Lembrete('notif_envelope_negativo', 'Envelope no vermelho', 'Quando um envelope fica negativo', (_) async {}),
+  ]),
+];
+
+class _SecaoLembretes extends StatefulWidget {
+  const _SecaoLembretes();
+
+  @override
+  State<_SecaoLembretes> createState() => _SecaoLembretesState();
+}
+
+class _SecaoLembretesState extends State<_SecaoLembretes> {
+  Map<String, bool>? _ligado;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      if (!mounted) return;
+      setState(() => _ligado = {
+            for (final (_, itens) in _grupos)
+              for (final l in itens) l.chave: p.getBool(l.chave) ?? true,
+          });
+    });
+  }
+
+  Future<void> _alternar(_Lembrete l, bool valor) async {
+    setState(() => _ligado![l.chave] = valor);
+    await NotificationService.setEnabled(l.chave, valor);
+    await l.aplicar(valor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ligado = _ligado;
+    if (ligado == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (titulo, itens) in _grupos) ...[
+          const SizedBox(height: NBSpacing.xl),
+          Text(titulo, style: NBText.eyebrow),
+          const SizedBox(height: NBSpacing.s),
+          CartaoNB(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var i = 0; i < itens.length; i++) ...[
+                  if (i > 0) const Divider(indent: 16),
+                  SwitchListTile(
+                    value: ligado[itens[i].chave] ?? true,
+                    onChanged: (v) => _alternar(itens[i], v),
+                    activeThumbColor: NBColors.verde,
+                    title: Text(itens[i].titulo, style: NBText.corpo.copyWith(fontWeight: FontWeight.w700)),
+                    subtitle: Text(itens[i].quando, style: NBText.legenda),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _LinhaCaptura extends StatelessWidget {
