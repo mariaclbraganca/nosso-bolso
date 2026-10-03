@@ -6,7 +6,9 @@ import '../../../core/services/api_service.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../sheets/comum.dart';
+import '../nfce_fluxo.dart';
 import 'confirmar_compra_dialog.dart';
+import 'qr_scanner_sheet.dart';
 
 class ComprasPendenteCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> compra;
@@ -47,6 +49,20 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
         avisar(mensagemErro(e), erro: true);
       }
     }
+  }
+
+  /// Compra capturada sem itens (Nubank/iFood): escaneia a nota fiscal e
+  /// os itens entram nesta mesma compra.
+  void _escanearCupom() {
+    final compraId = widget.compra['compra_id'] as String? ?? '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => QrScannerSheet(
+        onCodeScanned: (url) => processarNota(ref, url, compraIdVinculo: compraId),
+      ),
+    );
   }
 
   void _confirmar() {
@@ -133,6 +149,14 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
                   ),
               ],
               const SizedBox(height: 12),
+            ],
+            if (itens.isEmpty) ...[
+              OutlinedButton.icon(
+                onPressed: _escanearCupom,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                label: const Text('Escanear o cupom desta compra'),
+              ),
+              const SizedBox(height: 8),
             ],
             Row(
               children: [
