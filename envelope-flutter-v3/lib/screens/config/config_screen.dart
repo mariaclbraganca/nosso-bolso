@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/pin_provider.dart';
+import '../auth/splash_unicornios.dart';
 import '../../core/providers/usuarios_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
@@ -35,6 +37,9 @@ class ConfigScreen extends ConsumerWidget {
     if (ok != true) return;
     try {
       await ref.read(authServiceProvider).signOut();
+      // Próximo login neste aparelho: PIN bloqueado e o time se apresenta de novo.
+      ref.read(pinNotifierProvider.notifier).bloquear();
+      ref.read(splashVistoProvider.notifier).state = false;
       if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } catch (e) {
       avisar(mensagemErro(e), erro: true);

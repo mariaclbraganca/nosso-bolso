@@ -14,6 +14,7 @@ import 'core/services/notificacao_fila_service.dart';
 import 'core/services/notification_service.dart';
 import 'screens/auth/entrar_screen.dart';
 import 'screens/auth/onboarding_pendente_screen.dart';
+import 'screens/auth/splash_unicornios.dart';
 import 'screens/shell/shell_screen.dart';
 import 'ui/theme/nb_theme.dart';
 import 'ui/unicorn/unicorn.dart';
@@ -128,9 +129,11 @@ class _Portao extends ConsumerWidget {
                       onTentar: () => ref.invalidate(perfilUsuarioLogadoProvider),
                     ),
                   ),
-                  data: (perfil) => perfil != null && perfil['familia_id'] != null
-                      ? const ShellScreen()
-                      : const OnboardingPendenteScreen(),
+                  data: (perfil) => perfil == null || perfil['familia_id'] == null
+                      ? const OnboardingPendenteScreen()
+                      : ref.watch(splashVistoProvider)
+                          ? const ShellScreen()
+                          : const SplashUnicornios(),
                 );
           },
         );
