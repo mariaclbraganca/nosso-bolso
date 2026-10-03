@@ -8,6 +8,7 @@ import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
 import 'ia_config_screen.dart';
 import 'insights_astrix_screen.dart';
+import 'simulador_gastos_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'pin_config_screen.dart';
 
@@ -159,6 +160,14 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
         titulo: 'Relatório da semana',
         subtitulo: 'Nota e dicas do Astrix sobre finanças, alimentação e exercício',
         abrir: () => abrir(const InsightsAstrixScreen()),
+      ),
+    ]),
+    SecaoConfig('Ferramentas', [
+      ItemConfig(
+        icone: Icons.calculate_outlined,
+        titulo: 'Simulador de gastos',
+        subtitulo: 'Cenários "e se" antes de decidir',
+        abrir: () => abrir(const SimuladorGastosScreen()),
       ),
     ]),
     if (admin)

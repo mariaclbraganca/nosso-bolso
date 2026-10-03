@@ -12,6 +12,7 @@ import 'widgets/patrimonio_grafico.dart';
 import 'widgets/patrimonio_ia_card.dart';
 import 'widgets/patrimonio_pin_sheet.dart';
 import 'widgets/patrimonio_meta_card.dart';
+import 'package:nosso_bolso_v3/screens/planos/simulador_realocacao_screen.dart';
 import '../../../core/providers/fixos_provider.dart';
 
 /// "Poupança · Nubank · 0,85% a.m." — tipo, banco e rendimento quando houver.
@@ -196,10 +197,14 @@ class PatrimonioTab extends ConsumerWidget {
                       color: NBColors.cartao,
                       onSelected: (val) {
                         if (val == 'editar') _abrirForm(context, c);
+                        if (val == 'simular') {
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => SimuladorRealocacaoScreen(contaInicial: c)));
+                        }
                         if (val == 'excluir') _excluirConta(context, c['id'] as String, c['nome'] as String? ?? '');
                       },
                       itemBuilder: (ctx) => [
                         const PopupMenuItem(value: 'editar', child: Text('Editar')),
+                        const PopupMenuItem(value: 'simular', child: Text('Simular realocação')),
                         const PopupMenuItem(
                           value: 'excluir',
                           child: Text('Excluir', style: TextStyle(color: NBColors.estouro)),
@@ -212,6 +217,14 @@ class PatrimonioTab extends ConsumerWidget {
             ),
         const SizedBox(height: NBSpacing.m),
         BotaoSecundario(rotulo: '+ Adicionar Ativo / Conta', onPressed: () => _abrirForm(context)),
+        if (contas.isNotEmpty) ...[
+          const SizedBox(height: NBSpacing.s),
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SimuladorRealocacaoScreen())),
+            icon: const Icon(Icons.swap_horiz_rounded),
+            label: const Text('Simular realocação com as taxas do BCB'),
+          ),
+        ],
       ],
     );
   }
