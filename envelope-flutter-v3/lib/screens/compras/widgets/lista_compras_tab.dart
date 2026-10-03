@@ -72,8 +72,7 @@ class ListaComprasTab extends ConsumerWidget {
             const SizedBox(height: NBSpacing.l),
             Row(
               children: [
-                const CabecalhoSecao(titulo: 'Itens Sugeridos pela IA'),
-                const Spacer(),
+                const Expanded(child: CabecalhoSecao(titulo: 'Itens Sugeridos pela IA')),
                 if (checados.isNotEmpty)
                   TextButton(
                     onPressed: () => ref.read(itensChecadosListaProvider.notifier).state = {},

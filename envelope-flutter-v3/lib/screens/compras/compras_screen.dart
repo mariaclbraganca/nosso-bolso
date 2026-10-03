@@ -33,7 +33,7 @@ class _ComprasScreenState extends ConsumerState<ComprasScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => QrScannerSheet(
         onCodeScanned: (url) async {
-          final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+          final perfil = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
           final familiaId = perfil?['familia_id'] as String? ?? '';
           final usuarioId = perfil?['id'] as String? ?? '';
 
@@ -62,8 +62,8 @@ class _ComprasScreenState extends ConsumerState<ComprasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pendentes = ref.watch(comprasPendentesProvider).value ?? [];
-    final feedbackPendente = ref.watch(feedbackPendenteProvider).value ?? [];
+    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull ?? [];
+    final feedbackPendente = ref.watch(feedbackPendenteProvider).valueOrNull ?? [];
 
     final abasMap = <AbaCompras, String>{
       AbaCompras.pendentes: pendentes.isNotEmpty ? '🛒 Pendentes (${pendentes.length})' : '🛒 Pendentes',

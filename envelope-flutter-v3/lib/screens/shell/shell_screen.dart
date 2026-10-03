@@ -35,7 +35,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pendentes = ref.watch(comprasPendentesProvider).value?.length ?? 0;
+    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
 
     return Scaffold(
       body: IndexedStack(

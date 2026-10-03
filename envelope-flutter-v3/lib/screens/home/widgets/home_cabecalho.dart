@@ -30,9 +30,9 @@ class HomeCabecalho extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final perfil = ref.watch(perfilUsuarioLogadoProvider).value;
-    final membros = ref.watch(listaUsuariosProvider).value ?? [];
-    final pendentes = ref.watch(comprasPendentesProvider).value?.length ?? 0;
+    final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
+    final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? [];
+    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
     final mes = mesLabelLongo(ref.watch(mesAtualProvider)).split(' ').first.toLowerCase();
     final familia = (perfil?['familias'] as Map?)?['nome'] as String?;
     final nome = ((perfil?['nome'] as String?) ?? '').split(' ').first;

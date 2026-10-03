@@ -13,7 +13,7 @@ final monitorIAProvider =
   if (perfil == null) throw Exception('Usuário não autenticado');
 
   final familiaId = perfil['familia_id'] as String? ?? '';
-  final envelopes = ref.watch(envelopesProvider).value ?? [];
+  final envelopes = ref.watch(envelopesProvider).valueOrNull ?? [];
   final fixos = ref.watch(fixosMesAtualProvider);
   final evolucao = ref.watch(evolucaoPatrimonioProvider);
 
@@ -32,7 +32,7 @@ final monitorIAForcarProvider =
   if (perfil == null) throw Exception('Usuário não autenticado');
 
   final familiaId = perfil['familia_id'] as String? ?? '';
-  final envelopes = ref.watch(envelopesProvider).value ?? [];
+  final envelopes = ref.watch(envelopesProvider).valueOrNull ?? [];
   final fixos = ref.watch(fixosMesAtualProvider);
   final evolucao = ref.watch(evolucaoPatrimonioProvider);
 

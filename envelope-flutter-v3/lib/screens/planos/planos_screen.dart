@@ -49,7 +49,7 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
   @override
   Widget build(BuildContext context) {
     final mes = ref.watch(mesAtualProvider);
-    final perfil = ref.watch(perfilUsuarioLogadoProvider).value;
+    final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
     final isAdmin = perfil?['role'] == 'admin' || perfil?['is_admin'] == true;
 
     final abasMap = <AbaPlanos, String>{

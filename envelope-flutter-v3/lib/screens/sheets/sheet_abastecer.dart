@@ -71,7 +71,7 @@ class _SheetAbastecerState extends ConsumerState<SheetAbastecer> {
   @override
   Widget build(BuildContext context) {
     final envelopes = ref.watch(envelopesViseisProvider);
-    final saldoGeral = ref.watch(saldoGeralProvider).value ?? 0;
+    final saldoGeral = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
     _envelopeId ??= envelopes.isEmpty ? null : envelopes.first['id'] as String;
     final env = envelopes.where((e) => e['id'] == _envelopeId).firstOrNull;
     final estado = env == null ? null : EstadoEnvelope(env);

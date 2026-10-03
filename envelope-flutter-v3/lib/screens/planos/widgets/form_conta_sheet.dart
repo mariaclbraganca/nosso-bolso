@@ -48,7 +48,7 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
     }
 
     setState(() => _salvando = true);
-    final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+    final perfil = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
     final familiaId = perfil?['familia_id'] as String? ?? '';
 
     try {

@@ -16,7 +16,7 @@ void avisar(String texto, {bool erro = false}) {
 
 /// Perfil logado obrigatório para gravar (id + familia_id).
 Map<String, dynamic> perfilOuErro(WidgetRef ref) {
-  final p = ref.read(perfilUsuarioLogadoProvider).value;
+  final p = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
   if (p == null || p['familia_id'] == null) {
     throw Exception('Sessão expirada. Entre de novo para continuar.');
   }

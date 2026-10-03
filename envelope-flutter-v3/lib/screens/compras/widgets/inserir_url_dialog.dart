@@ -31,7 +31,7 @@ class _InserirUrlDialogState extends ConsumerState<InserirUrlDialog> {
     }
 
     setState(() => _enviando = true);
-    final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+    final perfil = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
     final familiaId = perfil?['familia_id'] as String? ?? '';
     final usuarioId = perfil?['id'] as String? ?? '';
 

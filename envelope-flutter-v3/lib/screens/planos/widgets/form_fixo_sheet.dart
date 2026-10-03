@@ -58,7 +58,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
     }
 
     setState(() => _salvando = true);
-    final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+    final perfil = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
     final familiaId = perfil?['familia_id'] as String? ?? '';
     final mes = ref.read(mesAtualProvider);
 

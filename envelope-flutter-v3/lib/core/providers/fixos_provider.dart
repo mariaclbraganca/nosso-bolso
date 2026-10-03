@@ -7,7 +7,7 @@ import 'envelopes_provider.dart';
 
 /// Stream bruto — todos os fixos da família (necessário pois .stream() aceita só 1 .eq()).
 final fixosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final perfil = ref.watch(perfilUsuarioLogadoProvider).value;
+  final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
   if (perfil == null || perfil['familia_id'] == null) return const Stream.empty();
 
   return supabase
@@ -19,7 +19,7 @@ final fixosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 
 /// Fixos filtrados pelo mês selecionado — use este na tela e nos cálculos.
 final fixosMesAtualProvider = Provider<List<Map<String, dynamic>>>((ref) {
-  final todos = ref.watch(fixosStreamProvider).value ?? [];
+  final todos = ref.watch(fixosStreamProvider).valueOrNull ?? [];
   final mes   = ref.watch(mesAtualProvider);
   final fixosMes = todos.where((f) => f['mes'] == mes).toList();
 
@@ -45,7 +45,7 @@ final totalReservadoProvider = Provider<double>((ref) {
 /// `saldo_geral` (fonte de verdade) já desconta fixos PAGOS; aqui subtraímos os
 /// fixos ainda NÃO pagos como reserva ("quanto posso distribuir sem furar as contas").
 final saldoLivreProvider = Provider<double>((ref) {
-  final saldoGeral = ref.watch(saldoGeralProvider).value ?? 0;
+  final saldoGeral = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
   final reservado  = ref.watch(totalReservadoProvider); // fixos pendentes do mês
   return saldoGeral - reservado;
 });

@@ -34,14 +34,14 @@ final saldoGeralProvider = StreamProvider<double>((ref) {
 final envelopesViseisProvider = Provider<List<Map<String, dynamic>>>((ref) {
   final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
   final isAdmin = perfil?['role'] == 'admin';
-  final todos = ref.watch(envelopesProvider).value ?? [];
+  final todos = ref.watch(envelopesProvider).valueOrNull ?? [];
   if (isAdmin) return todos;
   return todos.where((e) => e['visivel_apenas_admin'] != true).toList();
 });
 
 // Estatísticas globais filtradas por família
 final totalStatsProvider = Provider<Map<String, double>>((ref) {
-  final envelopes = ref.watch(envelopesProvider).value ?? [];
+  final envelopes = ref.watch(envelopesProvider).valueOrNull ?? [];
   
   double totalPlanned = 0;
   double totalInEnvelopes = 0;

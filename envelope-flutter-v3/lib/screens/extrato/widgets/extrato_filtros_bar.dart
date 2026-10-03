@@ -23,7 +23,7 @@ class ExtratoFiltrosBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final envelopes = ref.watch(envelopesViseisProvider);
-    final membros = ref.watch(listaUsuariosProvider).value ?? [];
+    final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? [];
 
     return SizedBox(
       height: 38,

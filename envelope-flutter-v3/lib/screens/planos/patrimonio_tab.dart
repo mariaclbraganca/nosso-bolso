@@ -67,7 +67,7 @@ class PatrimonioTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final configurado = ref.watch(pinConfiguradoProvider).value ?? false;
+    final configurado = ref.watch(pinConfiguradoProvider).valueOrNull ?? false;
     final desbloqueado = ref.watch(pinDesbloqueadoProvider);
 
     if (configurado && !desbloqueado) {
@@ -94,7 +94,7 @@ class PatrimonioTab extends ConsumerWidget {
       );
     }
 
-    final contas = ref.watch(patrimonioProvider).value ?? [];
+    final contas = ref.watch(patrimonioProvider).valueOrNull ?? [];
     final total = ref.watch(totalPatrimonioProvider);
 
     return ListView(
@@ -126,8 +126,7 @@ class PatrimonioTab extends ConsumerWidget {
         const PatrimonioIaCard(),
         Row(
           children: [
-            const CabecalhoSecao(titulo: 'Bens e Contas'),
-            const Spacer(),
+            const Expanded(child: CabecalhoSecao(titulo: 'Bens e Contas')),
             if (!configurado)
               TextButton(
                 onPressed: () => _abrirPin(context),

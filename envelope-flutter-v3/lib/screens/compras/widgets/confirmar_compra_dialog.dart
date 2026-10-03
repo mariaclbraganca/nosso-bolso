@@ -36,7 +36,7 @@ class _ConfirmarCompraDialogState extends ConsumerState<ConfirmarCompraDialog> {
     }
 
     setState(() => _confirmando = true);
-    final perfil = ref.read(perfilUsuarioLogadoProvider).value;
+    final perfil = ref.read(perfilUsuarioLogadoProvider).valueOrNull;
     final familiaId = perfil?['familia_id'] as String? ?? '';
     final usuarioId = perfil?['id'] as String? ?? '';
     final compraId = widget.compra['compra_id'] as String? ?? '';

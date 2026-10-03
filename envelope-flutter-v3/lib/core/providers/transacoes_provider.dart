@@ -21,9 +21,9 @@ final transacoesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref
 /// Transações filtradas pelo mês selecionado + detalhes resolvidos
 /// Admin vê todas; membro vê apenas as com visivel_apenas_admin = false
 final transacoesComDetalhesProvider = Provider<List<Map<String, dynamic>>>((ref) {
-  final transacoes = ref.watch(transacoesStreamProvider).value ?? [];
-  final envelopes = ref.watch(envelopesProvider).value ?? [];
-  final usuarios = ref.watch(listaUsuariosProvider).value ?? [];
+  final transacoes = ref.watch(transacoesStreamProvider).valueOrNull ?? [];
+  final envelopes = ref.watch(envelopesProvider).valueOrNull ?? [];
+  final usuarios = ref.watch(listaUsuariosProvider).valueOrNull ?? [];
   final mesSelecionado = ref.watch(mesAtualProvider); // 'yyyy-MM'
   final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
   final isAdmin = perfil?['role'] == 'admin';
@@ -77,7 +77,7 @@ class MesStats {
 
 /// Provider para estatísticas de um mês específico (SPEC-09)
 final statsPorMesProvider = Provider.family<MesStats, String>((ref, mes) {
-  final transacoes = ref.watch(transacoesStreamProvider).value ?? [];
+  final transacoes = ref.watch(transacoesStreamProvider).valueOrNull ?? [];
 
   double rec = 0;
   double desp = 0;

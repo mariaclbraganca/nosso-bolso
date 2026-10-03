@@ -14,7 +14,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final saldo = ref.watch(saldoGeralProvider).value ?? 0;
+    final saldo = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
     final stats = ref.watch(totalStatsProvider);
     final mes = ref.watch(mesAtualProvider);
     final gastoCiclo = ref.watch(statsPorMesProvider(mes)).totalDespesa;
@@ -107,7 +107,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
   }
 
   String? _ultimoLancamento(WidgetRef ref) {
-    final eu = ref.watch(perfilUsuarioLogadoProvider).value?['id'];
+    final eu = ref.watch(perfilUsuarioLogadoProvider).valueOrNull?['id'];
     final txs = ref.watch(transacoesComDetalhesProvider);
     final agora = DateTime.now();
     for (final t in txs) {

@@ -48,7 +48,7 @@ class _SheetFecharMesState extends ConsumerState<SheetFecharMes> {
     final mes = ref.watch(mesAtualProvider);
     final stats = ref.watch(statsPorMesProvider(mes));
     final envelopes = ref.watch(envelopesViseisProvider);
-    final saldoGeral = ref.watch(saldoGeralProvider).value ?? 0;
+    final saldoGeral = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
     final nomeMes = mesLabelLongo(mes).split(' ').first;
 
     final consumo = envelopes.where((e) => NaturezaEnvelope.from(e) == NaturezaEnvelope.consumo).map((e) => e['nome_envelope']).join(', ');

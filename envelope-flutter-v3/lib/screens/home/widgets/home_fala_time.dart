@@ -16,7 +16,7 @@ class HomeFalaDoTime extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (envelopes.isEmpty) return const SizedBox.shrink();
-    final saldo = ref.watch(saldoGeralProvider).value ?? 0;
+    final saldo = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
     final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
     final estados = envelopes.map((e) => EstadoEnvelope(e, gastoMes: gastos[e['id']] ?? 0.0)).toList();
     final estourados = estados
@@ -77,7 +77,7 @@ class HomeAlertaIA extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesAtualProvider);
-    final insights = ref.watch(insightsProvider(mes)).value ?? const [];
+    final insights = ref.watch(insightsProvider(mes)).valueOrNull ?? const [];
     final alerta = insights
         .cast<Map>()
         .where((i) => (i['titulo'] as String? ?? '').startsWith('Alerta'))

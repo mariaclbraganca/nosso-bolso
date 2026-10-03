@@ -122,8 +122,7 @@ class _FixosTabState extends ConsumerState<FixosTab> {
         const SizedBox(height: NBSpacing.l),
         Row(
           children: [
-            const CabecalhoSecao(titulo: 'Gastos Recorrentes'),
-            const Spacer(),
+            const Expanded(child: CabecalhoSecao(titulo: 'Gastos Recorrentes')),
             if (_modoSelecao)
               TextButton(
                 onPressed: () => setState(() {

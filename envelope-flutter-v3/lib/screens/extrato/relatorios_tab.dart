@@ -24,7 +24,7 @@ class RelatoriosTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transacoes = ref.watch(transacoesComDetalhesProvider);
-    final membros = ref.watch(listaUsuariosProvider).value ?? [];
+    final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? [];
     final calculo = ExtratoCalculos.calcular(transacoes);
 
     if (calculo.totalDespesa <= 0 && calculo.totalReceita <= 0) {

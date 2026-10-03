@@ -17,14 +17,14 @@ final patrimonioProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 
 /// Total consolidado de patrimônio
 final totalPatrimonioProvider = Provider<double>((ref) {
-  final contas = ref.watch(patrimonioProvider).value ?? [];
+  final contas = ref.watch(patrimonioProvider).valueOrNull ?? [];
   return contas.fold(0.0, (sum, c) => sum + ((c['saldo_atual'] as num?)?.toDouble() ?? 0.0));
 });
 
 /// Provider de análise IA do portfólio — invalidar manualmente para atualizar.
 final patrimonioAnaliseProvider =
     FutureProvider.autoDispose<PatrimonioAnalise>((ref) async {
-  final contas = ref.watch(patrimonioProvider).value ?? [];
+  final contas = ref.watch(patrimonioProvider).valueOrNull ?? [];
   return GeminiPatrimonioService.analisar(contas);
 });
 
@@ -48,7 +48,7 @@ final snapshotsPatrimonioProvider =
 /// Agrega snapshots por mês — retorna lista de {mes, total} ordenada.
 final evolucaoPatrimonioProvider =
     Provider.autoDispose<List<({String mes, double total})>>((ref) {
-  final snapshots = ref.watch(snapshotsPatrimonioProvider).value ?? [];
+  final snapshots = ref.watch(snapshotsPatrimonioProvider).valueOrNull ?? [];
 
   final porMes = <String, double>{};
   for (final s in snapshots) {
