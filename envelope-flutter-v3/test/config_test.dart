@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/screens/config/config_screen.dart';
+import 'package:nosso_bolso_v3/screens/config/notificacoes_screen.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 
 class _Perfil extends PerfilUsuarioNotifier {
@@ -40,4 +41,25 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Sair da conta?'), findsNothing);
   });
+
+  testWidgets('Central leva a Notificações e captura', (t) async {
+    await abrirConfig(t, extras: [permissaoCapturaProvider.overrideWith((ref) async => true)]);
+    await t.tap(find.text('Notificações e captura'));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('CAPTURA AUTOMÁTICA'), findsOneWidget);
+  });
+
+  for (final permitido in [true, false]) {
+    testWidgets('Captura com permissão=$permitido', (t) async {
+      await t.pumpWidget(ProviderScope(
+        overrides: [permissaoCapturaProvider.overrideWith((ref) async => permitido)],
+        child: MaterialApp(theme: nossoBolsoTheme(), home: const NotificacoesScreen()),
+      ));
+      await t.pump(const Duration(milliseconds: 300));
+      expect(t.takeException(), isNull);
+      expect(find.text('Ativa'), permitido ? findsNWidgets(2) : findsNothing);
+      expect(find.text('Conceder permissão'), permitido ? findsNothing : findsOneWidget);
+    });
+  }
 }

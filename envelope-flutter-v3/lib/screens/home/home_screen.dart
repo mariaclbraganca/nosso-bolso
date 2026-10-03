@@ -9,6 +9,7 @@ import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../sheets/sheet_lancamento.dart';
 import '../sheets/sheet_remanejar.dart';
+import 'widgets/home_aviso_captura.dart';
 import 'widgets/home_cabecalho.dart';
 import 'widgets/home_cartao_saldo.dart';
 import 'widgets/home_fala_time.dart';
@@ -50,6 +51,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: NBSpacing.l),
               const HomeCartaoSaldo(),
               const SizedBox(height: NBSpacing.l),
+              const HomeAvisoCaptura(),
               HomeFalaDoTime(envelopes: envelopes),
               const HomeAlertaIA(),
               const SizedBox(height: NBSpacing.l),

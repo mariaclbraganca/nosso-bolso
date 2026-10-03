@@ -5,6 +5,7 @@ import '../../core/providers/usuarios_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
+import 'notificacoes_screen.dart';
 
 /// Central de configurações da v3.
 class ConfigScreen extends ConsumerWidget {
@@ -123,7 +124,17 @@ class SecaoConfig {
 
 /// Seções da central. Cada funcionalidade nova entra aqui.
 List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
-  return const <SecaoConfig>[];
+  void abrir(Widget tela) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => tela));
+  return [
+    SecaoConfig('Notificações', [
+      ItemConfig(
+        icone: Icons.notifications_active_outlined,
+        titulo: 'Notificações e captura',
+        subtitulo: 'Leitor do Nubank e iFood, lembretes e alarmes',
+        abrir: () => abrir(const NotificacoesScreen()),
+      ),
+    ]),
+  ];
 }
 
 class _LinhaConfig extends StatelessWidget {
