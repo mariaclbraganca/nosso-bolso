@@ -267,6 +267,14 @@ def confirmar_compra(
     return integrar_compra(compra, str(payload.envelope_id), usr, fam)
 
 
+def forma_pagamento_da_compra(compra: dict) -> str | None:
+    """Como a compra foi paga, pela origem da captura. O Plano do mês usa isso
+    para separar o que vai para a fatura do cartão do que já saiu da conta."""
+    if compra.get("fonte") == "ifood":
+        return "va"
+    return {"compra": "credito", "pix_enviado": "pix"}.get(compra.get("tipo_notificacao"))
+
+
 def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
     """Lança a compra pendente como despesa no Supabase e marca como confirmada.
     Usado por /confirmar e pelo fechamento do dia (/dia/fechar)."""
@@ -316,6 +324,7 @@ def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
         "data": compra["data_compra"][:10],
         "familia_id": fam,
         "origem_ref": compra_id,  # chave de idempotência
+        "forma_pagamento": forma_pagamento_da_compra(compra),
     }
     try:
         result = db.table("transacoes").insert(transacao).execute()
@@ -611,6 +620,7 @@ def registrar_notificacao_nubank(
             "descricao": f"Pix recebido de {payload.estabelecimento}",
             "data": str(data_compra),
             "familia_id": fam,
+            "forma_pagamento": "pix",
         }
         res = db.table("transacoes").insert(data).execute()
         logger.info("nubank: receita (pix recebido) familia=%s valor=%.2f", fam, payload.valor)

@@ -10,8 +10,9 @@ import 'contas_tab.dart';
 import 'fixos_tab.dart';
 import 'metas_tab.dart';
 import 'patrimonio_tab.dart';
+import 'plano_mes_tab.dart';
 
-enum AbaPlanos { fixos, boletos, metas, patrimonio }
+enum AbaPlanos { mes, fixos, boletos, metas, patrimonio }
 
 class PlanosScreen extends ConsumerStatefulWidget {
   const PlanosScreen({super.key});
@@ -21,7 +22,7 @@ class PlanosScreen extends ConsumerStatefulWidget {
 }
 
 class _PlanosScreenState extends ConsumerState<PlanosScreen> {
-  AbaPlanos _aba = AbaPlanos.fixos;
+  AbaPlanos _aba = AbaPlanos.mes;
 
   Future<void> _escolherMes(BuildContext context, String mesAtual) async {
     final meses = gerarMesesDisponiveis();
@@ -55,6 +56,7 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
     final isAdmin = perfil?['role'] == 'admin' || perfil?['is_admin'] == true;
 
     final abasMap = <AbaPlanos, String>{
+      AbaPlanos.mes: '📊 Mês',
       AbaPlanos.fixos: '📌 Fixos',
       AbaPlanos.boletos: '🧾 Boletos',
       AbaPlanos.metas: '🎯 Metas',
@@ -103,6 +105,7 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
             ),
             Expanded(
               child: switch (_aba) {
+                AbaPlanos.mes => const PlanoMesTab(),
                 AbaPlanos.fixos => const FixosTab(),
                 AbaPlanos.boletos => const ContasTab(),
                 AbaPlanos.metas => const MetasTab(),

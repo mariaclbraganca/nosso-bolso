@@ -2,6 +2,7 @@ import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nosso_bolso_v3/core/providers/plano_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/compras_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/contas_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/metas_provider.dart';
@@ -67,10 +68,14 @@ void main() {
       metasProvider.overrideWith((ref) async => [{'_id': 'm1', 'nome': 'Viagem', 'valor_meta': 6000.0, 'valor_atual': 3200.0, 'emoji': '✈️'}]),
       patrimonioProvider.overrideWith((ref) => Stream.value(<Map<String, dynamic>>[])),
       snapshotsPatrimonioProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
+      entradasMesProvider.overrideWith((ref, mes) async => [{'id': 'e1', 'nome': 'Salário', 'valor': 5491.0}]),
+      compromissosCartaoProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
     ], child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
+    expect(find.text('Salário'), findsOneWidget); // aba Mês abre primeiro
+    await abrirAbas(t, ['Fixos']);
     expect(find.textContaining('Aluguel'), findsWidgets);
-    await abrirAbas(t, ['Boletos', 'Metas', 'Patrim', 'Fixos']);
+    await abrirAbas(t, ['Boletos', 'Metas', 'Patrim', 'Mês']);
   });
 }
