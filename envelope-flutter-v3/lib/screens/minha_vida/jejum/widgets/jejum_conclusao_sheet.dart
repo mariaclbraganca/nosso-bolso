@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nosso_bolso_v3/core/services/jejum_api_service.dart';
+import 'package:nosso_bolso_v3/core/services/jejum_notification_service.dart';
 import 'package:nosso_bolso_v3/screens/sheets/comum.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
@@ -41,6 +42,7 @@ class _JejumConclusaoSheetState extends ConsumerState<JejumConclusaoSheet> {
         status: status,
         sentimento: _sentimento,
       );
+      JejumNotificationService.encerrar(); // sem await: não segura o fechamento da tela
       if (mounted) {
         Navigator.pop(context);
         final msg = status == 'completo'

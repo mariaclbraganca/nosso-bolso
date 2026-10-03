@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nosso_bolso_v3/core/providers/jejum_provider.dart';
 import 'package:nosso_bolso_v3/core/services/jejum_api_service.dart';
+import 'package:nosso_bolso_v3/core/services/jejum_notification_service.dart';
 import 'package:nosso_bolso_v3/screens/sheets/comum.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
@@ -28,6 +29,20 @@ class JejumTab extends ConsumerStatefulWidget {
 class _JejumTabState extends ConsumerState<JejumTab> {
   Timer? _timer;
   bool _iniciando = false;
+  String? _notificacaoDoRegistro; // evita reagendar a cada rebuild
+
+  /// Notificação fixa com o tempo + marcos (12h, 16h, janela). Usa a config
+  /// de notificação e a janela do usuário, como no timer da v2.
+  void _ligarNotificacoes(Map<String, dynamic> registro, Map<String, dynamic> config) {
+    final id = registro['id']?.toString();
+    if (id == null || id == _notificacaoDoRegistro) return;
+    _notificacaoDoRegistro = id;
+    JejumNotificationService.iniciar({
+      ...registro,
+      if (config['notif_config'] != null) 'notif_config': config['notif_config'],
+      if (config['janela_fim'] != null) 'janela_fim': config['janela_fim'],
+    });
+  }
 
   @override
   void initState() {
@@ -46,11 +61,13 @@ class _JejumTabState extends ConsumerState<JejumTab> {
   Future<void> _iniciarJejum(double metaHoras) async {
     setState(() => _iniciando = true);
     try {
-      await JejumApiService.iniciar(
+      final registro = await JejumApiService.iniciar(
         usuarioId: widget.membroId,
         familiaId: widget.familiaId,
         metaHoras: metaHoras,
       );
+      final args = (membroId: widget.membroId, familiaId: widget.familiaId);
+      _ligarNotificacoes(registro, ref.read(jejumConfigProvider(args)).valueOrNull ?? const {});
       avisar('Jejum iniciado com foco e leveza! ✨');
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
@@ -107,6 +124,11 @@ class _JejumTabState extends ConsumerState<JejumTab> {
     final jokers = (jokersMes - jokersUsados).clamp(0, jokersMes);
 
     final ativo = ativoAsync.asData?.value;
+    if (ativo != null) {
+      _ligarNotificacoes(ativo, config);
+    } else if (ativoAsync.hasValue) {
+      _notificacaoDoRegistro = null;
+    }
     final metaHoras = (ativo?['meta_horas'] as num?)?.toDouble() ??
         (config['duracao_horas'] as num?)?.toDouble() ??
         proto.horas ??
