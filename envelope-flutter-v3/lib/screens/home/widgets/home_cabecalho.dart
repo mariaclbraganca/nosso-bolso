@@ -4,6 +4,7 @@ import '../../../core/providers/compras_provider.dart';
 import '../../../core/providers/mes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../core/services/app_navigator.dart';
+import '../../config/config_screen.dart';
 import '../../../ui/theme/nb_theme.dart';
 
 class HomeCabecalho extends ConsumerWidget {
@@ -99,6 +100,19 @@ class HomeCabecalho extends ConsumerWidget {
               size: 20,
             ),
           ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.outlined(
+          tooltip: 'Configurações',
+          style: IconButton.styleFrom(
+            backgroundColor: NBColors.cartao,
+            side: const BorderSide(color: NBColors.linha),
+            fixedSize: const Size(44, 44),
+          ),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ConfigScreen()),
+          ),
+          icon: const Icon(Icons.settings_outlined, color: NBColors.tinta, size: 20),
         ),
       ],
     );
