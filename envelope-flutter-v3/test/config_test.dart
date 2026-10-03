@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nosso_bolso_v3/screens/config/pin_config_screen.dart';
+import 'package:nosso_bolso_v3/screens/config/ia_config_screen.dart';
+import 'package:nosso_bolso_v3/core/services/gemini_key_service.dart';
 import 'package:nosso_bolso_v3/core/providers/pin_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/screens/config/config_screen.dart';
@@ -141,5 +143,24 @@ void main() {
     await t.tap(find.widgetWithText(FilledButton, 'Trocar PIN'));
     await t.pumpAndSettle();
     expect(await container.read(pinNotifierProvider.notifier).verificarPin('5678'), isTrue);
+  });
+
+  testWidgets('IA: mostra chaves salvas e remove só a escolhida', (t) async {
+    FlutterSecureStorage.setMockInitialValues({
+      'ia_gemini_key_1': 'AIza-principal',
+      'ia_gemini_key_2': 'AIza-reserva',
+    });
+    await t.pumpWidget(ProviderScope(
+      child: MaterialApp(theme: nossoBolsoTheme(), home: const IaConfigScreen()),
+    ));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('AIza-principal'), findsOneWidget);
+    expect(find.text('AIza-reserva'), findsOneWidget);
+
+    final reserva = find.widgetWithText(TextField, 'Chave reserva 1');
+    await t.tap(find.descendant(of: reserva, matching: find.byTooltip('Remover')));
+    await t.pumpAndSettle();
+    expect(await GeminiKeyService.carregarChavesSalvas(), ['AIza-principal', '', '']);
   });
 }

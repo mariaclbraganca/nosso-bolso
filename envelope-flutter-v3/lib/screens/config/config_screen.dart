@@ -6,6 +6,7 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
+import 'ia_config_screen.dart';
 import 'pin_config_screen.dart';
 
 /// Central de configurações da v3.
@@ -134,6 +135,14 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
         titulo: 'Notificações e captura',
         subtitulo: 'Leitor do Nubank e iFood, lembretes e alarmes',
         abrir: () => abrir(const NotificacoesScreen()),
+      ),
+    ]),
+    SecaoConfig('Inteligência', [
+      ItemConfig(
+        icone: Icons.auto_awesome_outlined,
+        titulo: 'Inteligência artificial',
+        subtitulo: 'Chaves do Gemini usadas pelo app',
+        abrir: () => abrir(const IaConfigScreen()),
       ),
     ]),
     if (admin)
