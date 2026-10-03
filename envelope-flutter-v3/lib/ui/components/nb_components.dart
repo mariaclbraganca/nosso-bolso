@@ -217,10 +217,12 @@ class CartaoEnvelope extends StatelessWidget {
     required this.env,
     this.gastoMes = 0.0,
     this.onTap,
+    this.onLongPress,
   });
   final Map<String, dynamic> env;
   final double gastoMes;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -286,6 +288,7 @@ class CartaoEnvelope extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Stack(
             children: [
               Positioned(

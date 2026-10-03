@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/compras_provider.dart';
 import '../../core/providers/envelopes_provider.dart';
 import '../../core/providers/insights_provider.dart';
-import '../../core/services/app_navigator.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
+import '../sheets/sheet_envelope.dart';
 import '../sheets/sheet_lancamento.dart';
 import '../sheets/sheet_remanejar.dart';
 import 'widgets/home_aviso_captura.dart';
@@ -84,9 +84,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               else if (envelopes.isEmpty)
                 UnicornVazio(
                   titulo: 'Nenhum envelope ainda',
-                  texto: 'Crie o primeiro em Planos e comece a separar o dinheiro.',
-                  acao: () => navegarParaAba(navPlanos),
-                  rotuloAcao: 'Ir para Planos',
+                  texto: 'Crie o primeiro e comece a separar o dinheiro da família.',
+                  acao: () => abrirEnvelope(context),
+                  rotuloAcao: 'Criar envelope',
                 )
               else
                 HomeGradeEnvelopes(envelopes: envelopes),

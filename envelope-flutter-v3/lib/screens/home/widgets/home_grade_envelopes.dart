@@ -4,6 +4,7 @@ import '../../../core/providers/transacoes_provider.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../sheets/sheet_abastecer.dart';
+import '../../sheets/sheet_envelope.dart';
 import '../../sheets/sheet_remanejar.dart';
 
 class HomeGradeEnvelopes extends ConsumerWidget {
@@ -37,8 +38,10 @@ class HomeGradeEnvelopes extends ConsumerWidget {
                   onTap: () => EstadoEnvelope(env, gastoMes: gastos[env['id']] ?? 0.0).estourado
                       ? abrirSheet(context, SheetRemanejar(destinoId: env['id'] as String))
                       : abrirSheet(context, SheetAbastecer(envelopeId: env['id'] as String)),
+                  onLongPress: () => abrirEnvelope(context, envelope: env),
                 ),
               ),
+            SizedBox(width: largura, child: const _NovoEnvelope()),
           ],
         );
       },
@@ -46,3 +49,33 @@ class HomeGradeEnvelopes extends ConsumerWidget {
   }
 }
 
+
+class _NovoEnvelope extends StatelessWidget {
+  const _NovoEnvelope();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(NBRadius.cartao),
+        side: const BorderSide(color: NBColors.linha, width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(NBRadius.cartao),
+        onTap: () => abrirEnvelope(context),
+        child: SizedBox(
+          height: 128,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add_rounded, color: NBColors.verde, size: 28),
+              const SizedBox(height: 4),
+              Text('Novo envelope', style: NBText.rotulo.copyWith(color: NBColors.verde)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
