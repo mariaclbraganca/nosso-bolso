@@ -7,6 +7,10 @@ import 'exercicio/exercicio_tab.dart';
 import 'jejum/jejum_tab.dart';
 import 'saude/saude_tab.dart';
 
+/// Segmento aberto em Minha Vida (0 Saúde, 1 Exercício, 2 Jejum). Global para
+/// a Home abrir direto no Jejum pelo chip.
+final segmentoMinhaVidaProvider = StateProvider<int>((ref) => 0);
+
 class MinhaVidaScreen extends ConsumerStatefulWidget {
   const MinhaVidaScreen({super.key});
 
@@ -15,7 +19,6 @@ class MinhaVidaScreen extends ConsumerStatefulWidget {
 }
 
 class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
-  int _segmento = 0; // 0 = Saúde, 1 = Exercício, 2 = Jejum
 
   static const _segmentos = [
     ('🌿', 'Saúde'),
@@ -25,6 +28,7 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final segmento = ref.watch(segmentoMinhaVidaProvider);
     final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
     final membros = ref.watch(listaUsuariosProvider).asData?.value ?? [];
     final membroId = ref.watch(membroSaudeProvider) ?? perfil?['id'] as String? ?? '';
@@ -82,7 +86,7 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
                 children: List.generate(_segmentos.length, (i) {
-                  final sel = _segmento == i;
+                  final sel = segmento == i;
                   final item = _segmentos[i];
                   return Expanded(
                     child: Padding(
@@ -91,7 +95,7 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
                         right: i < _segmentos.length - 1 ? 4 : 0,
                       ),
                       child: InkWell(
-                        onTap: () => setState(() => _segmento = i),
+                        onTap: () => ref.read(segmentoMinhaVidaProvider.notifier).state = i,
                         borderRadius: BorderRadius.circular(10),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
@@ -120,7 +124,7 @@ class _MinhaVidaScreenState extends ConsumerState<MinhaVidaScreen> {
 
             // ── Conteúdo do Segmento ──
             Expanded(
-              child: switch (_segmento) {
+              child: switch (segmento) {
                 0 => SaudeTab(membroId: membroId, familiaId: familiaId),
                 1 => ExercicioTab(membroId: membroId, familiaId: familiaId),
                 _ => JejumTab(membroId: membroId, familiaId: familiaId),

@@ -17,6 +17,7 @@ import 'widgets/home_cabecalho.dart';
 import 'widgets/home_cartao_saldo.dart';
 import 'widgets/home_fala_time.dart';
 import 'widgets/home_monitor_ia.dart';
+import 'widgets/home_jejum_chip.dart';
 import 'widgets/home_grade_envelopes.dart';
 import 'widgets/home_ritual_alarme.dart';
 
@@ -76,6 +77,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: NBSpacing.l),
               const HomeCartaoSaldo(),
               const SizedBox(height: NBSpacing.l),
+              const HomeJejumChip(),
               const HomeAvisoCaptura(),
               HomeFalaDoTime(envelopes: envelopes),
               const HomeAlertaIA(),
