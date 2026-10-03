@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:nosso_bolso_v3/core/providers/envelopes_provider.dart';
-import 'package:nosso_bolso_v3/core/providers/fixos_provider.dart';
+import 'package:nosso_bolso_v3/core/plano/plano_mes.dart';
+import 'package:nosso_bolso_v3/core/providers/plano_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/transacoes_provider.dart';
 import 'package:nosso_bolso_v3/screens/sheets/sheet_envelope_detalhe.dart';
 import 'package:nosso_bolso_v3/screens/sheets/sheet_planejar_mes.dart';
@@ -45,16 +46,27 @@ void main() {
     expect(find.text('Abastecimento'), findsOneWidget);
   });
 
-  testWidgets('Planejar o mês soma o total e compara com o saldo livre', (t) async {
-    await t.pumpWidget(app(const SheetPlanejarMes(), extras: [saldoLivreProvider.overrideWithValue(2000)]));
+  testWidgets('Tetos do mês comparam com a sobra das entradas (igual à aba Mês)', (t) async {
+    final plano = PlanoMes(
+      mes: '2026-10',
+      entradas: [{'nome': 'Salário', 'valor': 5000}],
+      contas: [{'nome': 'Aluguel', 'valor': 2000}],
+      envelopes: const [],
+      gastoPorEnvelope: const {},
+      compromissos: [{'descricao': 'Dentista', 'valor': 500, 'mes_fatura': '2026-11', 'parcela_atual': 1, 'total_parcelas': 2}],
+    );
+    await t.pumpWidget(app(const SingleChildScrollView(child: SheetPlanejarMes()),
+        extras: [planoMesProvider.overrideWith((ref) => AsyncValue.data(plano))]));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    expect(find.text('Sobra para distribuir'), findsOneWidget);
-    expect(find.text(brl(1500)), findsOneWidget); // total planejado
-    expect(find.text(brl(500)), findsOneWidget); // sobra: 2000 - 1500
+    expect(find.text('Sobra para o dia a dia'), findsOneWidget);
+    expect(find.text(brl(2500)), findsOneWidget); // 5000 − 2000 − 500
+    expect(find.text(brl(-1500)), findsOneWidget); // tetos 1200 + 300
+    expect(find.text('Ainda dá para distribuir'), findsOneWidget);
+    expect(find.text(brl(1000)), findsOneWidget);
 
-    await t.enterText(find.widgetWithText(TextField, '300,00'), '100000');
+    await t.enterText(find.widgetWithText(TextField, '300,00'), '200000');
     await t.pumpAndSettle();
-    expect(find.text('Planejado acima do saldo'), findsOneWidget);
+    expect(find.text('Vai faltar (sai da reserva)'), findsOneWidget);
   });
 }

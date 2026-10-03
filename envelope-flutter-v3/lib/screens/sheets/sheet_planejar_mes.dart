@@ -3,15 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/envelopes_provider.dart';
-import '../../core/providers/fixos_provider.dart';
+import '../../core/providers/plano_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/utils/moeda.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
+import '../../core/plano/plano_mes.dart';
 import 'comum.dart';
 
-/// Define o valor planejado de todos os envelopes de uma vez (o "orçamento"
-/// do mês). Não move dinheiro: isso é o Abastecer.
+/// Teto de cada envelope no mês (o dia a dia). Compara com o que sobra das
+/// entradas depois das contas e do cartão — as mesmas contas da aba Mês.
 class SheetPlanejarMes extends ConsumerStatefulWidget {
   const SheetPlanejarMes({super.key});
 
@@ -64,7 +65,7 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
     if (!mounted) return;
     setState(() => _salvando = false);
     if (falhas.isEmpty) {
-      avisar('Plano do mês salvo (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
+      avisar('Tetos salvos (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
       Navigator.pop(context, true);
     } else {
       avisar('${falhas.length} envelope(s) não salvaram. Tente de novo.', erro: true);
@@ -73,32 +74,22 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
 
   @override
   Widget build(BuildContext context) {
-    final envelopes = ref.watch(envelopesViseisProvider);
-    final saldoLivre = ref.watch(saldoLivreProvider);
+    // Envelope de reserva não é dia a dia: fica fora dos tetos do mês.
+    final envelopes = ref.watch(envelopesViseisProvider).where((e) => e['is_reserva'] != true).toList();
     for (final env in envelopes) {
       _ctrl(env); // cria os campos antes de somar, senão o 1º frame mostra total zero
     }
     final total = _total;
-    final sobra = saldoLivre - total;
+    final plano = ref.watch(planoMesProvider).valueOrNull;
 
     return CascaSheet(
       filhos: [
         const TopoSheet(
-          titulo: 'Planejar o mês',
-          subtitulo: 'Quanto cada envelope deve receber. Depois é só abastecer.',
+          titulo: 'Tetos do mês',
+          subtitulo: 'Quanto vocês se permitem gastar em cada envelope no dia a dia.',
         ),
         const SizedBox(height: NBSpacing.l),
-        CartaoNB(
-          child: Column(
-            children: [
-              LinhaPrevia(rotulo: 'Saldo geral livre (sem fixos pendentes)', valor: saldoLivre),
-              LinhaPrevia(rotulo: 'Total planejado', valor: total),
-              const Divider(height: 16),
-              LinhaPrevia(rotulo: sobra >= 0 ? 'Sobra para distribuir' : 'Planejado acima do saldo', valor: sobra,
-                  corValor: NBColors.verde),
-            ],
-          ),
-        ),
+        ResumoTetos(plano: plano, totalTetos: total),
         const SizedBox(height: NBSpacing.l),
         for (final env in envelopes)
           Padding(
@@ -125,7 +116,43 @@ class _SheetPlanejarMesState extends ConsumerState<SheetPlanejarMes> {
             ),
           ),
       ],
-      botao: BotaoPrincipal(rotulo: 'Salvar plano', carregando: _salvando, onPressed: _salvar),
+      botao: BotaoPrincipal(rotulo: 'Salvar tetos', carregando: _salvando, onPressed: _salvar),
+    );
+  }
+}
+
+/// Entradas − contas − cartão = o que sobra para o dia a dia; menos os tetos
+/// dá o resultado do mês (negativo = sai da reserva). Igual à aba Mês.
+class ResumoTetos extends StatelessWidget {
+  const ResumoTetos({super.key, required this.plano, required this.totalTetos});
+  final PlanoMes? plano;
+  final double totalTetos;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = plano;
+    if (p == null) {
+      return CartaoNB(child: LinhaPrevia(rotulo: 'Total dos tetos', valor: totalTetos));
+    }
+    final sobra = p.totalEntradas.previsto - p.totalContas.previsto - p.cartaoComprometido;
+    final resultado = sobra - totalTetos;
+    return CartaoNB(
+      child: Column(
+        children: [
+          LinhaPrevia(rotulo: 'Entradas previstas', valor: p.totalEntradas.previsto),
+          LinhaPrevia(rotulo: '(−) Contas do mês', valor: -p.totalContas.previsto),
+          LinhaPrevia(rotulo: '(−) Cartão já comprometido', valor: -p.cartaoComprometido),
+          const Divider(height: 16),
+          LinhaPrevia(rotulo: 'Sobra para o dia a dia', valor: sobra),
+          LinhaPrevia(rotulo: '(−) Seus tetos', valor: -totalTetos),
+          const Divider(height: 16),
+          LinhaPrevia(
+            rotulo: resultado >= 0 ? 'Ainda dá para distribuir' : 'Vai faltar (sai da reserva)',
+            valor: resultado,
+            corValor: resultado >= 0 ? NBColors.verde : NBColors.estouro,
+          ),
+        ],
+      ),
     );
   }
 }
