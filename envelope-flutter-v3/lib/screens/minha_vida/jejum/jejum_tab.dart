@@ -14,6 +14,7 @@ import 'widgets/jejum_timer_display.dart';
 import 'widgets/jejum_extras.dart';
 import 'jejum_historico_view.dart';
 import 'jejum_insights_view.dart';
+import 'jejum_together_screen.dart';
 
 class JejumTab extends ConsumerStatefulWidget {
   final String membroId;
@@ -276,6 +277,36 @@ class _JejumTabState extends ConsumerState<JejumTab> {
                   ),
               ],
             ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // ── Fast Together ──
+        CartaoNB(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => JejumTogetherScreen(membroId: widget.membroId, familiaId: widget.familiaId),
+          )),
+          child: Row(
+            children: [
+              const Text('👭', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Jejuar em dupla', style: NBText.rotulo),
+                    Text(
+                      switch (ref.watch(jejumTogetherProvider(args)).valueOrNull) {
+                        {'parceiro': {'nome': final String nome}} => 'Você e $nome',
+                        _ => 'Convide alguém da família',
+                      },
+                      style: NBText.legenda,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: NBColors.tintaSuave),
+            ],
           ),
         ),
         const SizedBox(height: 16),
