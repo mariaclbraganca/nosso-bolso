@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nosso_bolso_v3/screens/config/pin_config_screen.dart';
 import 'package:nosso_bolso_v3/screens/config/ia_config_screen.dart';
+import 'package:nosso_bolso_v3/screens/config/perfil_familia_screen.dart';
 import 'package:nosso_bolso_v3/core/services/gemini_key_service.dart';
 import 'package:nosso_bolso_v3/core/providers/pin_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
@@ -162,5 +163,26 @@ void main() {
     await t.tap(find.descendant(of: reserva, matching: find.byTooltip('Remover')));
     await t.pumpAndSettle();
     expect(await GeminiKeyService.carregarChavesSalvas(), ['AIza-principal', '', '']);
+  });
+
+  testWidgets('Perfil e família mostra código, membros e papéis', (t) async {
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        perfilUsuarioLogadoProvider.overrideWith(_Perfil.new),
+        listaUsuariosProvider.overrideWith((ref) => Stream.value([
+              {'id': 'u1', 'nome': 'Frederico', 'role': 'admin', 'email': 'fred@exemplo.com'},
+              {'id': 'u2', 'nome': 'Alanna', 'role': 'membro'},
+            ])),
+      ],
+      child: MaterialApp(theme: nossoBolsoTheme(), home: const PerfilFamiliaScreen()),
+    ));
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(find.text('AB12CD'), findsOneWidget);
+    expect(find.text('Frederico (você)'), findsOneWidget);
+    expect(find.text('Alanna'), findsOneWidget);
+    expect(find.text('admin'), findsOneWidget);
+    expect(find.text('membro'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Seu nome'), findsOneWidget);
   });
 }

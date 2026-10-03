@@ -7,6 +7,7 @@ import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
 import 'ia_config_screen.dart';
+import 'perfil_familia_screen.dart';
 import 'pin_config_screen.dart';
 
 /// Central de configurações da v3.
@@ -129,6 +130,14 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
   void abrir(Widget tela) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => tela));
   final admin = ref.watch(perfilUsuarioLogadoProvider).valueOrNull?['role'] == 'admin';
   return [
+    SecaoConfig('Conta e família', [
+      ItemConfig(
+        icone: Icons.family_restroom_rounded,
+        titulo: 'Perfil e família',
+        subtitulo: 'Seu nome, membros e código de convite',
+        abrir: () => abrir(const PerfilFamiliaScreen()),
+      ),
+    ]),
     SecaoConfig('Notificações', [
       ItemConfig(
         icone: Icons.notifications_active_outlined,
