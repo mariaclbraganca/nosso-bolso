@@ -448,6 +448,19 @@ class NotificationService {
   static int _idAlarme(DateTime d) => _NId.alarmeFechamento + d.day;
 
   /// Pede (uma vez) as permissões de alarme exato e de tela cheia (Android 14+).
+  /// null quando a plataforma não informa (fora do Android).
+  static Future<bool?> notificacoesPermitidas() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return android?.areNotificationsEnabled();
+  }
+
+  static Future<bool?> alarmesExatosPermitidos() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    return android?.canScheduleExactNotifications();
+  }
+
   static Future<void> pedirPermissoesAlarme() async {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();

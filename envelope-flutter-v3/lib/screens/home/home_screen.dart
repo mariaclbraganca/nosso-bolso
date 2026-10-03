@@ -14,12 +14,26 @@ import 'widgets/home_cabecalho.dart';
 import 'widgets/home_cartao_saldo.dart';
 import 'widgets/home_fala_time.dart';
 import 'widgets/home_grade_envelopes.dart';
+import 'widgets/home_ritual_alarme.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) prepararAlarmeFechamento(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final envelopesAsync = ref.watch(envelopesProvider);
     final envelopes = ref.watch(envelopesViseisProvider);
 

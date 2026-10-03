@@ -62,4 +62,18 @@ void main() {
       expect(find.text('Conceder permissão'), permitido ? findsNothing : findsOneWidget);
     });
   }
+
+  testWidgets('Permissões do sistema negadas mostram o botão de pedir', (t) async {
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        permissaoCapturaProvider.overrideWith((ref) async => true),
+        permissoesSistemaProvider.overrideWith((ref) async => (false, false)),
+      ],
+      child: MaterialApp(theme: nossoBolsoTheme(), home: const NotificacoesScreen()),
+    ));
+    await t.pump(const Duration(milliseconds: 300));
+    expect(t.takeException(), isNull);
+    expect(find.text('Sem permissão'), findsNWidgets(2));
+    expect(find.text('Permitir notificações e alarmes'), findsOneWidget);
+  });
 }
