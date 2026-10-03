@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../retrospectiva/retrospectiva_screen.dart';
+import '../sheets/sheet_fechar_mes.dart';
 import '../../core/providers/mes_provider.dart';
 import '../../core/providers/usuarios_provider.dart';
 import '../../ui/components/nb_components.dart';
@@ -72,6 +74,20 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
             ],
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Retrospectiva',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RetrospectivaScreen()),
+            ),
+          ),
+          TextButton(
+            onPressed: () => abrirSheet(context, const SheetFecharMes()),
+            child: const Text('Fechar mês'),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
         bottom: false,

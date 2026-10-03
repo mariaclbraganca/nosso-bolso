@@ -49,7 +49,7 @@ class FinanceiroExtService {
     final uri = Uri.parse(url).replace(queryParameters: params ?? {});
     final res = await http.get(uri, headers: _headers()).timeout(timeout ?? _kTimeout);
     if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
-    throw Exception('GET $url failed ${res.statusCode}: ${res.body}');
+    throw ApiException(_detailDe(res.body, res.statusCode), res.statusCode);
   }
 
   static Future<Map<String, dynamic>> _post(String url, Map<String, dynamic> body) async {
