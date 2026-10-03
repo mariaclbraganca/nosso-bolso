@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/contas_provider.dart';
+import '../../../core/providers/fixos_provider.dart';
 import '../../../core/providers/mes_provider.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/services/financeiro_ext_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../ui/components/nb_components.dart';
@@ -9,7 +11,9 @@ import '../../../ui/theme/nb_theme.dart';
 import '../../../ui/unicorn/unicorn.dart';
 import '../sheets/comum.dart';
 import 'widgets/contas_card.dart';
+import 'widgets/fixos_card.dart';
 import 'widgets/form_conta_sheet.dart';
+import 'widgets/form_fixo_sheet.dart';
 
 /// Boleto do mês seguinte para uma conta recorrente (mesmo dia, limitado
 /// ao último dia do mês: 31/01 → 28/02). Null se já existe um com o mesmo nome.
@@ -31,21 +35,41 @@ Map<String, dynamic>? proximoBoletoRecorrente(Map<String, dynamic> conta, List<M
   };
 }
 
+/// Dia do mês em que a conta vence (fixo: dia_vencimento; boleto: data).
+int diaDaConta(Map<String, dynamic> c) => c['origem'] == 'fixo'
+    ? (c['dia_vencimento'] as int?) ?? 99
+    : DateTime.tryParse(c['vencimento'] as String? ?? '')?.day ?? 99;
+
+/// Fixos e boletos numa lista só: pendentes primeiro, por dia de vencimento.
+List<Map<String, dynamic>> juntarContas(List<Map<String, dynamic>> fixos, List<Map<String, dynamic>> boletos) {
+  final todas = [
+    for (final f in fixos) {...f, 'origem': 'fixo'},
+    for (final b in boletos) {...b, 'origem': 'boleto'},
+  ];
+  todas.sort((a, b) {
+    final pa = a['pago'] == true ? 1 : 0, pb = b['pago'] == true ? 1 : 0;
+    return pa != pb ? pa - pb : diaDaConta(a).compareTo(diaDaConta(b));
+  });
+  return todas;
+}
+
+/// Contas do mês: gastos fixos (Supabase) e boletos (com data e código) juntos.
 class ContasTab extends ConsumerWidget {
   const ContasTab({super.key});
 
-  Future<void> _togglePago(WidgetRef ref, BuildContext context, Map<String, dynamic> conta, bool pago) async {
+  void _recarregarBoletos(WidgetRef ref) {
+    final mes = ref.read(mesAtualProvider);
+    ref.invalidate(contasMesProvider(mes));
+    ref.invalidate(resumoContasProvider(mes));
+  }
+
+  Future<void> _pagarBoleto(WidgetRef ref, Map<String, dynamic> conta, bool pago) async {
     final id = idMongo(conta);
     try {
       await FinanceiroExtService.marcarPaga(id, pago: pago);
       if (pago && conta['recorrente'] == true) await _lancarProximo(conta);
-      if (pago) {
-        final idNum = (id.hashCode).abs() % 100000;
-        NotificationService.cancelarAlertaConta(idNum);
-      }
-      final mes = ref.read(mesAtualProvider);
-      ref.invalidate(contasMesProvider(mes));
-      ref.invalidate(resumoContasProvider(mes));
+      if (pago) NotificationService.cancelarAlertaConta((id.hashCode).abs() % 100000);
+      _recarregarBoletos(ref);
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
     }
@@ -68,132 +92,168 @@ class ContasTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _excluirConta(WidgetRef ref, BuildContext context, String id) async {
-    final conf = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: NBColors.cartao,
-        title: const Text('Excluir Conta', style: TextStyle(color: NBColors.tinta)),
-        content: Text('Deseja realmente excluir este boleto?', style: NBText.corpo),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir', style: TextStyle(color: NBColors.estouro)),
-          ),
-        ],
-      ),
-    );
-    if (conf == true) {
-      try {
-        await FinanceiroExtService.deletarConta(id);
-        final mes = ref.read(mesAtualProvider);
-        ref.invalidate(contasMesProvider(mes));
-        ref.invalidate(resumoContasProvider(mes));
-        avisar('Conta excluída.');
-      } catch (e) {
-        avisar(mensagemErro(e), erro: true);
+  /// Pagar um fixo gera a despesa no backend, que recusa se o saldo geral não cobre.
+  Future<void> _pagarFixo(WidgetRef ref, String id, bool pago) async {
+    try {
+      await ApiService.patch('/fixos/$id', {'pago': pago});
+      if (pago) NotificationService.cancelarAlertasFixo(id);
+    } catch (e) {
+      final msg = mensagemErro(e);
+      if (msg.toLowerCase().contains('saldo')) {
+        ref.geronimo('Sem saldo geral para pagar. Lance o resgate da reserva (ou a receita) antes.');
+      } else {
+        avisar(msg, erro: true);
       }
     }
   }
 
-  void _abrirForm(BuildContext context, WidgetRef ref) async {
-    final res = await showModalBottomSheet<bool>(
+  Future<bool> _confirmarExclusao(BuildContext context, String nome) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: NBColors.cartao,
+          title: const Text('Excluir conta', style: TextStyle(color: NBColors.tinta)),
+          content: Text('Deseja excluir "$nome"?', style: NBText.corpo),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir', style: TextStyle(color: NBColors.estouro)),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _excluir(BuildContext context, WidgetRef ref, Map<String, dynamic> c) async {
+    if (!await _confirmarExclusao(context, c['nome'] as String? ?? '')) return;
+    try {
+      if (c['origem'] == 'fixo') {
+        await ApiService.delete('/fixos/${c['id']}');
+      } else {
+        await FinanceiroExtService.deletarConta(idMongo(c));
+        _recarregarBoletos(ref);
+      }
+      avisar('Conta excluída.');
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    }
+  }
+
+  Future<void> _abrir(BuildContext context, WidgetRef ref, Widget sheet) async {
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: NBColors.cartao,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const FormContaSheet(),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => sheet,
     );
-    if (res == true) {
-      final mes = ref.read(mesAtualProvider);
-      ref.invalidate(contasMesProvider(mes));
-      ref.invalidate(resumoContasProvider(mes));
-    }
+    _recarregarBoletos(ref);
+  }
+
+  /// Um botão só: conta mensal (só o dia) ou boleto (data e código de barras).
+  Future<void> _novaConta(BuildContext context, WidgetRef ref) async {
+    final tipo = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(padding: EdgeInsets.all(16), child: TopoSheet(titulo: 'Nova conta')),
+            ListTile(
+              leading: const Icon(Icons.event_repeat_rounded),
+              title: const Text('Conta mensal'),
+              subtitle: const Text('Aluguel, Unimed, faculdade… só o dia do vencimento'),
+              onTap: () => Navigator.pop(ctx, 'fixo'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_rounded),
+              title: const Text('Boleto'),
+              subtitle: const Text('Com data, categoria e código de barras ou PIX para copiar'),
+              onTap: () => Navigator.pop(ctx, 'boleto'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+    if (tipo == null || !context.mounted) return;
+    await _abrir(context, ref, tipo == 'fixo' ? const FormFixoSheet() : const FormContaSheet());
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesAtualProvider);
-    final contasAsync = ref.watch(contasMesProvider(mes));
+    final boletos = ref.watch(contasMesProvider(mes));
+    final contas = juntarContas(ref.watch(fixosMesAtualProvider), boletos.valueOrNull ?? const []);
+    double soma(Iterable<Map<String, dynamic>> l) => l.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
+    final total = soma(contas);
+    final pendente = soma(contas.where((c) => c['pago'] != true));
 
-    return contasAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NBColors.verde)),
-      error: (e, _) => Center(child: Text('Erro: $e', style: const TextStyle(color: NBColors.estouro))),
-      data: (contas) {
-        final total = contas.fold(0.0, (sum, c) => sum + ((c['valor'] as num?)?.toDouble() ?? 0.0));
-        final pago = contas.where((c) => c['pago'] == true).fold(0.0, (sum, c) => sum + ((c['valor'] as num?)?.toDouble() ?? 0.0));
-        final aPagar = total - pago;
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
-          children: [
-            CartaoNB(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
+      children: [
+        CartaoNB(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('CONTAS DO MÊS', style: NBText.eyebrow),
+                    const SizedBox(height: 4),
+                    Text(brl(total), style: NBText.valorCartao),
+                    Text('${contas.where((c) => c['pago'] == true).length} de ${contas.length} pagas', style: NBText.legenda),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('BOLETOS & CONSUMO', style: NBText.eyebrow),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Total de faturas', style: NBText.legenda),
-                            const SizedBox(height: 2),
-                            Text(brl(total), style: NBText.valorCartao),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('Pendente', style: NBText.legenda),
-                          const SizedBox(height: 2),
-                          Text(
-                            brl(aPagar),
-                            style: NBText.valorCartao.copyWith(
-                              color: aPagar > 0 ? NBColors.estouro : NBColors.verde,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  Text('Falta pagar', style: NBText.legenda),
+                  Text(brl(pendente),
+                      style: NBText.valorCartao.copyWith(color: pendente > 0 ? NBColors.estouro : NBColors.verde, fontSize: 18)),
                 ],
               ),
+            ],
+          ),
+        ),
+        if (boletos.hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Não consegui carregar os boletos agora; mostrando só as contas mensais.', style: NBText.legenda),
+          ),
+        const SizedBox(height: NBSpacing.l),
+        if (contas.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: UnicornVazio(
+              type: UnicornType.geronimo,
+              titulo: 'Nenhuma conta neste mês',
+              texto: 'Cadastre as contas para receber lembretes antes de vencer.',
             ),
-            const SizedBox(height: NBSpacing.l),
-            const CabecalhoSecao(titulo: 'Contas do Mês'),
-            const SizedBox(height: NBSpacing.s),
-            if (contas.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: UnicornVazio(
-                  type: UnicornType.geronimo,
-                  titulo: 'Nenhuma conta cadastrada',
-                  texto: 'Cadastre suas contas com vencimento para receber lembretes.',
-                ),
-              )
-            else
-              for (final c in contas)
-                ContasCard(
-                  conta: c,
-                  onTogglePago: (v) => _togglePago(ref, context, c, v),
-                  onExcluir: () => _excluirConta(ref, context, idMongo(c)),
-                ),
-            const SizedBox(height: NBSpacing.m),
-            BotaoSecundario(
-              rotulo: '+ Nova Conta / Boleto',
-              onPressed: () => _abrirForm(context, ref),
-            ),
-          ],
-        );
-      },
+          )
+        else
+          for (final c in contas)
+            c['origem'] == 'fixo'
+                ? FixosCard(
+                    fixo: c,
+                    selecionado: false,
+                    modoSelecao: false,
+                    onTogglePago: (v) => _pagarFixo(ref, c['id'] as String, v ?? false),
+                    onTap: () => _pagarFixo(ref, c['id'] as String, c['pago'] != true),
+                    onLongPress: () => _abrir(context, ref, FormFixoSheet(fixoParaEditar: c)),
+                    onEditar: () => _abrir(context, ref, FormFixoSheet(fixoParaEditar: c)),
+                    onExcluir: () => _excluir(context, ref, c),
+                  )
+                : ContasCard(
+                    conta: c,
+                    onTogglePago: (v) => _pagarBoleto(ref, c, v),
+                    onExcluir: () => _excluir(context, ref, c),
+                  ),
+        const SizedBox(height: NBSpacing.m),
+        BotaoSecundario(rotulo: '+ Nova conta', onPressed: () => _novaConta(context, ref)),
+      ],
     );
   }
 }

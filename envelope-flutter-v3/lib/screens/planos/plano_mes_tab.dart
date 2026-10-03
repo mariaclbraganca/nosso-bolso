@@ -214,7 +214,7 @@ class _BlocoContas extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Cabecalho('Contas do mês', plano.totalContas, rotuloRealizado: 'pago'),
-        if (contas.isEmpty) Text('Nenhum fixo ou boleto neste mês (abas Fixos e Boletos).', style: NBText.legenda),
+        if (contas.isEmpty) Text('Nenhuma conta neste mês (aba Contas).', style: NBText.legenda),
         for (final c in contas)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -232,7 +232,7 @@ class _BlocoContas extends StatelessWidget {
               ],
             ),
           ),
-        Text('Marque como pago nas abas Fixos e Boletos.', style: NBText.legenda),
+        Text('Marque como pago na aba Contas.', style: NBText.legenda),
       ],
     );
   }

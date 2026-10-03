@@ -74,8 +74,9 @@ void main() {
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
     expect(find.text('Salário'), findsOneWidget); // aba Mês abre primeiro
-    await abrirAbas(t, ['Fixos']);
+    await abrirAbas(t, ['Contas']);
     expect(find.textContaining('Aluguel'), findsWidgets);
-    await abrirAbas(t, ['Boletos', 'Metas', 'Patrim', 'Mês']);
+    expect(find.textContaining('Luz'), findsWidgets); // boleto na mesma lista
+    await abrirAbas(t, ['Metas', 'Mês']);
   });
 }

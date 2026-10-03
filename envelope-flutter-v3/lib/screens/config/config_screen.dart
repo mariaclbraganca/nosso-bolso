@@ -13,6 +13,7 @@ import 'insights_astrix_screen.dart';
 import 'simulador_gastos_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'pin_config_screen.dart';
+import '../planos/patrimonio_tab.dart';
 
 /// Central de configurações da v3.
 class ConfigScreen extends ConsumerWidget {
@@ -176,7 +177,13 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
       ),
     ]),
     if (admin)
-      SecaoConfig('Segurança', [
+      SecaoConfig('Patrimônio e segurança', [
+        ItemConfig(
+          icone: Icons.savings_outlined,
+          titulo: 'Patrimônio e reserva',
+          subtitulo: 'Contas, investimentos, metas de saldo e a reserva de emergência',
+          abrir: () => abrir(const PatrimonioScreen()),
+        ),
         ItemConfig(
           icone: Icons.lock_outline_rounded,
           titulo: 'PIN do Patrimônio',
@@ -202,4 +209,15 @@ class _LinhaConfig extends StatelessWidget {
       minVerticalPadding: 12,
     );
   }
+}
+
+/// Patrimônio fora de Planos: mesma tela (com o PIN), aberta pelas Configurações.
+class PatrimonioScreen extends StatelessWidget {
+  const PatrimonioScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Patrimônio e reserva')),
+        body: const PatrimonioTab(),
+      );
 }
