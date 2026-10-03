@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/compras_provider.dart';
+import '../../core/providers/dia_provider.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/providers/envelopes_provider.dart';
 import '../../core/providers/insights_provider.dart';
 import '../../ui/components/nb_components.dart';
@@ -35,6 +37,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Alguém da família já fechou hoje: não toca o alarme de hoje neste celular.
+    ref.listen<AsyncValue<Map<String, dynamic>>>(resumoDiaProvider, (_, next) {
+      if (next.valueOrNull?['fechado'] == true) {
+        NotificationService.agendarAlarmeFechamento(hojeFechado: true);
+      }
+    });
+
     final envelopesAsync = ref.watch(envelopesProvider);
     final envelopes = ref.watch(envelopesViseisProvider);
 

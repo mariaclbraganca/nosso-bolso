@@ -5,9 +5,23 @@ import '../../../ui/theme/nb_theme.dart';
 
 const _kPermissaoPedida = 'alarme_fechamento_permissao';
 
-/// Na primeira abertura explica o alarme das 23h30 e pede as permissões
-/// (notificações, alarme exato, tela cheia) que ele precisa para tocar.
+/// Se o app foi aberto pelo alarme, vai direto ao fechamento do dia (o tap
+/// com o app fechado não passa pelo onDidReceiveNotificationResponse).
+/// Senão, na primeira abertura explica o alarme das 23h30 e pede as
+/// permissões (notificações, alarme exato, tela cheia) que ele precisa.
 Future<void> prepararAlarmeFechamento(BuildContext context) async {
+  try {
+    await _preparar(context);
+  } catch (e) {
+    debugPrint('[Alarme] preparo ignorado: $e'); // plugin ausente (testes, web)
+  }
+}
+
+Future<void> _preparar(BuildContext context) async {
+  if (await NotificationService.lancadoPeloAlarme()) {
+    NotificationService.abrirFechamentoDia();
+    return;
+  }
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(_kPermissaoPedida) == true || !context.mounted) return;
   await showDialog<void>(
