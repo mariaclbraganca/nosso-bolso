@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nosso_bolso_v3/screens/config/pin_config_screen.dart';
+import 'package:nosso_bolso_v3/core/providers/pin_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/screens/config/config_screen.dart';
 import 'package:nosso_bolso_v3/screens/config/notificacoes_screen.dart';
@@ -100,5 +103,43 @@ void main() {
     expect(t.widget<SwitchListTile>(hidratacao).value, isFalse);
     expect((await SharedPreferences.getInstance()).getBool('notif_hidratacao'), isFalse);
     expect(find.text('Alarme do fechamento do dia'), findsOneWidget);
+  });
+
+  testWidgets('PIN: cria e depois troca, recusando PIN atual errado', (t) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final nav = GlobalKey<NavigatorState>();
+    await t.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(navigatorKey: nav, theme: nossoBolsoTheme(), home: const Scaffold()),
+    ));
+    Future<void> abrir() async {
+      nav.currentState!.push(MaterialPageRoute(builder: (_) => const PinConfigScreen()));
+      await t.pumpAndSettle();
+    }
+
+    await abrir();
+    await t.enterText(find.widgetWithText(TextField, 'PIN'), '1234');
+    await t.enterText(find.widgetWithText(TextField, 'Repita o PIN'), '1234');
+    await t.tap(find.text('Criar PIN'));
+    await t.pumpAndSettle();
+    expect(find.byType(PinConfigScreen), findsNothing);
+    expect(await container.read(pinConfiguradoProvider.future), isTrue);
+    expect(await container.read(pinNotifierProvider.notifier).verificarPin('1234'), isTrue);
+
+    await abrir();
+    await t.enterText(find.widgetWithText(TextField, 'PIN atual'), '0000');
+    await t.enterText(find.widgetWithText(TextField, 'PIN novo'), '5678');
+    await t.enterText(find.widgetWithText(TextField, 'Repita o PIN'), '5678');
+    await t.tap(find.widgetWithText(FilledButton, 'Trocar PIN'));
+    await t.pumpAndSettle();
+    expect(find.byType(PinConfigScreen), findsOneWidget, reason: 'PIN atual errado não pode fechar a tela');
+    expect(await container.read(pinNotifierProvider.notifier).verificarPin('1234'), isTrue);
+
+    await t.enterText(find.widgetWithText(TextField, 'PIN atual'), '1234');
+    await t.tap(find.widgetWithText(FilledButton, 'Trocar PIN'));
+    await t.pumpAndSettle();
+    expect(await container.read(pinNotifierProvider.notifier).verificarPin('5678'), isTrue);
   });
 }

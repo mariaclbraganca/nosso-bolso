@@ -53,7 +53,7 @@ class _PatrimonioPinSheetState extends ConsumerState<PatrimonioPinSheet> {
   @override
   Widget build(BuildContext context) {
     final configuradoAsync = ref.watch(pinConfiguradoProvider);
-    final configurado = configuradoAsync.value ?? false;
+    final configurado = configuradoAsync.valueOrNull ?? false;
 
     return CascaSheet(
       filhos: [

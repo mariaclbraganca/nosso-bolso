@@ -6,6 +6,7 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
+import 'pin_config_screen.dart';
 
 /// Central de configurações da v3.
 class ConfigScreen extends ConsumerWidget {
@@ -125,6 +126,7 @@ class SecaoConfig {
 /// Seções da central. Cada funcionalidade nova entra aqui.
 List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
   void abrir(Widget tela) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => tela));
+  final admin = ref.watch(perfilUsuarioLogadoProvider).valueOrNull?['role'] == 'admin';
   return [
     SecaoConfig('Notificações', [
       ItemConfig(
@@ -134,6 +136,15 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
         abrir: () => abrir(const NotificacoesScreen()),
       ),
     ]),
+    if (admin)
+      SecaoConfig('Segurança', [
+        ItemConfig(
+          icone: Icons.lock_outline_rounded,
+          titulo: 'PIN do Patrimônio',
+          subtitulo: 'Criar, trocar ou remover',
+          abrir: () => abrir(const PinConfigScreen()),
+        ),
+      ]),
   ];
 }
 
