@@ -11,12 +11,34 @@ import '../sheets/comum.dart';
 import 'widgets/contas_card.dart';
 import 'widgets/form_conta_sheet.dart';
 
+/// Boleto do mês seguinte para uma conta recorrente (mesmo dia, limitado
+/// ao último dia do mês: 31/01 → 28/02). Null se já existe um com o mesmo nome.
+Map<String, dynamic>? proximoBoletoRecorrente(Map<String, dynamic> conta, List<Map<String, dynamic>> contasMesSeguinte) {
+  if (conta['recorrente'] != true) return null;
+  final venc = DateTime.tryParse(conta['vencimento'] as String? ?? '');
+  if (venc == null) return null;
+  if (contasMesSeguinte.any((c) => c['nome'] == conta['nome'])) return null;
+  final ultimoDia = DateTime(venc.year, venc.month + 2, 0).day;
+  final prox = DateTime(venc.year, venc.month + 1, venc.day > ultimoDia ? ultimoDia : venc.day);
+  return {
+    'familia_id': conta['familia_id'],
+    'nome': conta['nome'],
+    'valor': conta['valor'],
+    'categoria': conta['categoria'] ?? 'outro',
+    'vencimento': '${prox.year}-${prox.month.toString().padLeft(2, '0')}-${prox.day.toString().padLeft(2, '0')}',
+    'observacao': conta['observacao'] ?? '',
+    'recorrente': true,
+  };
+}
+
 class ContasTab extends ConsumerWidget {
   const ContasTab({super.key});
 
-  Future<void> _togglePago(WidgetRef ref, BuildContext context, String id, bool pago) async {
+  Future<void> _togglePago(WidgetRef ref, BuildContext context, Map<String, dynamic> conta, bool pago) async {
+    final id = idMongo(conta);
     try {
       await FinanceiroExtService.marcarPaga(id, pago: pago);
+      if (pago && conta['recorrente'] == true) await _lancarProximo(conta);
       if (pago) {
         final idNum = (id.hashCode).abs() % 100000;
         NotificationService.cancelarAlertaConta(idNum);
@@ -26,6 +48,23 @@ class ContasTab extends ConsumerWidget {
       ref.invalidate(resumoContasProvider(mes));
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
+    }
+  }
+
+  Future<void> _lancarProximo(Map<String, dynamic> conta) async {
+    final venc = DateTime.tryParse(conta['vencimento'] as String? ?? '');
+    final familiaId = conta['familia_id'] as String?;
+    if (venc == null || familiaId == null) return;
+    final proxMes = DateTime(venc.year, venc.month + 1);
+    final mes = '${proxMes.year}-${proxMes.month.toString().padLeft(2, '0')}';
+    try {
+      final existentes = await FinanceiroExtService.getContas(familiaId, mes: mes);
+      final novo = proximoBoletoRecorrente(conta, existentes);
+      if (novo == null) return;
+      await FinanceiroExtService.criarConta(novo);
+      avisar('Próximo ${conta['nome']} já lançado para ${novo['vencimento'].toString().substring(8)}/${novo['vencimento'].toString().substring(5, 7)}.');
+    } catch (e) {
+      avisar('Pago, mas não consegui lançar o próximo: ${mensagemErro(e)}', erro: true);
     }
   }
 
@@ -144,7 +183,7 @@ class ContasTab extends ConsumerWidget {
               for (final c in contas)
                 ContasCard(
                   conta: c,
-                  onTogglePago: (v) => _togglePago(ref, context, idMongo(c), v),
+                  onTogglePago: (v) => _togglePago(ref, context, c, v),
                   onExcluir: () => _excluirConta(ref, context, idMongo(c)),
                 ),
             const SizedBox(height: NBSpacing.m),

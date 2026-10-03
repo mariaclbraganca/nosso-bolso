@@ -92,6 +92,10 @@ class ContasCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(vencLabel, style: NBText.legenda),
+                      if (conta['recorrente'] == true) ...[
+                        const SizedBox(width: 6),
+                        Tooltip(message: 'Repete todo mês', child: Text('🔁', style: NBText.legenda)),
+                      ],
                       if (atrasada) ...[
                         const SizedBox(width: 6),
                         const SeloNB('ATRASADA', cor: NBColors.estouro, fundo: NBColors.estouroClaro),

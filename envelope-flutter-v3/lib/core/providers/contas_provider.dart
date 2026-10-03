@@ -12,10 +12,10 @@ final contasMesProvider = FutureProvider.autoDispose
   // Reagenda alertas de vencimento para todas as contas não pagas
   for (final c in contas) {
     if (c['pago'] == true) continue;
-    final vencStr = c['data_vencimento'] as String?;
+    final vencStr = (c['vencimento'] ?? c['data_vencimento']) as String?;
     // O id da conta é UUID (String). Deriva um int estável e não-negativo
     // para usar como ID da notificação local (que exige int).
-    final idRaw = c['id'];
+    final idRaw = c['_id'] ?? c['id'];
     final id = idRaw is int ? idRaw : (idRaw?.toString().hashCode ?? 0).abs() % 100000;
     final nome    = c['nome'] as String? ?? 'Conta';
     final valor   = (c['valor'] as num?)?.toDouble() ?? 0.0;

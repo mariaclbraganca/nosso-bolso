@@ -19,6 +19,7 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
   final _nomeCtrl = TextEditingController();
   final _valorCtrl = TextEditingController();
   final _codigoCtrl = TextEditingController();
+  bool _recorrente = false;
   String _categoria = 'energia';
   DateTime _vencimento = DateTime.now().add(const Duration(days: 7));
   bool _salvando = false;
@@ -59,6 +60,7 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
         'categoria': _categoria,
         'vencimento': DateFormat('yyyy-MM-dd').format(_vencimento),
         'observacao': _codigoCtrl.text.trim(),
+        'recorrente': _recorrente,
       });
 
       avisar('Conta registrada com sucesso!');
@@ -154,6 +156,14 @@ class _FormContaSheetState extends ConsumerState<FormContaSheet> {
             labelText: 'CÓDIGO DE BARRAS OU PIX (OPCIONAL)',
             hintText: 'Cole a linha digitável ou chave PIX',
           ),
+        ),
+        const SizedBox(height: NBSpacing.s),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _recorrente,
+          onChanged: (v) => setState(() => _recorrente = v),
+          title: Text('Repete todo mês', style: NBText.corpo),
+          subtitle: Text('Ao pagar, o boleto do mês seguinte já fica lançado', style: NBText.legenda),
         ),
       ],
       botao: BotaoPrincipal(

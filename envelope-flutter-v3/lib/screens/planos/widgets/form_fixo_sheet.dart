@@ -20,6 +20,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
   final _nomeCtrl = TextEditingController();
   final _valorCtrl = TextEditingController();
   int _diaVencimento = 10;
+  bool _recorrente = true;
   bool _salvando = false;
 
   @override
@@ -31,6 +32,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
       final val = (f['valor'] as num?)?.toDouble() ?? 0.0;
       _valorCtrl.text = val > 0 ? val.toStringAsFixed(2).replaceAll('.', ',') : '';
       _diaVencimento = (f['dia_vencimento'] as int?) ?? 10;
+      _recorrente = f['recorrente'] as bool? ?? false;
     }
   }
 
@@ -70,6 +72,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
           'nome': nome,
           'valor': _valorNumerico,
           'dia_vencimento': _diaVencimento,
+          'recorrente': _recorrente,
         });
         avisar('Gasto fixo atualizado com sucesso!');
       } else {
@@ -79,6 +82,7 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
           'dia_vencimento': _diaVencimento,
           'mes': mes,
           'familia_id': familiaId,
+          'recorrente': _recorrente,
         });
         avisar('Gasto fixo criado com sucesso!');
       }
@@ -136,6 +140,14 @@ class _FormFixoSheetState extends ConsumerState<FormFixoSheet> {
               );
             },
           ),
+        ),
+        const SizedBox(height: NBSpacing.s),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _recorrente,
+          onChanged: (v) => setState(() => _recorrente = v),
+          title: Text('Repete todo mês', style: NBText.corpo),
+          subtitle: Text('Aparece de novo automaticamente nos próximos meses', style: NBText.legenda),
         ),
       ],
       botao: BotaoPrincipal(
