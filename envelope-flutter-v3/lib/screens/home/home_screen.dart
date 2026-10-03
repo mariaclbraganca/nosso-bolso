@@ -8,6 +8,7 @@ import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../sheets/sheet_envelope.dart';
 import '../sheets/sheet_lancamento.dart';
+import '../sheets/sheet_planejar_mes.dart';
 import '../sheets/sheet_remanejar.dart';
 import 'widgets/home_aviso_captura.dart';
 import 'widgets/home_cabecalho.dart';
@@ -69,11 +70,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               HomeFalaDoTime(envelopes: envelopes),
               const HomeAlertaIA(),
               const SizedBox(height: NBSpacing.l),
-              CabecalhoSecao(
-                titulo: 'Envelopes',
-                acao: 'Remanejar',
-                iconeAcao: Icons.swap_horiz_rounded,
-                onAcao: () => abrirSheet(context, const SheetRemanejar()),
+              Row(
+                children: [
+                  Expanded(child: Text('Envelopes', style: NBText.secao)),
+                  TextButton.icon(
+                    onPressed: () => abrirSheet(context, const SheetPlanejarMes()),
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('Planejar'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => abrirSheet(context, const SheetRemanejar()),
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                    label: const Text('Remanejar'),
+                  ),
+                ],
               ),
               const SizedBox(height: NBSpacing.s),
               if (envelopesAsync.isLoading && envelopes.isEmpty)

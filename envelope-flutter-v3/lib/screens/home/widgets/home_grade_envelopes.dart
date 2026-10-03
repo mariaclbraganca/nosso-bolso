@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/transacoes_provider.dart';
 import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
-import '../../sheets/sheet_abastecer.dart';
 import '../../sheets/sheet_envelope.dart';
-import '../../sheets/sheet_remanejar.dart';
+import '../../sheets/sheet_envelope_detalhe.dart';
 
 class HomeGradeEnvelopes extends ConsumerWidget {
   const HomeGradeEnvelopes({super.key, required this.envelopes});
@@ -35,9 +34,7 @@ class HomeGradeEnvelopes extends ConsumerWidget {
                 child: CartaoEnvelope(
                   env: env,
                   gastoMes: gastos[env['id']] ?? 0.0,
-                  onTap: () => EstadoEnvelope(env, gastoMes: gastos[env['id']] ?? 0.0).estourado
-                      ? abrirSheet(context, SheetRemanejar(destinoId: env['id'] as String))
-                      : abrirSheet(context, SheetAbastecer(envelopeId: env['id'] as String)),
+                  onTap: () => abrirDetalheEnvelope(context, env['id'] as String),
                   onLongPress: () => abrirEnvelope(context, envelope: env),
                 ),
               ),
