@@ -7,12 +7,48 @@ import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
 import 'widgets/form_treino_sheet.dart';
+import 'exercicio_historico_view.dart';
 
-class ExercicioTab extends ConsumerWidget {
+class ExercicioTab extends StatefulWidget {
   final String membroId;
   final String familiaId;
 
   const ExercicioTab({super.key, required this.membroId, required this.familiaId});
+
+  @override
+  State<ExercicioTab> createState() => _ExercicioTabState();
+}
+
+class _ExercicioTabState extends State<ExercicioTab> {
+  int _aba = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Segmentado<int>(
+            opcoes: const {0: 'Hoje', 1: 'Semana e histórico'},
+            valor: _aba,
+            onChanged: (v) => setState(() => _aba = v),
+          ),
+        ),
+        Expanded(
+          child: _aba == 0
+              ? _ExercicioHoje(membroId: widget.membroId, familiaId: widget.familiaId)
+              : ExercicioHistoricoView(membroId: widget.membroId),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExercicioHoje extends ConsumerWidget {
+  final String membroId;
+  final String familiaId;
+
+  const _ExercicioHoje({required this.membroId, required this.familiaId});
 
   String get _hoje {
     final n = DateTime.now();

@@ -27,6 +27,7 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
   final _nomeCtrl = TextEditingController();
   final _duracaoCtrl = TextEditingController(text: '30');
   bool _salvando = false;
+  Map<String, dynamic>? _doCatalogo; // item escolhido: MET exato
 
   // MET médio de cada categoria no catálogo do backend (agente_treino.py).
   // O servidor calcula as calorias com o MET e o peso do perfil metabólico.
@@ -64,7 +65,9 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
         'familia_id': widget.familiaId,
         'categoria': _categoria,
         'nome': nome,
-        'met': _metPorCategoria[_categoria] ?? 4.0,
+        'met': (_doCatalogo != null && _doCatalogo!['nome'] == nome)
+            ? (_doCatalogo!['met'] as num).toDouble()
+            : _metPorCategoria[_categoria] ?? 4.0,
         'duracao_min': duracao,
         'data': widget.data,
       });
@@ -117,7 +120,28 @@ class _FormTreinoSheetState extends ConsumerState<FormTreinoSheet> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final ex in (ref.watch(catalogoExerciciosProvider).valueOrNull ?? const [])
+                    .where((e) => e['categoria'] == _categoria))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ActionChip(
+                      label: Text(ex['nome'] as String),
+                      onPressed: () => setState(() {
+                        _doCatalogo = ex;
+                        _nomeCtrl.text = ex['nome'] as String;
+                      }),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _nomeCtrl,
             decoration: InputDecoration(
