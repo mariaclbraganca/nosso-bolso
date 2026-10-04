@@ -48,6 +48,6 @@ void main() {
     expect(find.text('Captura do Nubank e iFood desligada'), findsOneWidget);
     await t.scrollUntilVisible(find.text('Novo envelope'), 300);
     expect(find.text('Mercado'), findsOneWidget);
-    expect(find.text('Orçamento'), findsOneWidget);
+    expect(find.text('Transferir'), findsOneWidget); // o orçamento fica na aba Envelopes
   });
 }

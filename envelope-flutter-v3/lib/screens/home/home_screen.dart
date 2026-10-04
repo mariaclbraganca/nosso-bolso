@@ -12,7 +12,6 @@ import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../shell/barra_modulo.dart';
 import '../sheets/sheet_envelope.dart';
-import '../sheets/sheet_planejar_mes.dart';
 import '../sheets/sheet_remanejar.dart';
 import 'widgets/home_aviso_captura.dart';
 import 'widgets/home_cabecalho.dart';
@@ -117,11 +116,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 children: [
                   Expanded(child: Text('Envelopes', style: NBText.secao)),
-                  TextButton.icon(
-                    onPressed: () => abrirSheet(context, const SheetPlanejarMes()),
-                    icon: const Icon(Icons.tune_rounded, size: 16),
-                    label: const Text('Orçamento'),
-                  ),
                   TextButton.icon(
                     onPressed: () => abrirSheet(context, const SheetRemanejar()),
                     icon: const Icon(Icons.swap_horiz_rounded, size: 16),
