@@ -143,6 +143,20 @@ void main() {
       expect(l.faltaCaixa, closeTo(5711.33, 0.001));
     });
 
+    test('receita eventual paga primeiro as contas do mês; só a sobra entra no orçamento', () {
+      final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
+      final l = real(rec: [...receitas.take(2), aluguel]);
+      expect(l.eventuaisNasContas, 1150); // outubro ainda precisa de 6.861,33
+      expect(l.eventuaisNoCiclo, 0);
+      expect(l.limite, closeTo(-2022.24, 0.001));
+      // Contas do mês de R$ 6.000: faltam 629,62 além do salário; o resto do aluguel vai para o orçamento
+      final s = real(rec: [...receitas.take(2), aluguel], contas: [{'nome': 'Contas', 'valor': 6000.0}]);
+      expect(s.eventuaisNasContas, closeTo(629.62, 0.001));
+      expect(s.eventuaisNoCiclo, closeTo(520.38, 0.001));
+      expect(s.limite, closeTo(5491 - 0 - 2339.99 + 520.38, 0.001)); // sem contas recorrentes
+      expect(s.faltaCaixa, 0);
+    });
+
     test('Pix sai do caixa na hora; crédito não', () {
       final l = real(compras: [...comprasOut, (valor: 30, envelopeId: 'lazer', forma: 'pix')]);
       expect(l.comprasAVista, 30);

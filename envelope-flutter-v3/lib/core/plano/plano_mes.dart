@@ -125,9 +125,25 @@ class LimiteMes {
   String get mesFatura => somarMeses(mes, 1);
   double get lancamentosFuturos => comprometidoNaFatura(compromissos, mesFatura);
 
-  /// Disponível para planejar: só o garantido. Receitas eventuais entram no
-  /// caixa do mês (reduzem o que sai da reserva), não no ciclo do salário.
-  double get limite => salario - provisaoContas - lancamentosFuturos;
+  /// Valor disponível para planejar os envelopes: o garantido menos o que já
+  /// está comprometido. Receita eventual recebida paga primeiro as contas deste
+  /// mês; só o que sobrar delas entra aqui (nunca conta duas vezes).
+  double get limite => salario + eventuaisNoCiclo - provisaoContas - lancamentosFuturos;
+
+  /// Compromissos já travados: contas do mês seguinte + parcelas e assinaturas.
+  double get comprometido => provisaoContas + lancamentosFuturos;
+
+  /// Parte das receitas eventuais recebidas que usada nas contas deste mês.
+  double get eventuaisNasContas {
+    final necessidade = _max0(totalContas + comprasAVista - dinheiroAnterior);
+    return eventuais < necessidade ? eventuais : necessidade;
+  }
+
+  double get eventuaisNoCiclo => eventuais - eventuaisNasContas;
+
+  /// Receitas eventuais previstas que ainda não caíram (só para mostrar).
+  List<Map<String, dynamic>> get eventuaisAReceber =>
+      [for (final r in receitas) if (r['tipo'] == 'eventual' && r['recebido'] != true) r];
 
   Iterable<CompraMes> get _semVa => compras.where((c) => c.forma != 'va');
   double get comprasDoMes => _semVa.where((c) => c.envelopeId != null).fold(0.0, (s, c) => s + c.valor);

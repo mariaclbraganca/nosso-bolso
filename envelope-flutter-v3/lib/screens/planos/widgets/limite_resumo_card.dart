@@ -52,66 +52,101 @@ class LinhaValorNB extends StatelessWidget {
   }
 }
 
-/// Disponível para planejar: salário − provisão − lançamentos futuros (só o
-/// garantido; receitas eventuais vão para o caixa das contas); depois o total
-/// orçado e o resultado previsto.
+/// Orçamento do mês em Entradas (+) e Despesas (−), sem números negativos:
+/// custo do mês × o que entra; a diferença é a tarja (falta ou ainda pode
+/// distribuir).
 class LimiteResumoCard extends StatelessWidget {
   const LimiteResumoCard({super.key, required this.limite, this.totalOrcado});
   final LimiteMes limite;
 
-  /// Total orçado em edição (Orçamento mensal); se null, usa o salvo.
+  /// Total planejado em edição (Orçamento mensal); se null, usa o salvo.
   final double? totalOrcado;
 
   @override
   Widget build(BuildContext context) {
     final l = limite;
-    final orcado = totalOrcado ?? l.totalOrcado;
-    final saldo = l.limite - orcado;
+    final planejado = totalOrcado ?? l.totalOrcado;
+    final entradas = l.salario + l.eventuaisNoCiclo;
+    final custo = l.comprometido + planejado;
+    final diferenca = entradas - custo;
     final proximo = nomeMes(somarMeses(l.mes, 1));
+    final cinza = NBText.legenda.copyWith(fontSize: 13);
+    Widget secao(String t) => Padding(
+          padding: const EdgeInsets.only(top: NBSpacing.s, bottom: 2),
+          child: Text(t, style: NBText.eyebrow),
+        );
+
     return CartaoNB(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('ORÇAMENTO DE ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
-          const SizedBox(height: 4),
-          LinhaValorNB(l.nomeSalario, l.salario),
-          LinhaValorNB(
-            '(−) Possíveis contas de $proximo',
-            -l.provisaoContas,
-            detalhe: [for (final c in l.contasProximoMes) ((c['nome'] as String?) ?? '', (c['valor'] as num).toDouble())],
+          const SizedBox(height: 2),
+          Text(
+            'O salário de ${ultimoDiaUtil(l.mes)} paga as compras de ${nomeMes(l.mes)} '
+            '(fatura de 7/${l.mesFatura.substring(5)}) e as contas de $proximo.',
+            style: NBText.legenda,
           ),
+          secao('ENTRADAS (+)'),
+          LinhaValorNB(l.nomeSalario, l.salario),
+          for (final r in l.receitas.where((r) => r['tipo'] == 'eventual' && r['recebido'] == true && r['destino'] != 'reserva'))
+            LinhaValorNB(
+              '${r['nome'] ?? 'Receita'} (recebida)',
+              ((r['valor_recebido'] ?? r['valor']) as num).toDouble(),
+            ),
+          if (l.eventuaisNasContas > 0)
+            Text('${brl(l.eventuaisNasContas)} das receitas recebidas foram para as contas de ${nomeMes(l.mes)}.', style: cinza),
+          for (final r in l.eventuaisAReceber)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(children: [
+                Expanded(child: Text('${r['nome'] ?? 'Receita'} (a receber · conta quando cair)', style: cinza)),
+                Text(brl((r['valor'] as num?) ?? 0), style: cinza),
+              ]),
+            ),
+          secao('DESPESAS (−)'),
           LinhaValorNB(
-            '(−) Parcelas e assinaturas da fatura de 7/${l.mesFatura.substring(5)}',
-            -l.lancamentosFuturos,
+            'Gastos a serem pagos em $proximo',
+            l.comprometido,
             detalhe: [
-              for (final i in itensDaFatura(l.compromissos, l.mesFatura))
-                ('${i.descricao} · ${i.parcela == null ? 'assinatura' : '${i.parcela}/${i.total}'}', i.valor),
+              ('Possíveis contas de $proximo', l.provisaoContas),
+              ('Fatura Nubank 7/${l.mesFatura.substring(5)} — parcelas e assinaturas', l.lancamentosFuturos),
             ],
           ),
-          const Divider(height: 8),
-          LinhaValorNB('Valor disponível para planejar os envelopes', l.limite, forte: true),
-          LinhaValorNB('(−) Total planejado dos envelopes', -orcado),
-          const Divider(height: 8),
-          LinhaValorNB(
-            saldo >= 0 ? 'Ainda pode distribuir' : 'Falta no salário (sai da reserva)',
-            saldo,
-            forte: true,
-            cor: saldo >= 0 ? NBColors.verde : NBColors.estouro,
-          ),
-          if (saldo < 0) ...[
-            const SizedBox(height: NBSpacing.s),
-            Container(
-              padding: const EdgeInsets.all(NBSpacing.m),
-              decoration: BoxDecoration(color: NBColors.ambarClaro, borderRadius: BorderRadius.circular(12)),
-              child: Text(
-                'Se gastarem exatamente o orçado, faltarão ${brl(-saldo)} no salário de ${ultimoDiaUtil(l.mes)}. '
-                'Esse valor sai da reserva. Para fechar sem reserva, o total planejado precisa caber no valor disponível para os envelopes.',
-                style: NBText.corpo.copyWith(fontSize: 13.5, color: NBColors.ambarTexto),
-              ),
-            ),
-          ],
+          LinhaValorNB('Total planejado dos envelopes', planejado),
+          const Divider(height: 12),
+          LinhaValorNB('Custo do mês', custo, forte: true),
+          const SizedBox(height: NBSpacing.s),
+          TarjaResultado(diferenca: diferenca),
         ],
       ),
+    );
+  }
+}
+
+/// Tarja do resultado: âmbar quando falta dinheiro, verde quando sobra.
+class TarjaResultado extends StatelessWidget {
+  const TarjaResultado({super.key, required this.diferenca});
+  final double diferenca;
+
+  @override
+  Widget build(BuildContext context) {
+    final falta = diferenca < 0;
+    final cor = falta ? NBColors.ambarTexto : NBColors.verdeProfundo;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: falta ? NBColors.ambarClaro : NBColors.verdeClaro,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Text(falta ? 'Falta dinheiro (sai da reserva)' : 'Ainda pode distribuir',
+              style: NBText.rotulo.copyWith(color: cor)),
+        ),
+        Text(brl(diferenca.abs()), style: NBText.rotulo.copyWith(color: cor)),
+      ]),
     );
   }
 }

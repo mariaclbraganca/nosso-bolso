@@ -43,7 +43,7 @@ void main() {
     expect(find.text(brl(2666)), findsOneWidget);
     expect(find.text('Vai sair da reserva em outubro: ${brl(6861.33)}'), findsOneWidget);
     expect(find.text('para terminar de pagar as contas de outubro'), findsOneWidget);
-    expect(find.text('Para novembro já estamos devendo ${brl(4744.24)}'), findsOneWidget);
+    expect(find.text('Falta dinheiro em novembro (sai da reserva): ${brl(4744.24)}'), findsOneWidget);
     expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(12231.71)), findsOneWidget);
     expect(find.text(brl(6861.33)), findsOneWidget); // falta pagar no card de contas

@@ -184,7 +184,7 @@ class SeloDoMes extends StatelessWidget {
                 Text('para terminar de pagar as contas de $mes', style: leve),
               ],
               if (l.faltaSairNoMes > 0 && l.deficitReserva > 0) const SizedBox(height: 4),
-              if (l.deficitReserva > 0) Text('Para $proximo já estamos devendo ${brl(l.deficitReserva)}', style: forte),
+              if (l.deficitReserva > 0) Text('Falta dinheiro em $proximo (sai da reserva): ${brl(l.deficitReserva)}', style: forte),
             ]),
     );
   }

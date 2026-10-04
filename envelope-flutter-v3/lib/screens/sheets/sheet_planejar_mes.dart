@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/envelopes_provider.dart';
+import '../../core/plano/plano_mes.dart';
+import '../../core/providers/mes_provider.dart';
 import '../../core/providers/plano_provider.dart';
+import '../../core/providers/transacoes_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/utils/moeda.dart';
 import '../../ui/components/nb_components.dart';
@@ -86,6 +89,10 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     }
     final total = envelopes.fold(0.0, (s, e) => s + parseMoeda(_ctrl(e).text));
     final limite = ref.watch(limiteMesProvider).valueOrNull;
+    final medias = mediaUltimosMeses(
+      ref.watch(transacoesStreamProvider).valueOrNull ?? const [],
+      ref.watch(mesAtualProvider),
+    );
 
     final filhos = <Widget>[
       if (limite != null)
@@ -93,8 +100,9 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
       else
         CartaoNB(child: LinhaValorNB('Total planejado dos envelopes', total, forte: true)),
       const SizedBox(height: NBSpacing.l),
-      Text('Orçado por envelope', style: NBText.secao),
-      Text('Compras no cartão ou Pix. Altere os valores e veja o saldo a distribuir mudar.', style: NBText.legenda),
+      Text('Planejado por envelope', style: NBText.secao),
+      Text('Compras no cartão ou Pix. Abaixo de cada um, a média gasta nos últimos 3 meses, só como referência.',
+          style: NBText.legenda),
       const SizedBox(height: NBSpacing.s),
       for (final env in envelopes)
         Padding(
@@ -104,7 +112,11 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
               Text(env['emoji'] as String? ?? '📦', style: const TextStyle(fontSize: 22)),
               const SizedBox(width: NBSpacing.s),
               Expanded(
-                child: Text(env['nome_envelope'] as String? ?? '', style: NBText.corpo, maxLines: 1, overflow: TextOverflow.ellipsis),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(env['nome_envelope'] as String? ?? '', style: NBText.corpo, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if ((medias[env['id']] ?? 0) > 0)
+                    Text('Média 3 meses: ${brl(medias[env['id']]!)}', style: NBText.legenda.copyWith(fontSize: 12)),
+                ]),
               ),
               SizedBox(
                 width: 140,
@@ -134,17 +146,37 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
         ),
     ];
     final botao = BotaoPrincipal(rotulo: 'Salvar orçamento', carregando: _salvando, onPressed: _salvar);
+    // Barra fixa: o resultado continua à vista enquanto rola pelos envelopes.
+    final barra = Column(mainAxisSize: MainAxisSize.min, children: [
+      if (limite != null) ...[
+        Row(children: [
+          Expanded(child: Text('Planejado ${brl(total)}', style: NBText.rotulo)),
+          Text(
+            limite.limite - total < 0 ? 'Falta dinheiro ${brl(total - limite.limite)}' : 'Ainda pode ${brl(limite.limite - total)}',
+            style: NBText.rotulo.copyWith(color: limite.limite - total < 0 ? NBColors.ambarTexto : NBColors.verde),
+          ),
+        ]),
+        const SizedBox(height: NBSpacing.s),
+      ],
+      if (widget.emFolha || _mudados.isNotEmpty || _salvando) botao,
+    ]);
 
     if (widget.emFolha) {
-      return CascaSheet(filhos: [const TopoSheet(titulo: 'Orçamento mensal'), const SizedBox(height: NBSpacing.l), ...filhos], botao: botao);
+      return CascaSheet(filhos: [const TopoSheet(titulo: 'Orçamento mensal'), const SizedBox(height: NBSpacing.l), ...filhos], botao: barra);
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 4, NBSpacing.margemTela, 120),
-      children: [
-        ...filhos,
-        if (_mudados.isNotEmpty || _salvando) ...[const SizedBox(height: NBSpacing.l), botao],
-      ],
-    );
+    return Column(children: [
+      Expanded(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 4, NBSpacing.margemTela, NBSpacing.xl),
+          children: filhos,
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.m, NBSpacing.margemTela, NBSpacing.m),
+        decoration: const BoxDecoration(color: NBColors.cartao, border: Border(top: BorderSide(color: NBColors.linha))),
+        child: barra,
+      ),
+    ]);
   }
 }
 
@@ -154,4 +186,18 @@ class SheetPlanejarMes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const OrcamentoMensal(emFolha: true);
+}
+
+/// Média gasta por envelope nos 3 meses anteriores a [mes] (só despesas).
+Map<String, double> mediaUltimosMeses(List<Map<String, dynamic>> transacoes, String mes) {
+  final meses = {for (var k = 1; k <= 3; k++) somarMeses(mes, -k)};
+  final soma = <String, double>{};
+  for (final t in transacoes) {
+    if (t['deleted_at'] != null || t['tipo'] != 'despesa' || t['envelope_id'] == null) continue;
+    final d = t['data']?.toString() ?? '';
+    if (d.length < 7 || !meses.contains(d.substring(0, 7))) continue;
+    final id = t['envelope_id'] as String;
+    soma[id] = (soma[id] ?? 0) + ((t['valor'] as num?)?.toDouble() ?? 0);
+  }
+  return {for (final e in soma.entries) e.key: e.value / 3};
 }
