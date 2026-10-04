@@ -39,16 +39,23 @@ class EntradaCreate(BaseModel):
     nome: str = Field(min_length=1, max_length=80)
     valor: float = Field(ge=0)
     dia: Optional[int] = Field(default=None, ge=1, le=31)
-    tipo: Literal["dinheiro", "vale"] = "dinheiro"
+    tipo: Literal["dinheiro", "vale", "eventual"] = "dinheiro"
     recorrente: bool = True
+    # Receita lançada na hora (ex.: trabalho de um irmão): já entra recebida.
+    recebido: bool = False
+    valor_recebido: Optional[float] = Field(default=None, ge=0)
+    quem: Optional[str] = Field(default=None, max_length=60)
+    destino: Literal["mes", "reserva"] = "mes"
 
 
 class EntradaUpdate(BaseModel):
     nome: Optional[str] = Field(default=None, min_length=1, max_length=80)
     valor: Optional[float] = Field(default=None, ge=0)
     dia: Optional[int] = Field(default=None, ge=1, le=31)
-    tipo: Optional[Literal["dinheiro", "vale"]] = None
+    tipo: Optional[Literal["dinheiro", "vale", "eventual"]] = None
     recorrente: Optional[bool] = None
+    quem: Optional[str] = Field(default=None, max_length=60)
+    destino: Optional[Literal["mes", "reserva"]] = None
     recebido: Optional[bool] = None
     valor_recebido: Optional[float] = Field(default=None, ge=0)
 
@@ -59,6 +66,7 @@ def replicar_recorrentes(atuais: list[dict], anteriores: list[dict], mes: str, f
     return [{
         "familia_id": familia_id, "mes": mes, "nome": e["nome"], "valor": e["valor"],
         "dia": e.get("dia"), "tipo": e.get("tipo", "dinheiro"), "recorrente": True,
+        "destino": e.get("destino") or "mes",
     } for e in anteriores if e.get("recorrente") and e["nome"] not in nomes]
 
 
