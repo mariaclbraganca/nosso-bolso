@@ -4,12 +4,12 @@ import '../../core/providers/compras_provider.dart';
 import '../../core/providers/dia_provider.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/providers/envelopes_provider.dart';
+import '../../core/providers/plano_provider.dart';
 import '../../core/providers/insights_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../sheets/sheet_envelope.dart';
-import '../sheets/sheet_lancamento.dart';
 import '../sheets/sheet_planejar_mes.dart';
 import '../sheets/sheet_remanejar.dart';
 import 'widgets/home_aviso_captura.dart';
@@ -78,15 +78,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final envelopesAsync = ref.watch(envelopesProvider);
-    final envelopes = ref.watch(envelopesViseisProvider);
+    // O vale-alimentação tem card próprio logo abaixo do disponível.
+    final envelopes = ref.watch(envelopesViseisProvider).where((e) => !ehEnvelopeVa(e)).toList();
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.large(
-        heroTag: 'fab_home',
-        tooltip: 'Novo lançamento',
-        onPressed: () => abrirLancamento(context),
-        child: const Icon(Icons.add_rounded, size: 30),
-      ),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -94,6 +89,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onRefresh: () async {
             ref.invalidate(envelopesProvider);
             ref.invalidate(comprasPendentesProvider);
+            ref.invalidate(compromissosCartaoProvider);
+            ref.invalidate(entradasMesProvider);
             ref.invalidate(insightsProvider);
           },
           child: ListView(
