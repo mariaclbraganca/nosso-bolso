@@ -46,27 +46,36 @@ void main() {
     expect(find.text('Abastecimento'), findsOneWidget);
   });
 
-  testWidgets('Tetos do mês comparam com a sobra das entradas (igual à aba Mês)', (t) async {
-    final plano = PlanoMes(
+  testWidgets('Orçamento mensal compara o total orçado com o limite de compras', (t) async {
+    t.view.physicalSize = const Size(1200, 4000);
+    t.view.devicePixelRatio = 2.5;
+    addTearDown(t.view.reset);
+    final limite = LimiteMes(
       mes: '2026-10',
-      entradas: [{'nome': 'Salário', 'valor': 5000}],
-      contas: [{'nome': 'Aluguel', 'valor': 2000}],
-      envelopes: const [],
-      gastoPorEnvelope: const {},
-      compromissos: [{'descricao': 'Dentista', 'valor': 500, 'mes_fatura': '2026-11', 'parcela_atual': 1, 'total_parcelas': 2}],
+      receitas: const [
+        {'tipo': 'dinheiro', 'valor': 5000.0},
+      ],
+      contasDoMes: const [
+        {'nome': 'Aluguel', 'valor': 2000.0, 'recorrente': true},
+      ],
+      compromissos: const [
+        {'descricao': 'Dentista', 'valor': 500.0, 'mes_fatura': '2026-11', 'parcela_atual': 1, 'total_parcelas': 2},
+      ],
+      envelopes: envelopes,
+      compras: const [],
     );
     await t.pumpWidget(app(const SingleChildScrollView(child: SheetPlanejarMes()),
-        extras: [planoMesProvider.overrideWith((ref) => AsyncValue.data(plano))]));
+        extras: [limiteMesProvider.overrideWith((ref) => AsyncValue.data(limite))]));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    expect(find.text('Disponível para orçamento'), findsOneWidget);
+    expect(find.text('Limite de compras do mês'), findsOneWidget);
     expect(find.text(brl(2500)), findsOneWidget); // 5000 − 2000 − 500
-    expect(find.text(brl(-1500)), findsOneWidget); // limites 1200 + 300
+    expect(find.text(brl(-1500)), findsOneWidget); // orçado 1200 + 300
     expect(find.text('Saldo a distribuir'), findsOneWidget);
     expect(find.text(brl(1000)), findsOneWidget);
 
     await t.enterText(find.widgetWithText(TextField, '300,00'), '200000');
     await t.pumpAndSettle();
-    expect(find.text('Déficit (coberto pela reserva)'), findsOneWidget);
+    expect(find.text('Orçado acima do limite (déficit)'), findsOneWidget);
   });
 }

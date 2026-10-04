@@ -68,15 +68,17 @@ void main() {
       metasProvider.overrideWith((ref) async => [{'_id': 'm1', 'nome': 'Viagem', 'valor_meta': 6000.0, 'valor_atual': 3200.0, 'emoji': '✈️'}]),
       patrimonioProvider.overrideWith((ref) => Stream.value(<Map<String, dynamic>>[])),
       snapshotsPatrimonioProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
-      entradasMesProvider.overrideWith((ref, mes) async => [{'id': 'e1', 'nome': 'Salário', 'valor': 5491.0}]),
+      entradasMesProvider.overrideWith((ref, mes) async => [{'id': 'e1', 'nome': 'Salário', 'valor': 5491.0, 'tipo': 'dinheiro'}]),
       compromissosCartaoProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
     ], child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.text('Salário'), findsOneWidget); // aba Resumo abre primeiro
-    await abrirAbas(t, ['Contas a pagar']);
+    expect(find.textContaining('LIMITE DE COMPRAS'), findsOneWidget); // aba Orçamento abre primeiro
+    await abrirAbas(t, ['Resumo']);
+    expect(find.text('Salário'), findsOneWidget);
+    await abrirAbas(t, ['Contas']);
     expect(find.textContaining('Aluguel'), findsWidgets);
     expect(find.textContaining('Luz'), findsWidgets); // boleto na mesma lista
-    await abrirAbas(t, ['Metas', 'Resumo']);
+    await abrirAbas(t, ['Metas', 'Orçamento']);
   });
 }

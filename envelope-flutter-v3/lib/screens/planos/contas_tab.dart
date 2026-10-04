@@ -14,6 +14,8 @@ import 'widgets/contas_card.dart';
 import 'widgets/fixos_card.dart';
 import 'widgets/form_conta_sheet.dart';
 import 'widgets/form_fixo_sheet.dart';
+import 'widgets/plano_sheets.dart';
+import '../../../core/providers/plano_provider.dart';
 
 /// Boleto do mês seguinte para uma conta recorrente (mesmo dia, limitado
 /// ao último dia do mês: 31/01 → 28/02). Null se já existe um com o mesmo nome.
@@ -253,6 +255,50 @@ class ContasTab extends ConsumerWidget {
                   ),
         const SizedBox(height: NBSpacing.m),
         BotaoSecundario(rotulo: '+ Nova conta', onPressed: () => _novaConta(context, ref)),
+        const SizedBox(height: NBSpacing.xl),
+        const FaturaEmFormacao(),
+      ],
+    );
+  }
+}
+
+/// Fatura do cartão que vence dia 7 do mês seguinte, calculada a cada compra:
+/// lançamentos futuros (parcelas e assinaturas) + compras no crédito do mês.
+class FaturaEmFormacao extends ConsumerWidget {
+  const FaturaEmFormacao({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = ref.watch(limiteMesProvider).valueOrNull;
+    if (l == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Fatura em formação', style: NBText.secao),
+        const SizedBox(height: NBSpacing.s),
+        Container(
+          padding: const EdgeInsets.all(NBSpacing.l),
+          decoration: BoxDecoration(color: NBColors.reservaClaro, borderRadius: BorderRadius.circular(NBRadius.cartao)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(child: Text('Fatura Nubank · vence 7/${l.mesFatura.substring(5)}', style: NBText.rotulo)),
+                Text(brl(l.faturaEmFormacao), style: NBText.valorCartao.copyWith(fontSize: 18)),
+              ]),
+              const SizedBox(height: 4),
+              Text(
+                'Calculada: lançamentos futuros ${brl(l.lancamentosFuturos)} + compras no crédito ${brl(l.comprasNoCredito)}. '
+                'Atualiza a cada compra.',
+                style: NBText.legenda,
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompromissosScreen())),
+                child: const Text('Ver lançamentos futuros'),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

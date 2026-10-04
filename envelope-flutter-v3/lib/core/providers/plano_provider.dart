@@ -29,43 +29,6 @@ final compromissosCartaoProvider = FutureProvider.autoDispose<List<Map<String, d
   return lista.cast<Map<String, dynamic>>();
 });
 
-/// Resgate da reserva = receita lançada com "reserva" na descrição.
-bool ehResgateReserva(Map<String, dynamic> t) =>
-    t['tipo'] == 'receita' && (t['descricao'] as String? ?? '').toLowerCase().contains('reserva');
-
-/// Plano do mês selecionado, juntando entradas, fixos, boletos, envelopes,
-/// gastos e o cartão.
-final planoMesProvider = Provider.autoDispose<AsyncValue<PlanoMes>>((ref) {
-  final mes = ref.watch(mesAtualProvider);
-  final entradas = ref.watch(entradasMesProvider(mes));
-  final compromissos = ref.watch(compromissosCartaoProvider);
-  final boletos = ref.watch(contasMesProvider(mes));
-  if (entradas.hasError) return AsyncValue.error(entradas.error!, entradas.stackTrace!);
-  if (compromissos.hasError) return AsyncValue.error(compromissos.error!, compromissos.stackTrace!);
-  if (!entradas.hasValue || !compromissos.hasValue) return const AsyncValue.loading();
-
-  final transacoes = ref.watch(transacoesComDetalhesProvider);
-  final envelopes = (ref.watch(envelopesProvider).valueOrNull ?? const [])
-      .where((e) => e['deleted_at'] == null && e['is_reserva'] != true)
-      .toList();
-
-  return AsyncValue.data(PlanoMes(
-    mes: mes,
-    entradas: entradas.value!,
-    contas: [
-      for (final f in ref.watch(fixosMesAtualProvider)) {...f, 'origem': 'fixo'},
-      for (final b in boletos.valueOrNull ?? const <Map<String, dynamic>>[]) {...b, 'origem': 'boleto'},
-    ],
-    envelopes: envelopes,
-    gastoPorEnvelope: ref.watch(gastosPorEnvelopeNoMesProvider),
-    compromissos: compromissos.value!,
-    gastoNoCartao: transacoes
-        .where((t) => t['tipo'] == 'despesa' && t['forma_pagamento'] == 'credito')
-        .fold(0.0, (s, t) => s + ((t['valor'] as num?)?.toDouble() ?? 0)),
-    resgatesReserva: transacoes.where(ehResgateReserva).fold(0.0, (s, t) => s + ((t['valor'] as num?)?.toDouble() ?? 0)),
-  ));
-});
-
 /// Envelope do vale-alimentação (conta própria, fora do limite do salário).
 bool ehEnvelopeVa(Map<String, dynamic> env) =>
     (env['nome_envelope'] as String? ?? '').toLowerCase().replaceAll('ã', 'a').contains('vale alimenta');

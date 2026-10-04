@@ -8,8 +8,9 @@ import '../../ui/theme/nb_theme.dart';
 import 'contas_tab.dart';
 import 'metas_tab.dart';
 import 'plano_mes_tab.dart';
+import '../sheets/sheet_planejar_mes.dart';
 
-enum AbaPlanos { mes, contas, metas }
+enum AbaPlanos { orcamento, mes, contas, metas }
 
 class PlanosScreen extends ConsumerStatefulWidget {
   const PlanosScreen({super.key});
@@ -19,7 +20,7 @@ class PlanosScreen extends ConsumerStatefulWidget {
 }
 
 class _PlanosScreenState extends ConsumerState<PlanosScreen> {
-  AbaPlanos _aba = AbaPlanos.mes;
+  AbaPlanos _aba = AbaPlanos.orcamento;
 
   Future<void> _escolherMes(BuildContext context, String mesAtual) async {
     final meses = gerarMesesDisponiveis();
@@ -50,8 +51,9 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
   Widget build(BuildContext context) {
     final mes = ref.watch(mesAtualProvider);
     final abasMap = <AbaPlanos, String>{
+      AbaPlanos.orcamento: 'Orçamento',
       AbaPlanos.mes: 'Resumo',
-      AbaPlanos.contas: 'Contas a pagar',
+      AbaPlanos.contas: 'Contas',
       AbaPlanos.metas: 'Metas',
     };
 
@@ -97,6 +99,7 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
             ),
             Expanded(
               child: switch (_aba) {
+                AbaPlanos.orcamento => const OrcamentoMensal(),
                 AbaPlanos.mes => const PlanoMesTab(),
                 AbaPlanos.contas => const ContasTab(),
                 AbaPlanos.metas => const MetasTab(),
