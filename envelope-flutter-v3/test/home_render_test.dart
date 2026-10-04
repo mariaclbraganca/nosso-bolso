@@ -44,7 +44,7 @@ void main() {
     ));
     await t.pump(const Duration(seconds: 1));
     expect(t.takeException(), isNull);
-    expect(find.text('Olá, Frederico'), findsOneWidget);
+    expect(find.text('Início'), findsOneWidget);
     expect(find.text('Captura do Nubank e iFood desligada'), findsOneWidget);
     await t.scrollUntilVisible(find.text('Novo envelope'), 300);
     expect(find.text('Mercado'), findsOneWidget);

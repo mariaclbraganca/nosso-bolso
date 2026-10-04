@@ -15,10 +15,14 @@ class SaudeTab extends ConsumerWidget {
   final String membroId;
   final String familiaId;
 
+  /// false = as refeições ficam numa aba própria (módulo Alimentação).
+  final bool comRefeicoes;
+
   const SaudeTab({
     super.key,
     required this.membroId,
     required this.familiaId,
+    this.comRefeicoes = true,
   });
 
   String get _hoje {
@@ -151,11 +155,7 @@ class SaudeTab extends ConsumerWidget {
           const SizedBox(height: 12),
 
           // ── Refeições ──
-          RefeicoesCard(
-            membroId: membroId,
-            familiaId: familiaId,
-            data: hoje,
-          ),
+          if (comRefeicoes) RefeicoesCard(membroId: membroId, familiaId: familiaId, data: hoje),
           const SizedBox(height: 24),
         ],
       ),

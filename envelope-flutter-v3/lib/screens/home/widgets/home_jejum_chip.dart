@@ -4,7 +4,6 @@ import '../../../core/providers/jejum_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../core/services/app_navigator.dart';
 import '../../../ui/theme/nb_theme.dart';
-import '../../minha_vida/minha_vida_screen.dart';
 
 /// Chip discreto com o jejum em andamento; toque abre Minha Vida › Jejum.
 /// Só mostra tempo e fase — nada de finanças cruza para o jejum.
@@ -24,10 +23,7 @@ class HomeJejumChip extends ConsumerWidget {
       builder: (context, _) => JejumChip(
         decorrido: DateTime.now().difference(inicio),
         metaHoras: (ativo!['meta_horas'] as num?)?.toDouble() ?? 16,
-        onTap: () {
-          ref.read(segmentoMinhaVidaProvider.notifier).state = 2;
-          navegarParaAba(navVida);
-        },
+        onTap: () => abrirDestino(Destino.jejum),
       ),
     );
   }

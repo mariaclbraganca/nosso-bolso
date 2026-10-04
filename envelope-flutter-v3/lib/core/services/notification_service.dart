@@ -52,9 +52,9 @@ class NotificationService {
       case payloadFechamentoDia:
         abrirFechamentoDia();
       case 'financeiro':
-        navegarParaAba(navExtrato);
+        abrirDestino(Destino.extrato);
       case 'nutricao':
-        navegarParaAba(navVida);
+        abrirDestino(Destino.alimentacao);
     }
   }
 

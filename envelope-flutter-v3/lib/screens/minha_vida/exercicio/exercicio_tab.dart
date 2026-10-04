@@ -36,7 +36,7 @@ class _ExercicioTabState extends State<ExercicioTab> {
         ),
         Expanded(
           child: _aba == 0
-              ? _ExercicioHoje(membroId: widget.membroId, familiaId: widget.familiaId)
+              ? ExercicioHoje(membroId: widget.membroId, familiaId: widget.familiaId)
               : ExercicioHistoricoView(membroId: widget.membroId),
         ),
       ],
@@ -44,11 +44,12 @@ class _ExercicioTabState extends State<ExercicioTab> {
   }
 }
 
-class _ExercicioHoje extends ConsumerWidget {
+/// Treinos de hoje com o resumo do dia.
+class ExercicioHoje extends ConsumerWidget {
   final String membroId;
   final String familiaId;
 
-  const _ExercicioHoje({required this.membroId, required this.familiaId});
+  const ExercicioHoje({super.key, required this.membroId, required this.familiaId});
 
   String get _hoje {
     final n = DateTime.now();

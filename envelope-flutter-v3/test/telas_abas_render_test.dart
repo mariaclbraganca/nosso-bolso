@@ -11,6 +11,7 @@ import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/fixos_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/envelopes_provider.dart';
 import 'package:nosso_bolso_v3/screens/compras/compras_screen.dart';
+import 'package:nosso_bolso_v3/screens/planos/contas_tab.dart';
 import 'package:nosso_bolso_v3/screens/planos/planos_screen.dart';
 
 class _Perfil extends PerfilUsuarioNotifier {
@@ -60,8 +61,7 @@ void main() {
     expect(find.textContaining('Assaí'), findsWidgets);
     await abrirAbas(t, ['Lista IA', 'Feedback', 'Pendentes']);
   });
-  testWidgets('Planos todas as abas', (t) async {
-    await t.pumpWidget(ProviderScope(overrides: [
+  final planos = [
       ...base,
       fixosStreamProvider.overrideWith((ref) => Stream.value([{'id': 'x1', 'nome': 'Aluguel', 'valor': 1650.0, 'pago': false, 'dia_vencimento': 10, 'mes': '2026-10'}])),
       contasMesProvider.overrideWith((ref, mes) async => [{'_id': 'a1', 'nome': 'Luz', 'valor': 238.0, 'vencimento': '2026-10-15', 'pago': false, 'categoria': 'energia'}]),
@@ -70,15 +70,22 @@ void main() {
       snapshotsPatrimonioProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
       entradasMesProvider.overrideWith((ref, mes) async => [{'id': 'e1', 'nome': 'Salário', 'valor': 5491.0, 'tipo': 'dinheiro'}]),
       compromissosCartaoProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
-    ], child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
+  ];
+  testWidgets('Envelopes: todas as abas', (t) async {
+    await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
     expect(find.textContaining('DISPONÍVEL PARA PLANEJAR'), findsOneWidget); // aba Orçamento abre primeiro
     await abrirAbas(t, ['Resumo']);
     expect(find.text('Salário'), findsOneWidget);
-    await abrirAbas(t, ['Contas']);
-    expect(find.textContaining('Aluguel'), findsWidgets);
-    expect(find.textContaining('Luz'), findsWidgets); // boleto na mesma lista
     await abrirAbas(t, ['Metas', 'Orçamento']);
+    expect(find.text('Contas'), findsNothing); // Contas agora fica na barra de Finanças
+  });
+  testWidgets('Contas: fixos e boletos na mesma lista', (t) async {
+    await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const ContasScreen())));
+    await t.pump(const Duration(milliseconds: 500));
+    expect(t.takeException(), isNull);
+    expect(find.textContaining('Aluguel'), findsWidgets);
+    expect(find.textContaining('Luz'), findsWidgets);
   });
 }

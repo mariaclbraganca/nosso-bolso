@@ -9,14 +9,17 @@ import '../../../ui/unicorn/unicorn.dart';
 /// Meta da OMS: 150 min de atividade por semana.
 const metaSemanalMin = 150;
 
-String _iso(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+String _iso(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// Painel da semana + dias anteriores. Cada item do histórico é um dia:
 /// {data, exercicios[], total_duracao_min, total_calorias_kcal}.
 class ExercicioHistoricoView extends ConsumerWidget {
-  const ExercicioHistoricoView({super.key, required this.membroId});
+  const ExercicioHistoricoView({super.key, required this.membroId, this.mostrarSemana = true, this.mostrarHistorico = true});
   final String membroId;
+
+  /// Mostra o resumo dos últimos 7 dias e/ou a lista de treinos por dia.
+  final bool mostrarSemana;
+  final bool mostrarHistorico;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,59 +51,63 @@ class ExercicioHistoricoView extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.s, NBSpacing.margemTela, NBSpacing.x4),
               children: [
-                CartaoNB(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Últimos 7 dias', style: NBText.rotulo),
-                      const SizedBox(height: 4),
-                      Text('$minSemana min · $kcalSemana kcal · $diasAtivos ${diasAtivos == 1 ? 'dia ativo' : 'dias ativos'}',
-                          style: NBText.legenda),
-                      const SizedBox(height: NBSpacing.s),
-                      BarraProgresso(fracao: minSemana / metaSemanalMin, cor: NBColors.verde),
-                      const SizedBox(height: 4),
-                      Text(
-                        minSemana >= metaSemanalMin
-                            ? 'Meta de $metaSemanalMin min da semana alcançada! 🌟'
-                            : 'Faltam ${metaSemanalMin - minSemana} min para os $metaSemanalMin da semana',
-                        style: NBText.legenda.copyWith(color: minSemana >= metaSemanalMin ? NBColors.verde : NBColors.tintaSuave),
-                      ),
-                      const SizedBox(height: NBSpacing.m),
-                      SizedBox(
-                        height: 100,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            for (final d in semana)
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      if (min(d) > 0) Text('${min(d)}', style: NBText.legenda.copyWith(fontSize: 10)),
-                                      Container(
-                                        height: 64 * (min(d) / teto).clamp(0.03, 1.0),
-                                        decoration: BoxDecoration(
-                                          color: min(d) > 0 ? NBColors.verde : NBColors.afundado,
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                if (mostrarSemana)
+                  CartaoNB(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Últimos 7 dias', style: NBText.rotulo),
+                        const SizedBox(height: 4),
+                        Text(
+                            '$minSemana min · $kcalSemana kcal · $diasAtivos ${diasAtivos == 1 ? 'dia ativo' : 'dias ativos'}',
+                            style: NBText.legenda),
+                        const SizedBox(height: NBSpacing.s),
+                        BarraProgresso(fracao: minSemana / metaSemanalMin, cor: NBColors.verde),
+                        const SizedBox(height: 4),
+                        Text(
+                          minSemana >= metaSemanalMin
+                              ? 'Meta de $metaSemanalMin min da semana alcançada! 🌟'
+                              : 'Faltam ${metaSemanalMin - minSemana} min para os $metaSemanalMin da semana',
+                          style: NBText.legenda
+                              .copyWith(color: minSemana >= metaSemanalMin ? NBColors.verde : NBColors.tintaSuave),
+                        ),
+                        const SizedBox(height: NBSpacing.m),
+                        SizedBox(
+                          height: 100,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              for (final d in semana)
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        if (min(d) > 0) Text('${min(d)}', style: NBText.legenda.copyWith(fontSize: 10)),
+                                        Container(
+                                          height: 64 * (min(d) / teto).clamp(0.03, 1.0),
+                                          decoration: BoxDecoration(
+                                            color: min(d) > 0 ? NBColors.verde : NBColors.afundado,
+                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(DateFormat('E', 'pt_BR').format(d).substring(0, 3),
-                                          style: NBText.legenda.copyWith(fontSize: 10)),
-                                    ],
+                                        const SizedBox(height: 4),
+                                        Text(DateFormat('E', 'pt_BR').format(d).substring(0, 3),
+                                            style: NBText.legenda.copyWith(fontSize: 10)),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: NBSpacing.l),
-                for (final dia in comTreino) _Dia(dia: dia),
+                if (mostrarSemana && mostrarHistorico) const SizedBox(height: NBSpacing.l),
+                if (mostrarHistorico)
+                  for (final dia in comTreino) _Dia(dia: dia),
               ],
             );
           },
@@ -140,7 +147,8 @@ class _Dia extends StatelessWidget {
                 children: [
                   Text(categoriaEmoji[ex['categoria']] ?? '🏃', style: const TextStyle(fontSize: 18)),
                   const SizedBox(width: NBSpacing.s),
-                  Expanded(child: Text(ex['nome'] as String? ?? 'Exercício', style: NBText.corpo.copyWith(fontSize: 14))),
+                  Expanded(
+                      child: Text(ex['nome'] as String? ?? 'Exercício', style: NBText.corpo.copyWith(fontSize: 14))),
                   Text('${((ex['duracao_min'] as num?) ?? 0).round()} min', style: NBText.legenda),
                 ],
               ),

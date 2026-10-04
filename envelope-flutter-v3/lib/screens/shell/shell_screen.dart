@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/providers/compras_provider.dart';
+import '../../core/providers/exercicio_provider.dart';
+import '../../core/providers/fixos_provider.dart';
+import '../../core/providers/plano_provider.dart';
+import '../../core/providers/saude_provider.dart';
+import '../../core/providers/usuarios_provider.dart';
 import '../../core/services/app_navigator.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
@@ -9,8 +15,20 @@ import '../config/config_screen.dart';
 import '../extrato/extrato_screen.dart';
 import '../home/home_screen.dart';
 import '../lancar/lancar.dart';
-import '../minha_vida/minha_vida_screen.dart';
+import '../planos/contas_tab.dart';
 import '../planos/planos_screen.dart';
+import '../planos/widgets/plano_sheets.dart';
+import '../sheets/comum.dart';
+import 'barra_modulo.dart';
+import 'modulos_saude.dart';
+
+enum Modulo { financas, alimentacao, exercicios }
+
+/// Módulo aberto (null = escolha do módulo, a tela inicial).
+final moduloProvider = StateProvider<Modulo?>((ref) => null);
+
+/// Aba de Finanças: Início, Envelopes ou Contas.
+final abaFinancasProvider = StateProvider<int>((ref) => navHome);
 
 class ShellScreen extends ConsumerStatefulWidget {
   const ShellScreen({super.key});
@@ -20,207 +38,286 @@ class ShellScreen extends ConsumerStatefulWidget {
 }
 
 class _ShellScreenState extends ConsumerState<ShellScreen> {
-  int _aba = navHome;
-
   @override
   void initState() {
     super.initState();
-    registerNavCallback((i) {
-      if (mounted) setState(() => _aba = i);
-    });
+    registrarDestinos(_abrir);
   }
 
   @override
   void dispose() {
-    unregisterNavCallback();
+    cancelarDestinos();
     super.dispose();
   }
 
-  Future<void> _abrirMais(int pendentes) async {
-    final escolha = await showModalBottomSheet<int>(
+  void _abrir(Destino d) {
+    if (!mounted) return;
+    void modulo(Modulo m) => ref.read(moduloProvider.notifier).state = m;
+    void financas(int aba) {
+      modulo(Modulo.financas);
+      ref.read(abaFinancasProvider.notifier).state = aba;
+    }
+
+    void empilhar(Widget tela) => navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => tela));
+    switch (d) {
+      case Destino.modulos:
+        _voltar();
+      case Destino.financas:
+        financas(navHome);
+      case Destino.envelopes:
+        financas(navPlanos);
+      case Destino.contas:
+        financas(navContas);
+      case Destino.extrato:
+        modulo(Modulo.financas);
+        empilhar(const ExtratoScreen());
+      case Destino.compras:
+        modulo(Modulo.financas);
+        empilhar(const ComprasScreen());
+      case Destino.alimentacao:
+        modulo(Modulo.alimentacao);
+      case Destino.jejum:
+        modulo(Modulo.alimentacao);
+        ref.read(abaAlimentacaoProvider.notifier).state = 2;
+      case Destino.exercicios:
+        modulo(Modulo.exercicios);
+    }
+  }
+
+  void _voltar() => ref.read(moduloProvider.notifier).state = null;
+
+  @override
+  Widget build(BuildContext context) {
+    final modulo = ref.watch(moduloProvider);
+    return PopScope(
+      canPop: modulo == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _voltar();
+      },
+      child: switch (modulo) {
+        null => EscolhaModuloScreen(onEscolher: (m) => ref.read(moduloProvider.notifier).state = m),
+        Modulo.financas => const _FinancasShell(),
+        Modulo.alimentacao => AlimentacaoShell(onVoltar: _voltar),
+        Modulo.exercicios => ExerciciosShell(onVoltar: _voltar),
+      },
+    );
+  }
+}
+
+// ── Finanças ───────────────────────────────────────────────────────────
+
+/// Finanças: Início · Envelopes · + · Contas · Mais.
+class _FinancasShell extends ConsumerWidget {
+  const _FinancasShell();
+
+  Future<void> _abrirMais(BuildContext context, int pendentes) async {
+    final escolha = await showModalBottomSheet<Widget>(
       context: context,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: ListView(
+          shrinkWrap: true,
           children: [
             const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 4), child: TopoSheet(titulo: 'Mais')),
+            ListTile(
+              leading: const Icon(Icons.update_rounded),
+              title: const Text('Futuro'),
+              subtitle: const Text('O que já devo, parcelas e quando terminam'),
+              onTap: () => Navigator.pop(ctx, const CompromissosScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.format_list_bulleted_rounded),
+              title: const Text('Extrato'),
+              subtitle: const Text('Tudo o que aconteceu no mês'),
+              onTap: () => Navigator.pop(ctx, const ExtratoScreen()),
+            ),
             ListTile(
               leading: Badge(
                 isLabelVisible: pendentes > 0,
                 backgroundColor: NBColors.estouro,
                 label: Text('$pendentes'),
-                child: const Icon(Icons.shopping_bag_outlined),
+                child: const Icon(Icons.receipt_long_outlined),
               ),
-              title: const Text('Compras'),
-              subtitle: const Text('Notas fiscais, compras a confirmar e lista de compras'),
-              onTap: () => Navigator.pop(ctx, navCompras),
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite_border_rounded),
-              title: const Text('Minha Vida'),
-              subtitle: const Text('Alimentação, exercício e jejum'),
-              onTap: () => Navigator.pop(ctx, navVida),
+              title: const Text('Notas fiscais'),
+              subtitle: const Text('Escanear nota e compras a confirmar'),
+              onTap: () => Navigator.pop(ctx, const ComprasScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.savings_outlined),
               title: const Text('Patrimônio e reserva'),
-              onTap: () => Navigator.pop(ctx, -1),
+              subtitle: const Text('Contas, investimentos e a reserva'),
+              onTap: () => Navigator.pop(ctx, const PatrimonioScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Configurações'),
-              onTap: () => Navigator.pop(ctx, -2),
+              onTap: () => Navigator.pop(ctx, const ConfigScreen()),
             ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
-    if (escolha == null || !mounted) return;
-    if (escolha >= 0) return setState(() => _aba = escolha);
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => escolha == -1 ? const PatrimonioScreen() : const ConfigScreen(),
-    ));
+    if (escolha == null || !context.mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => escolha));
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final aba = ref.watch(abaFinancasProvider);
     final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
-    final noMais = _aba == navCompras || _aba == navVida;
-
     return Scaffold(
       body: IndexedStack(
-        index: _aba,
-        children: const [
-          HomeScreen(),
-          PlanosScreen(),
-          ExtratoScreen(),
-          ComprasScreen(),
-          MinhaVidaScreen(),
-        ],
+        index: aba,
+        children: const [HomeScreen(), PlanosScreen(), ContasScreen()],
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: NBColors.cartao,
-          border: Border(top: BorderSide(color: NBColors.linha)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 66,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _ItemBarra(
-                  rotulo: 'Início',
-                  icone: Icons.home_outlined,
-                  iconeAtivo: Icons.home_rounded,
-                  ativo: _aba == navHome,
-                  onTap: () => setState(() => _aba = navHome),
-                ),
-                _ItemBarra(
-                  rotulo: 'Orçamento',
-                  icone: Icons.tune_rounded,
-                  iconeAtivo: Icons.tune_rounded,
-                  ativo: _aba == navPlanos,
-                  onTap: () => setState(() => _aba = navPlanos),
-                ),
-                Expanded(child: _BotaoLancar(onTap: () => abrirNovoLancamento(context))),
-                _ItemBarra(
-                  rotulo: 'Extrato',
-                  icone: Icons.format_list_bulleted_rounded,
-                  iconeAtivo: Icons.format_list_bulleted_rounded,
-                  ativo: _aba == navExtrato,
-                  onTap: () => setState(() => _aba = navExtrato),
-                ),
-                _ItemBarra(
-                  rotulo: 'Mais',
-                  icone: Icons.menu_rounded,
-                  iconeAtivo: Icons.menu_rounded,
-                  ativo: noMais,
-                  badge: pendentes,
-                  onTap: () => _abrirMais(pendentes),
-                ),
-              ],
-            ),
-          ),
-        ),
+      bottomNavigationBar: BarraModulo(
+        itens: [
+          itemBarra('Início', Icons.home_outlined, Icons.home_rounded),
+          itemBarra('Envelopes', Icons.mail_outline_rounded, Icons.mail_rounded),
+          itemBarra('Contas', Icons.receipt_outlined, Icons.receipt_rounded),
+          itemBarra('Mais', Icons.menu_rounded, null, pendentes),
+        ],
+        ativo: aba,
+        onItem: (i) => i == 3 ? _abrirMais(context, pendentes) : ref.read(abaFinancasProvider.notifier).state = i,
+        onLancar: () => abrirNovoLancamento(context),
       ),
     );
   }
 }
 
-class _ItemBarra extends StatelessWidget {
-  const _ItemBarra({
-    required this.rotulo,
-    required this.icone,
-    required this.iconeAtivo,
-    required this.ativo,
-    required this.onTap,
-    this.badge = 0,
-  });
-  final String rotulo;
-  final IconData icone;
-  final IconData iconeAtivo;
-  final bool ativo;
-  final VoidCallback onTap;
-  final int badge;
+// ── Escolha do módulo ──────────────────────────────────────────────────
+
+/// Tela inicial: os três módulos com um resumo de cada.
+class EscolhaModuloScreen extends ConsumerWidget {
+  const EscolhaModuloScreen({super.key, required this.onEscolher});
+  final ValueChanged<Modulo> onEscolher;
 
   @override
-  Widget build(BuildContext context) {
-    final cor = ativo ? NBColors.verde : NBColors.tintaSuave;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Badge(
-                isLabelVisible: badge > 0,
-                backgroundColor: NBColors.estouro,
-                label: Text('$badge'),
-                child: Icon(ativo ? iconeAtivo : icone, color: cor),
-              ),
-              const SizedBox(height: 3),
-              Text(rotulo, style: NBText.legenda.copyWith(fontSize: 12, color: cor, fontWeight: FontWeight.w600)),
-            ],
-          ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
+    final nome = ((perfil?['nome'] as String?) ?? '').split(' ').first;
+    final eu = perfil?['id'] as String? ?? '';
+    final agora = DateTime.now();
+    final hoje = DateFormat('yyyy-MM-dd').format(agora);
+    final data = DateFormat("EEEE, d 'de' MMMM", 'pt_BR').format(agora);
+
+    // Finanças
+    final l = ref.watch(limiteMesProvider).valueOrNull;
+    final vencendo = ref
+        .watch(fixosMesAtualProvider)
+        .where((f) => f['pago'] != true && f['dia_vencimento'] is int)
+        .where((f) => (f['dia_vencimento'] as int) >= agora.day && (f['dia_vencimento'] as int) <= agora.day + 7)
+        .toList();
+    final valorVencendo = vencendo.fold(0.0, (s, f) => s + ((f['valor'] as num?)?.toDouble() ?? 0) - ((f['valor_pago'] as num?)?.toDouble() ?? 0));
+    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
+
+    // Alimentação e exercícios (sempre o seu)
+    final args = (membroId: eu, data: hoje);
+    final saude = eu.isEmpty ? null : ref.watch(extratoDiarioProvider(args)).valueOrNull;
+    final exercicio = eu.isEmpty ? null : ref.watch(exercicioDiaProvider(args)).valueOrNull;
+    final kcal = (saude?['calorias_consumidas_kcal'] as num?)?.round();
+    final meta = (saude?['meta_calorica_kcal'] as num?)?.round();
+    final minutos = (exercicio?['total_duracao_min'] as num?)?.round();
+
+    return Scaffold(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 20, NBSpacing.margemTela, 24),
+          children: [
+            Text(nome.isEmpty ? 'Olá' : 'Olá, $nome', style: NBText.tituloTela.copyWith(fontSize: 26)),
+            const SizedBox(height: 2),
+            Text('${data[0].toUpperCase()}${data.substring(1)} · o que vamos cuidar agora?', style: NBText.legenda),
+            const SizedBox(height: NBSpacing.xl),
+            _CartaoModulo(
+              titulo: 'Finanças',
+              icone: Icons.account_balance_wallet_outlined,
+              cor: NBColors.verde,
+              fundo: NBColors.verdeClaro,
+              linhas: [
+                if (l != null) ('Pode gastar ainda', brl(l.podeGastar)),
+                ('Contas vencendo em 7 dias', vencendo.isEmpty ? 'nenhuma' : '${vencendo.length} · ${brl(valorVencendo)}'),
+                if (pendentes > 0) ('Compras a confirmar', '$pendentes'),
+              ],
+              onTap: () => onEscolher(Modulo.financas),
+            ),
+            const SizedBox(height: NBSpacing.m),
+            _CartaoModulo(
+              titulo: 'Alimentação e jejum',
+              icone: Icons.restaurant_outlined,
+              cor: NBColors.lavanda,
+              fundo: NBColors.lavandaClara,
+              linhas: [
+                ('Consumido hoje', kcal == null ? '—' : '$kcal${meta == null ? '' : ' de $meta'} kcal'),
+              ],
+              onTap: () => onEscolher(Modulo.alimentacao),
+            ),
+            const SizedBox(height: NBSpacing.m),
+            _CartaoModulo(
+              titulo: 'Exercícios',
+              icone: Icons.directions_run_rounded,
+              cor: NBColors.ambarTexto,
+              fundo: NBColors.ambarClaro,
+              linhas: [('Atividade de hoje', minutos == null ? '—' : '$minutos min')],
+              onTap: () => onEscolher(Modulo.exercicios),
+            ),
+            const SizedBox(height: NBSpacing.xl),
+            BotaoSecundario(
+              rotulo: 'Configurações',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConfigScreen())),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// "+" central da barra: abre o novo lançamento (compra ou receita).
-class _BotaoLancar extends StatelessWidget {
-  const _BotaoLancar({required this.onTap});
+class _CartaoModulo extends StatelessWidget {
+  const _CartaoModulo({
+    required this.titulo,
+    required this.icone,
+    required this.cor,
+    required this.fundo,
+    required this.linhas,
+    required this.onTap,
+  });
+  final String titulo;
+  final IconData icone;
+  final Color cor;
+  final Color fundo;
+  final List<(String, String)> linhas;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
-        label: 'Novo lançamento',
-        child: GestureDetector(
+        label: 'Abrir $titulo',
+        child: CartaoNB(
           onTap: onTap,
-          behavior: HitTestBehavior.opaque,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: NBColors.verde,
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: NBColors.verde.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
+              Row(children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icone, color: cor, size: 22),
                 ),
-                child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
-              ),
-              const SizedBox(height: 2),
-              Text('Lançar', style: NBText.legenda.copyWith(fontSize: 12, color: NBColors.verdeProfundo, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
+                const SizedBox(width: NBSpacing.m),
+                Expanded(child: Text(titulo, style: NBText.rotulo.copyWith(fontSize: 17))),
+                Icon(Icons.chevron_right_rounded, color: cor),
+              ]),
+              const SizedBox(height: NBSpacing.s),
+              for (final (r, v) in linhas)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(children: [
+                    Expanded(child: Text(r, style: NBText.corpo.copyWith(fontSize: 14, color: NBColors.tintaSuave))),
+                    const SizedBox(width: 8),
+                    Text(v, style: NBText.corpo.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
             ],
           ),
         ),

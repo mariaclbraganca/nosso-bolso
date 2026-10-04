@@ -7,37 +7,26 @@ final navigatorKey = GlobalKey<NavigatorState>();
 // do BuildContext de um sheet que já foi fechado (evita erro de árvore).
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-// Índices do IndexedStack do ShellScreen. Na barra: Início, Orçamento, [+],
-// Extrato e Mais (Compras e Minha Vida abrem pelo Mais).
-const int navHome     = 0;
-const int navPlanos   = 1;
-const int navExtrato  = 2;
-const int navCompras  = 3;
-const int navVida     = 4;
+// Índices da barra de Finanças: Início, Envelopes, [+], Contas e Mais.
+const int navHome = 0;
+const int navPlanos = 1;
+const int navContas = 2;
 
-void navegarParaAba(int index) {
-  final ctx = navigatorKey.currentContext;
-  if (ctx == null) return;
-  // Emite um evento que o MainNavigationScreen ouve
-  _PendingNavigation._instance?.navegarPara(index);
-}
+/// Lugares que outras partes do app (notificações, atalhos do Início) abrem,
+/// trocando de módulo se preciso.
+enum Destino { modulos, financas, envelopes, contas, extrato, compras, alimentacao, jejum, exercicios }
 
-// Notifier simples — MainNavigationScreen registra o callback no initState
-class _PendingNavigation {
-  static _PendingNavigation? _instance;
-  void Function(int)? _callback;
+void Function(Destino)? _abrir;
 
-  static void register(void Function(int) cb) {
-    _instance ??= _PendingNavigation();
-    _instance!._callback = cb;
-  }
+void registrarDestinos(void Function(Destino) cb) => _abrir = cb;
+void cancelarDestinos() => _abrir = null;
 
-  static void unregister() {
-    _instance?._callback = null;
-  }
+/// Abre [d] (no módulo certo). Sem o app montado, não faz nada.
+void abrirDestino(Destino d) => _abrir?.call(d);
 
-  void navegarPara(int index) => _callback?.call(index);
-}
-
-void registerNavCallback(void Function(int) cb) => _PendingNavigation.register(cb);
-void unregisterNavCallback() => _PendingNavigation.unregister();
+/// Atalho para as abas de Finanças.
+void navegarParaAba(int index) => abrirDestino(switch (index) {
+      navPlanos => Destino.envelopes,
+      navContas => Destino.contas,
+      _ => Destino.financas,
+    });

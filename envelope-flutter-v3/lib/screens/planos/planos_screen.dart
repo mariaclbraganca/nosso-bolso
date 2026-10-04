@@ -5,12 +5,11 @@ import '../sheets/sheet_fechar_mes.dart';
 import '../../core/providers/mes_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
-import 'contas_tab.dart';
 import 'metas_tab.dart';
 import 'plano_mes_tab.dart';
 import '../sheets/sheet_planejar_mes.dart';
 
-enum AbaPlanos { orcamento, mes, contas, metas }
+enum AbaPlanos { orcamento, mes, metas }
 
 class PlanosScreen extends ConsumerStatefulWidget {
   const PlanosScreen({super.key});
@@ -22,54 +21,17 @@ class PlanosScreen extends ConsumerStatefulWidget {
 class _PlanosScreenState extends ConsumerState<PlanosScreen> {
   AbaPlanos _aba = AbaPlanos.orcamento;
 
-  Future<void> _escolherMes(BuildContext context, String mesAtual) async {
-    final meses = gerarMesesDisponiveis();
-    final escolhido = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(16),
-          children: [
-            const TopoSheet(titulo: 'Escolha o mês'),
-            const SizedBox(height: 12),
-            for (final m in meses)
-              ListTile(
-                title: Text(mesLabelLongo(m), style: NBText.corpo),
-                selected: m == mesAtual,
-                selectedColor: NBColors.verde,
-                onTap: () => Navigator.pop(ctx, m),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (escolhido != null) ref.read(mesAtualProvider.notifier).state = escolhido;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final mes = ref.watch(mesAtualProvider);
     final abasMap = <AbaPlanos, String>{
       AbaPlanos.orcamento: 'Orçamento',
       AbaPlanos.mes: 'Resumo',
-      AbaPlanos.contas: 'Contas',
       AbaPlanos.metas: 'Metas',
     };
 
     return Scaffold(
       appBar: AppBar(
-        title: GestureDetector(
-          onTap: () => _escolherMes(context, mes),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(mesLabelLongo(mes), style: NBText.secao),
-              const SizedBox(width: 4),
-              const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-            ],
-          ),
-        ),
+        title: const TituloMes(),
         actions: [
           IconButton(
             tooltip: 'Retrospectiva',
@@ -101,12 +63,56 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
               child: switch (_aba) {
                 AbaPlanos.orcamento => const OrcamentoMensal(),
                 AbaPlanos.mes => const PlanoMesTab(),
-                AbaPlanos.contas => const ContasTab(),
                 AbaPlanos.metas => const MetasTab(),
               },
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Título "Outubro 2026 ▾" que troca o mês de referência do app.
+class TituloMes extends ConsumerWidget {
+  const TituloMes({super.key});
+
+  Future<void> _escolher(BuildContext context, WidgetRef ref, String mesAtual) async {
+    final escolhido = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(16),
+          children: [
+            const TopoSheet(titulo: 'Escolha o mês'),
+            const SizedBox(height: 12),
+            for (final m in gerarMesesDisponiveis())
+              ListTile(
+                title: Text(mesLabelLongo(m), style: NBText.corpo),
+                selected: m == mesAtual,
+                selectedColor: NBColors.verde,
+                onTap: () => Navigator.pop(ctx, m),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (escolhido != null) ref.read(mesAtualProvider.notifier).state = escolhido;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mes = ref.watch(mesAtualProvider);
+    return GestureDetector(
+      onTap: () => _escolher(context, ref, mes),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(mesLabelLongo(mes), style: NBText.secao))),
+          const SizedBox(width: 4),
+          const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+        ],
       ),
     );
   }

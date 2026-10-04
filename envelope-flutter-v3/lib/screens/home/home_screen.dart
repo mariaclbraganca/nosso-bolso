@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/compras_provider.dart';
 import '../../core/providers/dia_provider.dart';
+import '../../core/services/app_navigator.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/providers/envelopes_provider.dart';
 import '../../core/providers/plano_provider.dart';
@@ -9,6 +10,7 @@ import '../../core/providers/insights_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
+import '../shell/barra_modulo.dart';
 import '../sheets/sheet_envelope.dart';
 import '../sheets/sheet_planejar_mes.dart';
 import '../sheets/sheet_remanejar.dart';
@@ -101,6 +103,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               120,
             ),
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: VoltarModulos(onTap: () => abrirDestino(Destino.modulos)),
+              ),
               const HomeCabecalho(),
               const SizedBox(height: NBSpacing.l),
               const HomeCartaoSaldo(),

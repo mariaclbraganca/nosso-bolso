@@ -15,6 +15,7 @@ import 'widgets/fixos_card.dart';
 import 'widgets/form_conta_sheet.dart';
 import 'widgets/form_fixo_sheet.dart';
 import 'widgets/plano_sheets.dart';
+import 'planos_screen.dart';
 import '../../../core/plano/plano_mes.dart';
 import '../../../core/providers/plano_provider.dart';
 
@@ -353,4 +354,15 @@ class FaturaEmFormacao extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Contas como aba própria da barra de Finanças (com o seletor de mês).
+class ContasScreen extends StatelessWidget {
+  const ContasScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const TituloMes()),
+        body: const SafeArea(bottom: false, child: ContasTab()),
+      );
 }

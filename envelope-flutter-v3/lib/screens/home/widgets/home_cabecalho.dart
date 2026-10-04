@@ -53,7 +53,7 @@ class HomeCabecalho extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                nome.isEmpty ? 'Olá' : 'Olá, $nome',
+                'Início',
                 style: NBText.tituloTela.copyWith(fontSize: 24),
               ),
             ],
@@ -93,7 +93,7 @@ class HomeCabecalho extends ConsumerWidget {
               side: const BorderSide(color: NBColors.linha),
               fixedSize: const Size(44, 44),
             ),
-            onPressed: () => navegarParaAba(navCompras),
+            onPressed: () => abrirDestino(Destino.compras),
             icon: const Icon(
               Icons.notifications_none_rounded,
               color: NBColors.tinta,
