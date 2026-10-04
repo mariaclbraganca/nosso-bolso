@@ -110,20 +110,9 @@ def atualizar_fixo(
         valor = float(update_data.get("valor", fixo["valor"]))
 
         if update_data["pago"]:
-            # PAGAR: gera transação despesa_fixa (trigger debita saldo_geral)
-            # Validação pessimista de saldo antes de gerar
-            saldo_row = (db.table("saldo_geral").select("valor_total_disponivel")
-                         .eq("familia_id", familia_id).single().execute())
-            saldo_atual = float(saldo_row.data["valor_total_disponivel"])
-            if saldo_atual < valor:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"Saldo geral insuficiente para pagar este fixo. "
-                        f"Disponível: R$ {saldo_atual:.2f} | Necessário: R$ {valor:.2f}. "
-                        f"Remaneje dinheiro de algum envelope para o saldo geral antes."
-                    ),
-                )
+            # PAGAR: gera transação despesa_fixa (trigger debita o saldo em conta).
+            # Sem trava de saldo: a conta fica perto de zero e a reserva cobre
+            # o que faltar (saldo negativo = valor a cobrir com a reserva).
             tx = {
                 "familia_id": familia_id,
                 "usuario_id": str(user.id),
