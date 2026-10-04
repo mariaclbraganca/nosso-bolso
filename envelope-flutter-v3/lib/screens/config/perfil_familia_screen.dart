@@ -41,6 +41,17 @@ class _PerfilFamiliaScreenState extends ConsumerState<PerfilFamiliaScreen> {
     }
   }
 
+  /// Cada um decide se a família pode ver a sua alimentação.
+  Future<void> _mudarVisibilidade(String id, bool visivel) async {
+    try {
+      await supabase.from('usuarios').update({'alimentacao_visivel': visivel}).eq('id', id);
+      await ref.read(perfilUsuarioLogadoProvider.notifier).recarregar();
+      avisar(visivel ? 'A família pode ver sua alimentação.' : 'Sua alimentação agora é só sua.');
+    } catch (e) {
+      avisar('Não consegui salvar: ${mensagemErro(e)}', erro: true);
+    }
+  }
+
   Future<void> _copiar(String codigo) async {
     await Clipboard.setData(ClipboardData(text: codigo));
     avisar('Código $codigo copiado.');
@@ -158,6 +169,18 @@ class _PerfilFamiliaScreenState extends ConsumerState<PerfilFamiliaScreen> {
           ],
           const SizedBox(height: NBSpacing.m),
           BotaoPrincipal(rotulo: 'Salvar nome', carregando: _salvando, onPressed: () => _salvarNome(id)),
+          const SizedBox(height: NBSpacing.xl),
+          Text('PRIVACIDADE', style: NBText.eyebrow),
+          const SizedBox(height: NBSpacing.s),
+          CartaoNB(
+            padding: EdgeInsets.zero,
+            child: SwitchListTile(
+              value: alimentacaoVisivel(perfil),
+              onChanged: (v) => _mudarVisibilidade(id, v),
+              title: Text('Permitir que a família veja minha alimentação', style: NBText.corpo),
+              subtitle: Text('Refeições, jejum e peso. Finanças são sempre da família.', style: NBText.legenda),
+            ),
+          ),
           const SizedBox(height: NBSpacing.x3),
           TextButton(
             onPressed: () => _sairDaFamilia(id, nomeFamilia),

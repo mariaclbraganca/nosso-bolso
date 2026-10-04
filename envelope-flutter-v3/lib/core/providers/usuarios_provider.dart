@@ -50,3 +50,6 @@ class PerfilUsuarioNotifier extends AsyncNotifier<Map<String, dynamic>?> {
 final perfilUsuarioLogadoProvider = AsyncNotifierProvider<PerfilUsuarioNotifier, Map<String, dynamic>?>(
   () => PerfilUsuarioNotifier(),
 );
+
+/// A família pode ver a alimentação deste membro? (padrão: sim)
+bool alimentacaoVisivel(Map<String, dynamic> membro) => membro['alimentacao_visivel'] != false;

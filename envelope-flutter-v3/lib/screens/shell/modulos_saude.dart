@@ -176,7 +176,8 @@ class AlimentacaoShell extends ConsumerWidget {
         ],
         ativo: aba,
         onItem: (i) => i == 3 ? _mais(context, membroId, familiaId) : ref.read(abaAlimentacaoProvider.notifier).state = i,
-        onLancar: () => _lancar(context, ref, membroId, familiaId),
+        // O + lança sempre para quem está logado (ver o outro é só consulta).
+        onLancar: () => _lancar(context, ref, perfil?['id'] as String? ?? membroId, familiaId),
       ),
     );
   }
@@ -189,9 +190,13 @@ class SeletorMembroSaude extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
-    final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? const [];
-    if (membros.length < 2) return const SizedBox.shrink();
     final eu = perfil?['id'] as String?;
+    // Abre no seu; os outros só aparecem se deixaram a família ver.
+    final membros = [
+      for (final m in ref.watch(listaUsuariosProvider).valueOrNull ?? const <Map<String, dynamic>>[])
+        if (m['id'] == eu || alimentacaoVisivel(m)) m,
+    ];
+    if (membros.length < 2) return const SizedBox.shrink();
     final atual = ref.watch(membroSaudeProvider) ?? eu;
     String nome(Map m) {
       final n = (m['nome'] as String? ?? '').split(' ').first;

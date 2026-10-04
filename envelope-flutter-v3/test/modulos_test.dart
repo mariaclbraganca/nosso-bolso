@@ -10,6 +10,7 @@ import 'package:nosso_bolso_v3/core/providers/plano_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/saude_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/screens/shell/barra_modulo.dart';
+import 'package:nosso_bolso_v3/screens/shell/modulos_saude.dart';
 import 'package:nosso_bolso_v3/screens/shell/shell_screen.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
 
@@ -73,5 +74,25 @@ void main() {
     expect(t.getCenter(find.text('Histórico')).dx, greaterThan(xMais));
     await t.tap(find.text('Lançar'));
     expect(lancou, isTrue);
+  });
+
+  testWidgets('Ver alimentação de: só quem deixou a família ver', (t) async {
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        perfilUsuarioLogadoProvider.overrideWith(_Perfil.new),
+        listaUsuariosProvider.overrideWith((ref) => Stream.value([
+              {'id': 'u', 'nome': 'Frederico', 'alimentacao_visivel': false},
+              {'id': 'a', 'nome': 'Alanna'},
+              {'id': 'b', 'nome': 'Alan', 'alimentacao_visivel': false},
+            ])),
+      ],
+      child: MaterialApp(theme: nossoBolsoTheme(), home: const Scaffold(appBar: null, body: Center(child: SeletorMembroSaude()))),
+    ));
+    await t.pump(const Duration(milliseconds: 200));
+    expect(find.text('Frederico (você)'), findsOneWidget); // abre no seu, mesmo privado
+    await t.tap(find.text('Frederico (você)'));
+    await t.pumpAndSettle();
+    expect(find.text('Alanna'), findsOneWidget);
+    expect(find.text('Alan'), findsNothing);
   });
 }
