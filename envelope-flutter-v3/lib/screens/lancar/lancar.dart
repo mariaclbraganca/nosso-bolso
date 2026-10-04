@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/plano/falas.dart';
 import '../../core/plano/plano_mes.dart';
 import '../../core/providers/compras_provider.dart';
 import '../../core/providers/envelopes_provider.dart';
@@ -309,6 +310,12 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
     final p = perfilOuErro(ref);
     final mes = ref.read(mesAtualProvider);
     final desc = _descricao.text.trim();
+    final fala = falaDaCompra(
+      l: ref.read(limiteMesProvider).valueOrNull,
+      envelope: envs.where((e) => e['id'] == envId).firstOrNull,
+      valor: _valorMes,
+      forma: _forma,
+    );
     setState(() => _salvando = true);
     try {
       if (widget.captura != null) {
@@ -344,6 +351,7 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
       ref.invalidate(transacoesStreamProvider);
       HapticFeedback.mediumImpact();
       avisar(_n > 1 ? 'Compra em ${_n}x lançada: ${brl(_valorMes)} neste mês.' : 'Compra de ${brl(_valorMes)} lançada.');
+      falar(ref, fala);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
@@ -490,7 +498,7 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
       }
       ref.invalidate(entradasMesProvider(mes));
       HapticFeedback.mediumImpact();
-      avisar(_destino == 'mes' ? 'Receita de ${brl(_v)} lançada: reduz o que sai da reserva.' : 'Receita de ${brl(_v)} guardada na reserva.');
+      falar(ref, falaDaReceita(_v, _destino));
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       avisar(mensagemErro(e), erro: true);

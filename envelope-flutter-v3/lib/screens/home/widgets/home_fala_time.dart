@@ -1,95 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/providers/envelopes_provider.dart';
-import '../../../core/providers/insights_provider.dart';
-import '../../../core/providers/mes_provider.dart';
-import '../../../core/providers/transacoes_provider.dart';
+import '../../../core/plano/falas.dart';
+import '../../../core/providers/compras_provider.dart';
+import '../../../core/providers/fixos_provider.dart';
+import '../../../core/providers/plano_provider.dart';
 import '../../../core/services/app_navigator.dart';
-import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../../ui/unicorn/unicorn.dart';
+import '../../lancar/lancar.dart';
+import '../../../ui/components/nb_components.dart';
+import '../../sheets/sheet_remanejar.dart';
 
+/// Uma fala do time no Início, escolhida pelo contexto (regras em falas.dart).
+/// Sem nada útil a dizer, ninguém fala.
 class HomeFalaDoTime extends ConsumerWidget {
-  const HomeFalaDoTime({super.key, required this.envelopes});
-  final List<Map<String, dynamic>> envelopes;
+  const HomeFalaDoTime({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (envelopes.isEmpty) return const SizedBox.shrink();
-    final saldo = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
-    final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
-    final estados = envelopes.map((e) => EstadoEnvelope(e, gastoMes: gastos[e['id']] ?? 0.0)).toList();
-    final estourados = estados
-        .where((e) => e.estourado && e.natureza == NaturezaEnvelope.consumo)
-        .toList();
-    final noLimite = estados.where((e) => e.noLimite).toList();
-
-    final (UnicornType tipo, UnicornMood humor, String fala) = switch (()) {
-      _ when estourados.length == 1 => (
-          UnicornType.geronimo,
-          UnicornMood.chaos,
-          '${estourados.first.nome} estourou. Toque nele para cobrir com outro envelope.'
-        ),
-      _ when estourados.length > 1 => (
-          UnicornType.geronimo,
-          UnicornMood.chaos,
-          '${estourados.length} envelopes estouraram. Bora remanejar antes que cresça.'
-        ),
-      _ when noLimite.isNotEmpty => (
-          UnicornType.astrix,
-          UnicornMood.thinking,
-          '${noLimite.first.nome} está no limite. Segura até o fim do mês.'
-        ),
-      _ when saldo > 0 => (
-          UnicornType.astrix,
-          UnicornMood.wave,
-          'Tem ${brl(saldo)} no saldo geral esperando um envelope.'
-        ),
-      _ => (
-          UnicornType.astrix,
-          UnicornMood.idle,
-          'Tudo nos trilhos. Os envelopes estão saudáveis.'
-        ),
-    };
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: NBSpacing.m),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          UnicornWidget(key: ValueKey(tipo), type: tipo, mood: humor, size: 80),
-          const SizedBox(width: NBSpacing.s),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 34),
-              child: UnicornFala(type: tipo, texto: fala, maxWidth: double.infinity),
-            ),
-          ),
-        ],
-      ),
+    final l = ref.watch(limiteMesProvider).valueOrNull;
+    if (l == null) return const SizedBox.shrink();
+    final fala = falaDoInicio(
+      l: l,
+      contas: ref.watch(fixosMesAtualProvider),
+      pendentes: ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0,
+      hoje: DateTime.now(),
     );
+    if (fala == null) return const SizedBox.shrink();
+    return FalaDoTime(fala: fala, onTap: () => executarAcaoFala(context, fala.acao));
   }
 }
 
-class HomeAlertaIA extends ConsumerWidget {
-  const HomeAlertaIA({super.key});
+/// O que tocar na fala faz.
+void executarAcaoFala(BuildContext context, AcaoFala acao) => switch (acao) {
+      AcaoFala.transferir => abrirSheet(context, const SheetRemanejar()),
+      AcaoFala.confirmarCompras => abrirNovoLancamento(context),
+      AcaoFala.contas => navegarParaAba(navContas),
+      AcaoFala.nenhuma => null,
+    };
+
+/// Unicórnio + balão com a fala.
+class FalaDoTime extends StatelessWidget {
+  const FalaDoTime({super.key, required this.fala, this.onTap, this.tamanho = 72});
+  final Fala fala;
+  final VoidCallback? onTap;
+  final double tamanho;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mes = ref.watch(mesAtualProvider);
-    final insights = ref.watch(insightsProvider(mes)).valueOrNull ?? const [];
-    final alerta = insights
-        .cast<Map>()
-        .where((i) => (i['titulo'] as String? ?? '').startsWith('Alerta'))
-        .firstOrNull;
-    if (alerta == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: NBSpacing.s),
-      child: PainelIA(
-        titulo: alerta['titulo'] as String?,
-        texto: alerta['texto'] as String? ?? '',
-        onTap: () => navegarParaAba(navPlanos),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: NBSpacing.m),
+        child: GestureDetector(
+          onTap: fala.acao == AcaoFala.nenhuma ? null : onTap,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              UnicornWidget(key: ValueKey(fala.quem), type: fala.quem, mood: fala.humor, size: tamanho),
+              const SizedBox(width: NBSpacing.s),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: tamanho * 0.4),
+                  child: UnicornFala(type: fala.quem, texto: fala.texto, maxWidth: double.infinity),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+/// Fala compacta (unicórnio pequeno + balão), dentro de um cartão.
+class FalaCurta extends StatelessWidget {
+  const FalaCurta({super.key, required this.fala});
+  final Fala fala;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          UnicornWidget(key: ValueKey(fala.quem), type: fala.quem, size: 40, mood: fala.humor),
+          const SizedBox(width: 8),
+          Expanded(child: UnicornFala(type: fala.quem, texto: fala.texto)),
+        ],
+      );
 }

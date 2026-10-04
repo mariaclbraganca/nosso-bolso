@@ -13,6 +13,7 @@ import '../../core/services/app_navigator.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../config/config_screen.dart';
+import '../config/relatorio_completo_screen.dart';
 import '../extrato/extrato_screen.dart';
 import '../home/home_screen.dart';
 import '../lancar/lancar.dart';
@@ -271,6 +272,11 @@ class EscolhaModuloScreen extends ConsumerWidget {
               onTap: () => onEscolher(Modulo.exercicios),
             ),
             const SizedBox(height: NBSpacing.xl),
+            BotaoSecundario(
+              rotulo: 'Pedir relatório completo ao Astrix',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RelatorioCompletoScreen())),
+            ),
+            const SizedBox(height: NBSpacing.s),
             BotaoSecundario(
               rotulo: 'Configurações',
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConfigScreen())),

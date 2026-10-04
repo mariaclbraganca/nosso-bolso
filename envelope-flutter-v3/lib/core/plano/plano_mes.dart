@@ -151,8 +151,9 @@ class LimiteMes {
   double get podeGastar => totalOrcado - comprasDoMes - pendenteDeEnvelope;
 
   // ── Caixa do mês: contas que vencem agora × dinheiro que entrou ──
+  /// Quitada vale o valor cheio; senão, o que já foi pago em partes.
   static double pagoDe(Map<String, dynamic> c) =>
-      (c['valor_pago'] as num?)?.toDouble() ?? (c['pago'] == true ? _n(c['valor']) : 0);
+      c['pago'] == true ? _n(c['valor']) : (c['valor_pago'] as num?)?.toDouble() ?? 0;
 
   double get totalContas => contasDoMes.fold(0.0, (s, c) => s + _n(c['valor']));
   double get totalPago => contasDoMes.fold(0.0, (s, c) => s + pagoDe(c));

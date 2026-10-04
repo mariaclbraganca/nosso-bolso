@@ -158,3 +158,13 @@ class _Dia extends StatelessWidget {
     );
   }
 }
+
+/// Minutos de exercício nos últimos 7 dias (hoje incluso).
+int minutosDaSemana(List<Map<String, dynamic>>? dias, [DateTime? agora]) {
+  if (dias == null) return 0;
+  final hoje = agora ?? DateTime.now();
+  final semana = {for (var i = 0; i < 7; i++) _iso(DateTime(hoje.year, hoje.month, hoje.day - i))};
+  return dias
+      .where((d) => semana.contains(d['data']))
+      .fold(0, (s, d) => s + ((d['total_duracao_min'] as num?) ?? 0).round());
+}

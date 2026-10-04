@@ -5,7 +5,8 @@ import 'package:nosso_bolso_v3/core/services/saude_api_service.dart';
 import 'package:nosso_bolso_v3/screens/sheets/comum.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
-import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
+import 'package:nosso_bolso_v3/core/plano/falas.dart';
+import 'package:nosso_bolso_v3/screens/home/widgets/home_fala_time.dart';
 import 'widgets/form_treino_sheet.dart';
 import 'exercicio_historico_view.dart';
 
@@ -117,18 +118,7 @@ class ExercicioHoje extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    UnicornWidget(type: UnicornType.happy, size: 40, mood: UnicornMood.focus),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: UnicornFala(
-                        type: UnicornType.happy,
-                        texto: 'Coloque o corpo em movimento hoje!',
-                      ),
-                    ),
-                  ],
-                ),
+                FalaCurta(fala: falaDoExercicio(minSemana: minutosDaSemana(ref.watch(historicoExercicioProvider(membroId)).valueOrNull))),
               ],
             ),
           ),

@@ -7,7 +7,8 @@ import 'package:nosso_bolso_v3/core/services/jejum_notification_service.dart';
 import 'package:nosso_bolso_v3/screens/sheets/comum.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
-import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
+import 'package:nosso_bolso_v3/core/plano/falas.dart';
+import 'package:nosso_bolso_v3/screens/home/widgets/home_fala_time.dart';
 import 'widgets/jejum_config_sheet.dart';
 import 'widgets/jejum_conclusao_sheet.dart';
 import 'widgets/jejum_timer_display.dart';
@@ -311,19 +312,8 @@ class _JejumTabState extends ConsumerState<JejumTab> {
         ),
         const SizedBox(height: 16),
 
-        // ── Mensagem de carinho Sweet ──
-        const Row(
-          children: [
-            UnicornWidget(type: UnicornType.sweet, size: 40, mood: UnicornMood.love),
-            SizedBox(width: 8),
-            Expanded(
-              child: UnicornFala(
-                type: UnicornType.sweet,
-                texto: 'Seu corpo sabe se renovar. Respeite seus limites sempre.',
-              ),
-            ),
-          ],
-        ),
+        // ── Fala do time (Sweet ou Happy, pelo momento do jejum) ──
+        FalaCurta(fala: falaDoJejum(ativo: ativo != null, decorrido: decorrido, metaHoras: metaHoras)),
         const SizedBox(height: 24),
       ],
     );

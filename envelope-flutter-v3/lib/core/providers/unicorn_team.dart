@@ -32,6 +32,10 @@ final unicornTeamProvider       = StateProvider<UnicornMessage?>((ref) => null);
 final unicornTeamMomentProvider = StateProvider<TeamMoment?>((ref) => null);
 
 extension UnicornTrigger on WidgetRef {
+  /// Mostra uma fala pronta (tipo, humor e texto).
+  void falarComo(UnicornType type, String text, UnicornMood mood) =>
+      read(unicornTeamProvider.notifier).state = UnicornMessage(type: type, text: text, mood: mood);
+
   void astrix(
     String text, {
     UnicornMood mood = UnicornMood.wave,

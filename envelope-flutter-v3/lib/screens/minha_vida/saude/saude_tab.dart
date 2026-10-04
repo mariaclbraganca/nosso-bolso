@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nosso_bolso_v3/core/providers/saude_provider.dart';
 import 'package:nosso_bolso_v3/ui/components/nb_components.dart';
 import 'package:nosso_bolso_v3/ui/theme/nb_theme.dart';
-import 'package:nosso_bolso_v3/ui/unicorn/unicorn.dart';
+import 'package:nosso_bolso_v3/core/plano/falas.dart';
+import 'package:nosso_bolso_v3/screens/home/widgets/home_fala_time.dart';
 import 'historico_saude_screen.dart';
 import 'perfil_metabolico_screen.dart';
 import 'sugestao_jantar_screen.dart';
@@ -89,17 +90,13 @@ class SaudeTab extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    UnicornWidget(type: UnicornType.happy, size: 40, mood: UnicornMood.focus),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: UnicornFala(
-                        type: UnicornType.happy,
-                        texto: 'Comida boa alimenta o corpo e a mente!',
-                      ),
-                    ),
-                  ],
+                FalaCurta(
+                  fala: falaDaAlimentacao(
+                    kcal: calIngeridas.toDouble(),
+                    metaKcal: calMeta.toDouble(),
+                    proteina: (extratoAsync.asData?.value['proteina_consumida_g'] as num?)?.toDouble() ?? 0,
+                    metaProteina: (extratoAsync.asData?.value['proteina_meta_g'] as num?)?.toDouble() ?? 0,
+                  ),
                 ),
               ],
             ),
