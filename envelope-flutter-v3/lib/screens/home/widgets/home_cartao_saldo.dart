@@ -182,6 +182,12 @@ class SeloDoMes extends StatelessWidget {
               if (l.faltaSairNoMes > 0) ...[
                 Text('Vai sair da reserva em $mes: ${brl(l.faltaSairNoMes)}', style: forte),
                 Text('para terminar de pagar as contas de $mes', style: leve),
+                if (l.eventuaisAReceber.isNotEmpty)
+                  Text(
+                    'Se ${l.eventuaisAReceber.map((r) => (r['nome'] as String?) ?? 'a receita').join(' e ')} cair: '
+                    '${brl((l.faltaSairNoMes - l.eventuaisAReceber.fold(0.0, (s, r) => s + ((r['valor'] as num?) ?? 0))).clamp(0, double.infinity))}',
+                    style: leve,
+                  ),
               ],
               if (l.faltaSairNoMes > 0 && l.deficitReserva > 0) const SizedBox(height: 4),
               if (l.deficitReserva > 0) Text('Falta dinheiro em $proximo (sai da reserva): ${brl(l.deficitReserva)}', style: forte),

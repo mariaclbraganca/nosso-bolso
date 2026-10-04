@@ -95,13 +95,13 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     );
 
     final filhos = <Widget>[
-      if (limite != null)
-        LimiteResumoCard(limite: limite, totalOrcado: total)
-      else
-        CartaoNB(child: LinhaValorNB('Total planejado dos envelopes', total, forte: true)),
+      if (limite != null) TopoOrcamento(limite: limite, totalOrcado: total),
       const SizedBox(height: NBSpacing.l),
-      Text('Planejado por envelope', style: NBText.secao),
-      Text('Compras no cartão ou Pix. Abaixo de cada um, a média gasta nos últimos 3 meses, só como referência.',
+      Row(children: [
+        Expanded(child: Text('Envelopes', style: NBText.secao)),
+        Text(brl(total), style: NBText.secao),
+      ]),
+      Text('Compras no cartão ou Pix. Embaixo de cada um, a média dos últimos 3 meses, como referência.',
           style: NBText.legenda),
       const SizedBox(height: NBSpacing.s),
       for (final env in envelopes)
@@ -146,23 +146,8 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
         ),
     ];
     final botao = BotaoPrincipal(rotulo: 'Salvar orçamento', carregando: _salvando, onPressed: _salvar);
-    // Barra fixa: o resultado continua à vista enquanto rola pelos envelopes.
-    final barra = Column(mainAxisSize: MainAxisSize.min, children: [
-      if (limite != null) ...[
-        Row(children: [
-          Expanded(child: Text('Planejado ${brl(total)}', style: NBText.rotulo)),
-          Text(
-            limite.limite - total < 0 ? 'Falta dinheiro ${brl(total - limite.limite)}' : 'Ainda pode ${brl(limite.limite - total)}',
-            style: NBText.rotulo.copyWith(color: limite.limite - total < 0 ? NBColors.ambarTexto : NBColors.verde),
-          ),
-        ]),
-        const SizedBox(height: NBSpacing.s),
-      ],
-      if (widget.emFolha || _mudados.isNotEmpty || _salvando) botao,
-    ]);
-
     if (widget.emFolha) {
-      return CascaSheet(filhos: [const TopoSheet(titulo: 'Orçamento mensal'), const SizedBox(height: NBSpacing.l), ...filhos], botao: barra);
+      return CascaSheet(filhos: [const TopoSheet(titulo: 'Orçamento mensal'), const SizedBox(height: NBSpacing.l), ...filhos], botao: botao);
     }
     return Column(children: [
       Expanded(
@@ -171,11 +156,13 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
           children: filhos,
         ),
       ),
-      Container(
-        padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.m, NBSpacing.margemTela, NBSpacing.m),
-        decoration: const BoxDecoration(color: NBColors.cartao, border: Border(top: BorderSide(color: NBColors.linha))),
-        child: barra,
-      ),
+      // Salvar só aparece quando algum envelope mudou.
+      if (_mudados.isNotEmpty || _salvando)
+        Container(
+          padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.m, NBSpacing.margemTela, NBSpacing.m),
+          decoration: const BoxDecoration(color: NBColors.cartao, border: Border(top: BorderSide(color: NBColors.linha))),
+          child: botao,
+        ),
     ]);
   }
 }

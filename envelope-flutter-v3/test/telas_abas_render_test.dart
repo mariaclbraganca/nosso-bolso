@@ -77,7 +77,7 @@ void main() {
     await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.textContaining('ORÇAMENTO DE'), findsOneWidget); // aba Orçamento abre primeiro
+    expect(find.text('Ver a conta ›'), findsOneWidget); // aba Orçamento abre primeiro
     await abrirAbas(t, ['Resumo']);
     expect(find.text('Salário'), findsWidgets); // na lista de receitas e no "de onde vem"
     await abrirAbas(t, ['Orçamento']);

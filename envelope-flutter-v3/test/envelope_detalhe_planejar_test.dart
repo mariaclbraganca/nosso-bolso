@@ -68,18 +68,19 @@ void main() {
         extras: [limiteMesProvider.overrideWith((ref) => AsyncValue.data(limite))]));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    expect(find.text('ENTRADAS (+)'), findsOneWidget);
-    expect(find.text('Gastos a serem pagos em novembro'), findsOneWidget);
-    expect(find.text(brl(2500)), findsOneWidget); // 2000 de contas + 500 de parcela
-    expect(find.text('Custo do mês'), findsOneWidget);
-    expect(find.text(brl(4000)), findsOneWidget); // 2500 + planejado 1500
-    expect(find.text('Ainda pode distribuir'), findsOneWidget);
-    expect(find.text('Planejado ${brl(1500)}'), findsOneWidget); // barra fixa
+    expect(find.text('AINDA PODE DISTRIBUIR'), findsOneWidget);
+    expect(find.text(brl(1000)), findsOneWidget); // 5000 − (2500 + 1500)
+    expect(find.text('Entra ${brl(5000)}  ·  Sai ${brl(4000)}'), findsOneWidget);
     expect(find.text(brl(-1500)), findsNothing); // sem números negativos
 
     await t.enterText(find.widgetWithText(TextField, '300,00'), '2000');
     await t.pumpAndSettle();
+    expect(find.text('FALTA DINHEIRO PARA NOVEMBRO'), findsOneWidget);
+    expect(find.text(brl(700)), findsOneWidget); // 5000 − (2500 + 3200)
+
+    await t.tap(find.text('Ver a conta ›'));
+    await t.pumpAndSettle();
+    expect(find.text('ENTRADAS CONFIRMADAS (+)'), findsOneWidget);
     expect(find.text('Falta dinheiro (sai da reserva)'), findsOneWidget);
-    expect(find.text('Falta dinheiro ${brl(700)}'), findsOneWidget); // 5000 − (2500 + 3200)
   });
 }

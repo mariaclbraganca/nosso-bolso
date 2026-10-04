@@ -17,6 +17,7 @@ void main() {
       receitas: const [
         {'tipo': 'dinheiro', 'valor': 5491.0},
         {'tipo': 'vale', 'valor': 750.0},
+        {'nome': 'Aluguel da casa', 'tipo': 'eventual', 'valor': 1150.0, 'recebido': false},
       ],
       contasDoMes: const [
         {'nome': 'Fatura Aruã', 'valor': 7058.46, 'valor_pago': 5370.38},
@@ -43,6 +44,7 @@ void main() {
     expect(find.text(brl(2666)), findsOneWidget);
     expect(find.text('Vai sair da reserva em outubro: ${brl(6861.33)}'), findsOneWidget);
     expect(find.text('para terminar de pagar as contas de outubro'), findsOneWidget);
+    expect(find.text('Se Aluguel da casa cair: ${brl(5711.33)}'), findsOneWidget);
     expect(find.text('Falta dinheiro em novembro (sai da reserva): ${brl(4744.24)}'), findsOneWidget);
     expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(12231.71)), findsOneWidget);
