@@ -81,7 +81,8 @@ void main() {
     expect(find.text('Ana'), findsOneWidget);
     await t.enterText(find.byType(TextField).first, '115000');
     await t.pump();
-    expect(find.text(brl(-461.46)), findsOneWidget); // disponível −1.611,46 + 1.150
+    expect(find.text('Vai sair da reserva até o salário'), findsOneWidget); // receita entra no caixa
+    expect(find.textContaining('reduz o que sai da reserva'), findsOneWidget);
     await t.tap(find.text('Guardar na reserva'));
     await t.pump();
     expect(find.text('Guardado na reserva neste mês'), findsOneWidget);

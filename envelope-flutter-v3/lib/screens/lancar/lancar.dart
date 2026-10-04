@@ -476,10 +476,13 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
               ? PreviaImpacto(
                   titulo: 'Efeito desta receita',
                   linhas: [
-                    (rotulo: 'Disponível para gastar no mês', agora: l.disponivel, depois: l.disponivel + _v),
-                    (rotulo: 'Limite de compras do mês', agora: l.limite, depois: l.limite + _v),
+                    (
+                      rotulo: 'Vai sair da reserva até o salário',
+                      agora: l.vaiSairDaReserva,
+                      depois: l.vaiSairDaReserva - (_v < l.faltaCaixa ? _v : l.faltaCaixa),
+                    ),
                   ],
-                  nota: 'Entra para a família toda: aumenta o que todos podem gastar neste mês.',
+                  nota: 'Entra no caixa do mês: ajuda a pagar as contas e reduz o que sai da reserva.',
                 )
               : PreviaImpacto(
                   titulo: 'Efeito desta receita',

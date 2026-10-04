@@ -56,6 +56,9 @@ double comprometidoNaFatura(List<Map<String, dynamic>> compromissos, String mesF
 /// 'dinheiro' ou 'va'.
 typedef CompraMes = ({double valor, String? envelopeId, String forma});
 
+/// Situação do mês no card do Início: verde, amarelo ou vermelho.
+enum SeloMes { cobertoPeloSalario, dependeDaReserva, acimaDoOrcamento }
+
 /// O que importa no dia a dia: quanto ainda dá para gastar no mês.
 ///
 /// O salário do último dia útil do mês paga a fatura que vence dia 7 do mês
@@ -71,6 +74,7 @@ class LimiteMes {
     required this.envelopes,
     required this.compras,
     this.vaSobraAnterior = 0,
+    this.dinheiroAnterior = 0,
   });
 
   final String mes;
@@ -89,6 +93,9 @@ class LimiteMes {
   final List<Map<String, dynamic>> envelopes;
   final List<CompraMes> compras;
   final double vaSobraAnterior;
+
+  /// Parte do salário do mês anterior que ficou para as contas deste mês.
+  final double dinheiroAnterior;
 
   static double _recebido(Map<String, dynamic> r) => (r['valor_recebido'] as num?)?.toDouble() ?? _n(r['valor']);
 
@@ -109,7 +116,9 @@ class LimiteMes {
   String get mesFatura => somarMeses(mes, 1);
   double get lancamentosFuturos => comprometidoNaFatura(compromissos, mesFatura);
 
-  double get limite => salario + eventuais - provisaoContas - lancamentosFuturos;
+  /// Disponível para planejar: só o garantido. Receitas eventuais entram no
+  /// caixa do mês (reduzem o que sai da reserva), não no ciclo do salário.
+  double get limite => salario - provisaoContas - lancamentosFuturos;
 
   Iterable<CompraMes> get _semVa => compras.where((c) => c.forma != 'va');
   double get comprasDoMes => _semVa.where((c) => c.envelopeId != null).fold(0.0, (s, c) => s + c.valor);
@@ -137,6 +146,37 @@ class LimiteMes {
       envelopes.fold(0.0, (s, e) => s + (realizadoDe(e) > orcadoDe(e) ? realizadoDe(e) : orcadoDe(e))) -
       pendenteDeEnvelope;
   double get deficitReserva => resultadoProjetado < 0 ? -resultadoProjetado : 0;
+
+  /// Pode gastar ainda: o orçado nos envelopes menos o que já foi gasto.
+  double get podeGastar => totalOrcado - comprasDoMes - pendenteDeEnvelope;
+
+  // ── Caixa do mês: contas que vencem agora × dinheiro que entrou ──
+  static double pagoDe(Map<String, dynamic> c) =>
+      (c['valor_pago'] as num?)?.toDouble() ?? (c['pago'] == true ? _n(c['valor']) : 0);
+
+  double get totalContas => contasDoMes.fold(0.0, (s, c) => s + _n(c['valor']));
+  double get totalPago => contasDoMes.fold(0.0, (s, c) => s + pagoDe(c));
+  double get faltaPagar => totalContas - totalPago;
+
+  /// Compras que saem da conta na hora (Pix, débito, dinheiro).
+  double get comprasAVista =>
+      compras.where((c) => c.forma != 'credito' && c.forma != 'va').fold(0.0, (s, c) => s + c.valor);
+  double get dinheiroDoMes => dinheiroAnterior + eventuais;
+
+  double get cobertoPelaReserva => _max0(totalPago + comprasAVista - dinheiroDoMes);
+  double get faltaCaixa => _max0(totalContas + comprasAVista - dinheiroDoMes);
+
+  /// Até o próximo salário: contas sem dinheiro + falta no ciclo do salário.
+  double get vaiSairDaReserva => faltaCaixa + deficitReserva;
+  double get aindaFaltaSair => _max0(vaiSairDaReserva - cobertoPelaReserva);
+
+  SeloMes get selo => podeGastar < 0
+      ? SeloMes.acimaDoOrcamento
+      : vaiSairDaReserva > 0
+          ? SeloMes.dependeDaReserva
+          : SeloMes.cobertoPeloSalario;
+
+  static double _max0(double v) => v > 0 ? v : 0;
   double get economiaEmEnvelopes =>
       envelopes.fold(0.0, (s, e) => s + (disponivelDe(e) > 0 ? disponivelDe(e) : 0));
 

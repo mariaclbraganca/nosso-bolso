@@ -39,8 +39,8 @@ void main() {
     await t.pump(const Duration(milliseconds: 300));
     expect(t.takeException(), isNull);
     expect(find.textContaining('RESULTADO DO CICLO · SALÁRIO DE 30/10'), findsOneWidget);
-    // limite 5491 + 300 − 4706,47 − 506,95 = 577,58; orçado 1300 → previsto −722,42
-    expect(find.text(brl(-722.42)), findsWidgets);
+    // limite 5491 − 4706,47 − 506,95 = 277,58 (eventual vai para o caixa); orçado 1300 → previsto −1.022,42
+    expect(find.text(brl(-1022.42)), findsWidgets);
     expect(find.text('Déficit coberto pela reserva'), findsOneWidget);
     expect(find.textContaining('eventual · Ana'), findsOneWidget);
     expect(find.textContaining('Transição de outubro'), findsOneWidget);

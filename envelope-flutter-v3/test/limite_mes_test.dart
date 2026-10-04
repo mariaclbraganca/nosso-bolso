@@ -64,12 +64,107 @@ void main() {
     expect(l.saldoADistribuir, closeTo(-4277.46, 0.001));
   });
 
-  test('receita eventual: orçamento do mês sobe o limite; reserva não', () {
+  test('receita eventual entra no caixa do mês, não no limite do salário', () {
     final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
-    expect(outubro(rec: [...receitas.take(2), aluguel]).limite, closeTo(-405.46, 0.001));
+    final noMes = outubro(rec: [...receitas.take(2), aluguel]);
+    expect(noMes.limite, closeTo(-1555.46, 0.001));
+    expect(noMes.dinheiroDoMes, 1150);
     final l = outubro(rec: [...receitas.take(2), {...aluguel, 'destino': 'reserva'}]);
     expect(l.limite, closeTo(-1555.46, 0.001));
+    expect(l.dinheiroDoMes, 0);
     expect(l.guardadoNaReserva, 1150);
+  });
+
+  group('outubro real (protótipo v8 e banco)', () {
+    // Contas de outubro como estão em gastos_fixos.
+    final contasReais = <Map<String, dynamic>>[
+      {'nome': 'Fatura Aruã', 'valor': 7058.46, 'valor_pago': 5370.38, 'recorrente': false},
+      for (final (n, v) in const [
+        ('Aluguel apartamento', 2148.43), ('Faculdade', 586.00), ('Água', 18.00), ('Unimed', 800.87),
+        ('Cartão Alanna', 284.08), ('MEI', 174.10), ('Internet', 96.77), ('Energia (estimativa)', 400.00),
+        ('Gás (estimativa)', 65.00), ('Condomínio (estimativa)', 600.00),
+      ])
+        {'nome': n, 'valor': v, 'recorrente': true, 'pago': false},
+    ];
+    LimiteMes real({List<Map<String, dynamic>>? rec, List<Map<String, dynamic>>? contas, List<CompraMes> compras = comprasOut}) =>
+        LimiteMes(
+          mes: '2026-10',
+          receitas: rec ?? receitas,
+          contasDoMes: contas ?? contasReais,
+          compromissos: compromissos,
+          envelopes: envelopes,
+          compras: compras,
+          dinheiroAnterior: 5370.38,
+        );
+
+    test('card e orçamento', () {
+      final l = real();
+      expect(l.provisaoContas, closeTo(5173.25, 0.001));
+      expect(l.limite, closeTo(-2022.24, 0.001)); // disponível para planejar
+      expect(l.resultadoPrevisto, closeTo(-4744.24, 0.001));
+      expect(l.podeGastar, closeTo(2666, 0.001));
+      expect(l.selo, SeloMes.dependeDaReserva);
+    });
+
+    test('contas de outubro: fatura cheia com pagamento parcial', () {
+      final l = real();
+      expect(l.totalContas, closeTo(12231.71, 0.001));
+      expect(l.totalPago, closeTo(5370.38, 0.001));
+      expect(l.faltaPagar, closeTo(6861.33, 0.001));
+      expect(l.cobertoPelaReserva, 0);
+      expect(l.faltaCaixa, closeTo(6861.33, 0.001));
+      expect(l.vaiSairDaReserva, closeTo(6861.33 + 4744.24, 0.001));
+    });
+
+    test('a fatura em duas linhas (como está hoje) dá o mesmo total', () {
+      final dividida = [
+        {'nome': 'Fatura Aruã – parte paga', 'valor': 5370.38, 'pago': true},
+        {'nome': 'Fatura Aruã – restante', 'valor': 1688.08, 'pago': false},
+        ...contasReais.skip(1),
+      ];
+      final l = real(contas: dividida);
+      expect(l.totalContas, closeTo(12231.71, 0.001));
+      expect(l.totalPago, closeTo(5370.38, 0.001));
+    });
+
+    test('pagar o aluguel do apartamento: sai da reserva o que passou do salário', () {
+      final contas = [
+        for (final c in contasReais) c['nome'] == 'Aluguel apartamento' ? {...c, 'pago': true} : c,
+      ];
+      final l = real(contas: contas);
+      expect(l.cobertoPelaReserva, closeTo(2148.43, 0.001));
+      expect(l.aindaFaltaSair, closeTo(6861.33 + 4744.24 - 2148.43, 0.001));
+    });
+
+    test('aluguel da casa recebido reduz o que sai da reserva', () {
+      final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
+      final l = real(rec: [...receitas.take(2), aluguel]);
+      expect(l.limite, closeTo(-2022.24, 0.001));
+      expect(l.faltaCaixa, closeTo(5711.33, 0.001));
+    });
+
+    test('Pix sai do caixa na hora; crédito não', () {
+      final l = real(compras: [...comprasOut, (valor: 30, envelopeId: 'lazer', forma: 'pix')]);
+      expect(l.comprasAVista, 30);
+      expect(l.faltaCaixa, closeTo(6891.33, 0.001));
+      expect(l.podeGastar, closeTo(2636, 0.001));
+    });
+
+    test('selos', () {
+      final estourou = real(compras: [(valor: 3000, envelopeId: 'mercado', forma: 'credito')]);
+      expect(estourou.selo, SeloMes.acimaDoOrcamento);
+      final folgado = LimiteMes(
+        mes: '2026-10',
+        receitas: [{'valor': 9000.0, 'tipo': 'dinheiro'}],
+        contasDoMes: [{'valor': 1000.0, 'recorrente': true, 'pago': true}],
+        compromissos: const [],
+        envelopes: envelopes,
+        compras: comprasOut,
+        dinheiroAnterior: 1000,
+      );
+      expect(folgado.selo, SeloMes.cobertoPeloSalario);
+      expect(folgado.resultadoProjetado, closeTo(9000 - 1000 - 2722, 0.001));
+    });
   });
 
   test('pendente de envelope já desconta do disponível; VA separado', () {
