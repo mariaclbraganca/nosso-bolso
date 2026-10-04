@@ -54,7 +54,7 @@ void main() {
     addTearDown(t.view.reset);
     await t.pumpWidget(_app(const SheetCompra()));
     await t.pump();
-    await t.enterText(find.byType(TextField).first, '300000');
+    await t.enterText(find.byType(TextField).first, '3000');
     await t.tap(find.text('Pets'));
     await t.pump();
     await t.tap(find.text('À vista'));
@@ -78,7 +78,7 @@ void main() {
     await t.pump();
     await t.pump();
     expect(find.text('QUEM RECEBEU'), findsNothing); // é sempre quem está logado
-    await t.enterText(find.byType(TextField).first, '115000');
+    await t.enterText(find.byType(TextField).first, '1150');
     await t.pump();
     expect(find.text('Vai sair da reserva até o salário'), findsOneWidget); // receita entra no caixa
     expect(find.textContaining('reduz o que sai da reserva'), findsOneWidget);

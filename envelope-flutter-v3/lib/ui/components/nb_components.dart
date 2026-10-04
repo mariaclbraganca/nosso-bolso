@@ -496,7 +496,7 @@ class CampoValor extends StatelessWidget {
                 autofocus: autofocus,
                 onChanged: onChanged,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly, MoedaInputFormatter()],
+                inputFormatters: [ReaisInputFormatter()],
                 style: NBText.saldo.copyWith(fontSize: 40, color: corValor),
                 decoration: InputDecoration(
                   hintText: '0,00',

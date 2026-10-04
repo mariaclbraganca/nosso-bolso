@@ -74,7 +74,7 @@ void main() {
     expect(find.text('Saldo a distribuir'), findsOneWidget);
     expect(find.text(brl(1000)), findsOneWidget);
 
-    await t.enterText(find.widgetWithText(TextField, '300,00'), '200000');
+    await t.enterText(find.widgetWithText(TextField, '300,00'), '2000');
     await t.pumpAndSettle();
     expect(find.text('Resultado previsto (sai da reserva)'), findsOneWidget);
   });

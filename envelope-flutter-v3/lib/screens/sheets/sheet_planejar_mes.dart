@@ -112,7 +112,7 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
                   controller: _ctrl(env),
                   textAlign: TextAlign.end,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, MoedaInputFormatter()],
+                  inputFormatters: [ReaisInputFormatter()],
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(prefixText: 'R\$ ', hintText: '0,00', isDense: true),
                 ),

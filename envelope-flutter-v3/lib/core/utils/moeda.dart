@@ -79,3 +79,36 @@ class MoedaInputFormatter extends TextInputFormatter {
   }
 }
 
+
+
+/// Campo de valor em reais: digitar 60 é R$ 60,00; centavos depois da vírgula
+/// (60,50). O ponto digitado vira vírgula; no máximo 2 casas decimais.
+class ReaisInputFormatter extends TextInputFormatter {
+  ReaisInputFormatter({this.maxInteiros = 9});
+  final int maxInteiros;
+
+  static String normalizar(String texto) {
+    var s = texto.replaceAll(RegExp(r'[^\d,.]'), '');
+    if (s.contains(',')) {
+      s = s.replaceAll('.', ''); // valor já formatado (1.300,00): pontos são milhar
+    } else if (s.contains('.')) {
+      final i = s.lastIndexOf('.'); // teclado com ponto: o último é o decimal
+      s = '${s.substring(0, i).replaceAll('.', '')},${s.substring(i + 1).replaceAll('.', '')}';
+    }
+    final virgula = s.indexOf(',');
+    var inteiros = virgula < 0 ? s : s.substring(0, virgula);
+    var decimais = virgula < 0 ? null : s.substring(virgula + 1).replaceAll(',', '');
+    inteiros = inteiros.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    if (decimais != null && decimais.length > 2) decimais = decimais.substring(0, 2);
+    if (decimais != null && inteiros.isEmpty) inteiros = '0';
+    return decimais == null ? inteiros : '$inteiros,$decimais';
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var texto = normalizar(newValue.text);
+    final inteiros = texto.split(',').first;
+    if (inteiros.length > maxInteiros) return oldValue;
+    return TextEditingValue(text: texto, selection: TextSelection.collapsed(offset: texto.length));
+  }
+}
