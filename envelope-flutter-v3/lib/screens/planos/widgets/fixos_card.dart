@@ -56,92 +56,96 @@ class FixosCard extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(NBRadius.cartao),
-          child: Row(
-            children: [
-              if (modoSelecao)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Checkbox(
-                    value: selecionado,
-                    activeColor: NBColors.verde,
-                    onChanged: (v) => onTap(),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(
+              children: [
+                if (modoSelecao)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Checkbox(
+                      value: selecionado,
+                      activeColor: NBColors.verde,
+                      onChanged: (v) => onTap(),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: Icon(
+                      pago ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: pago ? NBColors.verde : NBColors.tintaSuave,
+                      size: 24,
+                    ),
+                    onPressed: () => onTogglePago(!pago),
                   ),
-                )
-              else
-                IconButton(
-                  icon: Icon(
-                    pago ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                    color: pago ? NBColors.verde : NBColors.tintaSuave,
-                    size: 24,
-                  ),
-                  onPressed: () => onTogglePago(!pago),
-                ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nome,
-                      style: NBText.corpo.copyWith(
-                        fontWeight: FontWeight.w600,
-                        decoration: pago ? TextDecoration.lineThrough : null,
-                        color: pago ? NBColors.tintaSuave : NBColors.tinta,
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nome,
+                        style: NBText.corpo.copyWith(
+                          fontWeight: FontWeight.w600,
+                          decoration: pago ? TextDecoration.lineThrough : null,
+                          color: pago ? NBColors.tintaSuave : NBColors.tinta,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (diaVenc != null)
-                          Text('Vence dia $diaVenc', style: NBText.legenda),
-                        if (atrasado) ...[
-                          const SizedBox(width: 6),
-                          const SeloNB('ATRASADO', cor: NBColors.estouro, fundo: NBColors.estouroClaro),
-                        ] else if (venceHoje) ...[
-                          const SizedBox(width: 6),
-                          const SeloNB('VENCE HOJE', cor: NBColors.ambarTexto, fundo: NBColors.ambarClaro),
-                        ] else if (pago) ...[
-                          const SizedBox(width: 6),
-                          const SeloNB('PAGO', cor: NBColors.verde, fundo: NBColors.verdeClaro),
+                      const SizedBox(height: 2),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (diaVenc != null) Text('Vence dia $diaVenc', style: NBText.legenda),
+                          if (atrasado) ...[
+                            const SeloNB('ATRASADO', cor: NBColors.estouro, fundo: NBColors.estouroClaro),
+                          ] else if (venceHoje) ...[
+                            const SeloNB('VENCE HOJE', cor: NBColors.ambarTexto, fundo: NBColors.ambarClaro),
+                          ] else if (pago) ...[
+                            const SeloNB('PAGO', cor: NBColors.verde, fundo: NBColors.verdeClaro),
+                          ],
                         ],
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  brl(valor),
+                  style: NBText.valorCartao.copyWith(
+                    fontSize: 16,
+                    color: pago ? NBColors.tintaSuave : NBColors.tinta,
+                    decoration: pago ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, size: 20, color: NBColors.tintaSuave),
+                  color: NBColors.cartao,
+                  onSelected: (val) {
+                    if (val == 'editar') onEditar();
+                    if (val == 'excluir') onExcluir();
+                    if (val == 'parte') onPagarParte?.call();
+                  },
+                  itemBuilder: (ctx) => [
+                    if (!pago && onPagarParte != null) const PopupMenuItem(value: 'parte', child: Text('Pagar parte')),
+                    const PopupMenuItem(value: 'editar', child: Text('Editar')),
+                    const PopupMenuItem(
+                      value: 'excluir',
+                      child: Text('Excluir', style: TextStyle(color: NBColors.estouro)),
                     ),
-                    if (parcial)
-                      Text('Pago ${brl(valorPago)} · falta ${brl(valor - valorPago)}',
-                          style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
                   ],
                 ),
+              ],
+            ),
+            if (parcial)
+              Padding(
+                padding: const EdgeInsets.only(left: 52, bottom: 2),
+                child: Text('Pago ${brl(valorPago)} · falta ${brl(valor - valorPago)}',
+                    style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
               ),
-              const SizedBox(width: 8),
-              Text(
-                brl(valor),
-                style: NBText.valorCartao.copyWith(
-                  fontSize: 16,
-                  color: pago ? NBColors.tintaSuave : NBColors.tinta,
-                  decoration: pago ? TextDecoration.lineThrough : null,
-                ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded, size: 20, color: NBColors.tintaSuave),
-                color: NBColors.cartao,
-                onSelected: (val) {
-                  if (val == 'editar') onEditar();
-                  if (val == 'excluir') onExcluir();
-                  if (val == 'parte') onPagarParte?.call();
-                },
-                itemBuilder: (ctx) => [
-                  if (!pago && onPagarParte != null) const PopupMenuItem(value: 'parte', child: Text('Pagar parte')),
-                  const PopupMenuItem(value: 'editar', child: Text('Editar')),
-                  const PopupMenuItem(
-                    value: 'excluir',
-                    child: Text('Excluir', style: TextStyle(color: NBColors.estouro)),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ]),
         ),
       ),
     );

@@ -193,6 +193,7 @@ class ContasDoMesCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(children: [
             Expanded(child: Text(r, style: forte ? NBText.rotulo : NBText.corpo.copyWith(fontSize: 14))),
+            const SizedBox(width: 8),
             Text(brl(v), style: (forte ? NBText.rotulo : NBText.corpo.copyWith(fontSize: 14)).copyWith(color: cor)),
           ]),
         );

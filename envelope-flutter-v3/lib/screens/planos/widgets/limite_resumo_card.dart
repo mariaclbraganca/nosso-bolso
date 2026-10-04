@@ -52,8 +52,9 @@ class LinhaValorNB extends StatelessWidget {
   }
 }
 
-/// Limite de compras do mês: salário + eventuais − provisão − lançamentos
-/// futuros; depois o total orçado e o saldo a distribuir.
+/// Disponível para planejar: salário − provisão − lançamentos futuros (só o
+/// garantido; receitas eventuais vão para o caixa das contas); depois o total
+/// orçado e o resultado previsto.
 class LimiteResumoCard extends StatelessWidget {
   const LimiteResumoCard({super.key, required this.limite, this.totalOrcado});
   final LimiteMes limite;
@@ -67,19 +68,13 @@ class LimiteResumoCard extends StatelessWidget {
     final orcado = totalOrcado ?? l.totalOrcado;
     final saldo = l.limite - orcado;
     final proximo = nomeMes(somarMeses(l.mes, 1));
-    final eventuais = [
-      for (final r in l.receitas)
-        if (r['tipo'] == 'eventual' && r['recebido'] == true && r['destino'] != 'reserva')
-          ('${r['nome']}${r['quem'] == null ? '' : ' · ${r['quem']}'}', ((r['valor_recebido'] ?? r['valor']) as num).toDouble()),
-    ];
     return CartaoNB(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('LIMITE DE COMPRAS DE ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
+          Text('DISPONÍVEL PARA PLANEJAR · COMPRAS DE ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
           const SizedBox(height: 4),
           LinhaValorNB('Salário de ${ultimoDiaUtil(l.mes)}', l.salario),
-          LinhaValorNB('(+) Receitas eventuais recebidas', l.eventuais, detalhe: eventuais, vazio: 'nenhuma ainda'),
           LinhaValorNB(
             '(−) Provisão para contas de $proximo',
             -l.provisaoContas,
@@ -94,11 +89,11 @@ class LimiteResumoCard extends StatelessWidget {
             ],
           ),
           const Divider(height: 8),
-          LinhaValorNB('Limite de compras do mês', l.limite, forte: true),
+          LinhaValorNB('Disponível para planejar', l.limite, forte: true),
           LinhaValorNB('(−) Total orçado nos envelopes', -orcado),
           const Divider(height: 8),
           LinhaValorNB(
-            saldo >= 0 ? 'Saldo a distribuir' : 'Orçado acima do limite (déficit)',
+            saldo >= 0 ? 'Saldo a distribuir' : 'Resultado previsto (sai da reserva)',
             saldo,
             forte: true,
             cor: saldo >= 0 ? NBColors.verde : NBColors.estouro,
@@ -110,7 +105,7 @@ class LimiteResumoCard extends StatelessWidget {
               decoration: BoxDecoration(color: NBColors.ambarClaro, borderRadius: BorderRadius.circular(12)),
               child: Text(
                 'Se gastarem exatamente o orçado, faltarão ${brl(-saldo)} no salário de ${ultimoDiaUtil(l.mes)}. '
-                'Esse valor sai da reserva. Para fechar sem reserva, o total orçado precisa caber no limite.',
+                'Esse valor sai da reserva. Para fechar sem reserva, o total orçado precisa caber no disponível para planejar.',
                 style: NBText.corpo.copyWith(fontSize: 13.5, color: NBColors.ambarTexto),
               ),
             ),

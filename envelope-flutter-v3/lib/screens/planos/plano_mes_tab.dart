@@ -153,7 +153,6 @@ class _DeOndeVem extends StatelessWidget {
         Text('DE ONDE VEM E PARA ONDE VAI', style: NBText.eyebrow),
         const SizedBox(height: 4),
         LinhaValorNB('Salário de ${ultimoDiaUtil(l.mes)}', l.salario, cor: NBColors.verde),
-        LinhaValorNB('(+) Receitas eventuais recebidas', l.eventuais, vazio: 'nenhuma ainda'),
         LinhaValorNB(
           '(−) Fatura Nubank · vence 7/${l.mesFatura.substring(5)}',
           -l.faturaEmFormacao,
