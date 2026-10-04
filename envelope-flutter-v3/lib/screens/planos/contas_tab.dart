@@ -15,6 +15,7 @@ import 'widgets/fixos_card.dart';
 import 'widgets/form_conta_sheet.dart';
 import 'widgets/form_fixo_sheet.dart';
 import 'widgets/plano_sheets.dart';
+import '../../../core/plano/plano_mes.dart';
 import '../../../core/providers/plano_provider.dart';
 
 /// Boleto do mês seguinte para uma conta recorrente (mesmo dia, limitado
@@ -109,6 +110,48 @@ class ContasTab extends ConsumerWidget {
     }
   }
 
+  /// Paga só uma parte da conta (ex.: fatura paga em etapas).
+  Future<void> _pagarParte(BuildContext context, Map<String, dynamic> c) async {
+    final falta = ((c['valor'] as num?)?.toDouble() ?? 0) - LimiteMes.pagoDe(c);
+    final ctrl = TextEditingController();
+    final valor = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NBColors.cartao,
+        title: Text('Pagar parte · ${c['nome']}', style: const TextStyle(color: NBColors.tinta)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Falta pagar ${brl(falta)}', style: NBText.legenda),
+          const SizedBox(height: 8),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Valor pago agora', prefixText: 'R\$ '),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text.replaceAll('.', '').replaceAll(',', '.'))),
+            child: const Text('Registrar pagamento'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (valor == null || valor <= 0) return;
+    if (valor > falta + 0.005) {
+      avisar('O valor passa do que falta pagar (${brl(falta)}).', erro: true);
+      return;
+    }
+    try {
+      await pagarParteDaConta(c['id'] as String, valor);
+      avisar('Pagamento de ${brl(valor)} registrado.');
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    }
+  }
+
   Future<bool> _confirmarExclusao(BuildContext context, String nome) async =>
       await showDialog<bool>(
         context: context,
@@ -188,9 +231,8 @@ class ContasTab extends ConsumerWidget {
     final mes = ref.watch(mesAtualProvider);
     final boletos = ref.watch(contasMesProvider(mes));
     final contas = juntarContas(ref.watch(fixosMesAtualProvider), boletos.valueOrNull ?? const []);
-    double soma(Iterable<Map<String, dynamic>> l) => l.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
-    final total = soma(contas);
-    final pendente = soma(contas.where((c) => c['pago'] != true));
+    final total = contas.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
+    final pendente = total - contas.fold(0.0, (s, c) => s + LimiteMes.pagoDe(c));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
@@ -220,6 +262,14 @@ class ContasTab extends ConsumerWidget {
             ],
           ),
         ),
+        if (ref.watch(limiteMesProvider).valueOrNull case final l?)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Pago ${brl(total - pendente)} · coberto pela reserva até agora ${brl(l.cobertoPelaReserva)}',
+              style: NBText.legenda,
+            ),
+          ),
         if (boletos.hasError)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -247,6 +297,7 @@ class ContasTab extends ConsumerWidget {
                     onLongPress: () => _abrir(context, ref, FormFixoSheet(fixoParaEditar: c)),
                     onEditar: () => _abrir(context, ref, FormFixoSheet(fixoParaEditar: c)),
                     onExcluir: () => _excluir(context, ref, c),
+                    onPagarParte: () => _pagarParte(context, c),
                   )
                 : ContasCard(
                     conta: c,

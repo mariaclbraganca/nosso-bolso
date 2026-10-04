@@ -19,26 +19,33 @@ void main() {
         {'tipo': 'vale', 'valor': 750.0},
       ],
       contasDoMes: const [
-        {'valor': 4706.47, 'recorrente': true},
+        {'nome': 'Fatura Aruã', 'valor': 7058.46, 'valor_pago': 5370.38},
+        {'nome': 'Recorrentes', 'valor': 5173.25, 'recorrente': true},
       ],
       compromissos: const [
         {'descricao': 'Parcelas e assinaturas', 'valor': 2339.99, 'mes_fatura': '2026-11'},
       ],
-      envelopes: const [],
+      envelopes: const [
+        {'id': 'mercado', 'valor_planejado': 2722},
+      ],
       compras: const [
         (valor: 56, envelopeId: 'mercado', forma: 'credito'),
         (valor: 30, envelopeId: 'va', forma: 'va'),
       ],
+      dinheiroAnterior: 5370.38,
     );
     await t.pumpWidget(MaterialApp(
       theme: nossoBolsoTheme(),
       home: Scaffold(body: SingleChildScrollView(child: CartaoDisponivel(limite: l, saldoConta: 0))),
     ));
     expect(t.takeException(), isNull);
-    expect(find.text('DISPONÍVEL PARA GASTAR EM OUTUBRO'), findsOneWidget);
-    expect(find.text(brl(-1611.46)), findsOneWidget);
-    expect(find.text(brl(-1555.46)), findsOneWidget);
-    expect(find.textContaining('salário de 30/10 já está todo comprometido com as contas de novembro'), findsOneWidget);
+    expect(find.text('PODE GASTAR AINDA EM OUTUBRO'), findsOneWidget);
+    expect(find.text(brl(2666)), findsOneWidget);
+    // 6.861,33 das contas de outubro + 4.744,24 do ciclo do salário
+    expect(find.text('Depende da reserva: ${brl(11605.57)} até o salário de 30/10'), findsOneWidget);
+    expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
+    expect(find.text(brl(12231.71)), findsOneWidget);
+    expect(find.text(brl(6861.33)), findsOneWidget);
     expect(find.text('Vale-alimentação'), findsOneWidget);
     expect(find.text(brl(720)), findsOneWidget);
   });

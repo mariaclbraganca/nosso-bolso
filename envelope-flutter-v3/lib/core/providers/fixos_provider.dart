@@ -21,7 +21,7 @@ final fixosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 final fixosMesAtualProvider = Provider<List<Map<String, dynamic>>>((ref) {
   final todos = ref.watch(fixosStreamProvider).valueOrNull ?? [];
   final mes   = ref.watch(mesAtualProvider);
-  final fixosMes = todos.where((f) => f['mes'] == mes).toList();
+  final fixosMes = todos.where((f) => f['mes'] == mes && f['deleted_at'] == null).toList();
 
   // Agenda notificações sempre que a lista muda (idempotente por ID)
   NotificationService.agendarAlertasFixos(fixosMes, mes);

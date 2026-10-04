@@ -63,22 +63,21 @@ void main() {
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
     expect(find.text('Efeito desta compra neste mês'), findsOneWidget);
-    expect(find.text(brl(-2040.03)), findsOneWidget); // −1.611,46 − 428,57
+    expect(find.text(brl(-384.57)), findsOneWidget); // pode gastar 100 − 56 − 428,57
     expect(find.text('Pets fica ${brl(328.57)} acima do orçado.'), findsOneWidget);
     expect(find.textContaining('7x de ${brl(428.57)}'), findsOneWidget);
     expect(find.text('7/7'), findsOneWidget);
     expect(find.text('mai'), findsOneWidget);
   });
 
-  testWidgets('Receita: quem recebeu e destino mudam a prévia', (t) async {
+  testWidgets('Receita: destino muda a prévia', (t) async {
     t.view.physicalSize = const Size(1200, 3000);
     t.view.devicePixelRatio = 2.5;
     addTearDown(t.view.reset);
     await t.pumpWidget(_app(const SheetReceita()));
     await t.pump();
     await t.pump();
-    expect(find.text('Frederico'), findsOneWidget);
-    expect(find.text('Ana'), findsOneWidget);
+    expect(find.text('QUEM RECEBEU'), findsNothing); // é sempre quem está logado
     await t.enterText(find.byType(TextField).first, '115000');
     await t.pump();
     expect(find.text('Vai sair da reserva até o salário'), findsOneWidget); // receita entra no caixa

@@ -7,7 +7,6 @@ import '../../core/providers/envelopes_provider.dart';
 import '../../core/providers/mes_provider.dart';
 import '../../core/providers/plano_provider.dart';
 import '../../core/providers/transacoes_provider.dart';
-import '../../core/providers/usuarios_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/utils/moeda.dart';
 import '../../ui/components/nb_components.dart';
@@ -303,13 +302,13 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
     }
     // Captura do Nubank já desconta como "pendente de envelope": tira ela antes.
     final jaContada = widget.captura == null ? 0.0 : (widget.captura!['valor_total'] as num).toDouble();
-    final agora = l.disponivel + jaContada;
+    final agora = l.podeGastar + jaContada;
     final env = l.envelopes.where((e) => e['id'] == _envelopeId).firstOrNull;
     final dispEnv = env == null ? null : l.disponivelDe(env);
     return PreviaImpacto(
       titulo: _n > 1 ? 'Efeito desta compra neste mês' : 'Efeito desta compra',
       linhas: [
-        (rotulo: 'Disponível para gastar no mês', agora: agora, depois: agora - v),
+        (rotulo: 'Pode gastar ainda no mês', agora: agora, depois: agora - v),
         if (env != null) (rotulo: 'Envelope ${env['nome_envelope']}', agora: dispEnv!, depois: dispEnv - v),
         if (_forma == 'credito') (rotulo: 'Fatura de 7/${abvMes(l.mesFatura)}', agora: l.faturaEmFormacao, depois: l.faturaEmFormacao + v),
       ],
@@ -385,7 +384,6 @@ class SheetReceita extends ConsumerStatefulWidget {
 class _SheetReceitaState extends ConsumerState<SheetReceita> {
   final _valor = TextEditingController();
   final _descricao = TextEditingController();
-  String? _quem;
   String _destino = 'mes';
   bool _salvando = false;
 
@@ -403,7 +401,7 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
     final p = perfilOuErro(ref);
     final mes = ref.read(mesAtualProvider);
     final desc = _descricao.text.trim().isEmpty ? 'Receita' : _descricao.text.trim();
-    final quem = _quem ?? (p['nome'] as String? ?? '').split(' ').first;
+    final quem = (p['nome'] as String? ?? '').split(' ').first; // quem está logado
     setState(() => _salvando = true);
     try {
       await ApiService.post('/plano/entradas', {
@@ -429,7 +427,7 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
       }
       ref.invalidate(entradasMesProvider(mes));
       HapticFeedback.mediumImpact();
-      avisar(_destino == 'mes' ? 'Receita de ${brl(_v)} lançada: o disponível do mês subiu.' : 'Receita de ${brl(_v)} guardada na reserva.');
+      avisar(_destino == 'mes' ? 'Receita de ${brl(_v)} lançada: reduz o que sai da reserva.' : 'Receita de ${brl(_v)} guardada na reserva.');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
@@ -440,10 +438,6 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
 
   @override
   Widget build(BuildContext context) {
-    final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? const [];
-    final nomes = [for (final m in membros) (m['nome'] as String? ?? '').split(' ').first].where((n) => n.isNotEmpty).toList();
-    final eu = (ref.watch(perfilUsuarioLogadoProvider).valueOrNull?['nome'] as String? ?? '').split(' ').first;
-    _quem ??= nomes.contains(eu) ? eu : (nomes.isEmpty ? null : nomes.first);
     final l = ref.watch(limiteMesProvider).valueOrNull;
 
     return CascaSheet(
@@ -456,12 +450,6 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
           controller: _descricao,
           decoration: const InputDecoration(labelText: 'DESCRIÇÃO', hintText: 'Ex.: Serviço de pintura, Aluguel da casa'),
         ),
-        const SizedBox(height: NBSpacing.l),
-        Text('QUEM RECEBEU', style: NBText.eyebrow),
-        const SizedBox(height: 6),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final n in nomes) ChipNB(rotulo: n, selecionado: _quem == n, onTap: () => setState(() => _quem = n)),
-        ]),
         const SizedBox(height: NBSpacing.l),
         Text('DESTINO DO DINHEIRO', style: NBText.eyebrow),
         const SizedBox(height: 6),

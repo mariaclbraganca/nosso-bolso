@@ -16,6 +16,7 @@ from database import get_supabase
 from models import GastoFixoCreate, GastoFixoUpdate
 from auth import AuthUser, get_current_user, assert_mesma_familia
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 
@@ -108,26 +109,33 @@ def atualizar_fixo(
     if mudou_status:
         familia_id = fixo["familia_id"]
         valor = float(update_data.get("valor", fixo["valor"]))
+        ja_pago = float(fixo.get("valor_pago") or 0)
 
         if update_data["pago"]:
-            # PAGAR: gera transação despesa_fixa (trigger debita o saldo em conta).
-            # Sem trava de saldo: a conta fica perto de zero e a reserva cobre
-            # o que faltar (saldo negativo = valor a cobrir com a reserva).
-            tx = {
-                "familia_id": familia_id,
-                "usuario_id": str(user.id),
-                "tipo": "despesa_fixa",
-                "valor": valor,
-                "data": _data_pagamento(fixo),
-                "descricao": f"{fixo['nome']} (fixo {fixo['mes']})",
-                "fixo_id": fixo_id,
-            }
-            db.table("transacoes").insert(tx).execute()
+            # PAGAR: gera transação despesa_fixa só do que falta (trigger debita
+            # o saldo em conta). Sem trava de saldo: a reserva cobre o que faltar.
+            falta = round(valor - ja_pago, 2)
+            if falta > 0:
+                db.table("transacoes").insert({
+                    "familia_id": familia_id,
+                    "usuario_id": str(user.id),
+                    "tipo": "despesa_fixa",
+                    "valor": falta,
+                    "data": _data_pagamento(fixo),
+                    "descricao": f"{fixo['nome']} (fixo {fixo['mes']})",
+                    "fixo_id": fixo_id,
+                }).execute()
+            if fixo.get("valor_pago") is not None:
+                update_data["valor_pago"] = valor
         else:
-            # DESMARCAR: soft-delete da transação despesa_fixa (trigger estorna)
-            db.table("transacoes").update({"deleted_at": datetime.now().isoformat()}) \
-                .eq("fixo_id", fixo_id).eq("tipo", "despesa_fixa") \
-                .is_("deleted_at", "null").execute()
+            # DESMARCAR: soft-delete das transações despesa_fixa (trigger estorna).
+            # O que foi pago fora do app (sem transação) continua pago.
+            estornadas = (db.table("transacoes").update({"deleted_at": datetime.now().isoformat()})
+                          .eq("fixo_id", fixo_id).eq("tipo", "despesa_fixa")
+                          .is_("deleted_at", "null").execute().data)
+            if fixo.get("valor_pago") is not None:
+                resto = round(ja_pago - sum(float(t["valor"]) for t in estornadas), 2)
+                update_data["valor_pago"] = resto if resto > 0 else None
 
     # Se mudou o valor de um fixo JÁ pago: estorna a antiga e gera a nova
     valor_mudou = (
@@ -150,6 +158,49 @@ def atualizar_fixo(
 
     result = db.table("gastos_fixos").update(update_data).eq("id", fixo_id).execute()
     return result.data[0]
+
+
+class PagamentoParcial(BaseModel):
+    valor: float = Field(gt=0)
+
+
+@router.post("/{fixo_id}/pagamento")
+def pagar_parte(
+    fixo_id: str,
+    payload: PagamentoParcial,
+    user: AuthUser = Depends(get_current_user),
+):
+    """Paga parte de uma conta: gera a transação despesa_fixa desse valor e soma
+    em valor_pago. Quando o pago alcança o valor da conta, ela fica quitada."""
+    db = get_supabase()
+    fixo_res = (db.table("gastos_fixos").select("*")
+                .eq("id", fixo_id).eq("familia_id", user.familia_id).execute().data)
+    if not fixo_res:
+        raise HTTPException(status_code=404, detail="Fixo não encontrado")
+    fixo = fixo_res[0]
+    valor_conta = float(fixo["valor"])
+    ja_pago = float(fixo.get("valor_pago") or (valor_conta if fixo.get("pago") else 0))
+    falta = round(valor_conta - ja_pago, 2)
+    if falta <= 0:
+        raise HTTPException(status_code=400, detail="Esta conta já está quitada")
+    if payload.valor > falta + 0.005:
+        raise HTTPException(status_code=400, detail=f"O valor passa do que falta pagar (R$ {falta:.2f})")
+
+    db.table("transacoes").insert({
+        "familia_id": fixo["familia_id"],
+        "usuario_id": str(user.id),
+        "tipo": "despesa_fixa",
+        "valor": round(payload.valor, 2),
+        "data": datetime.now().strftime("%Y-%m-%d"),
+        "descricao": f"{fixo['nome']} (pagamento parcial {fixo['mes']})",
+        "fixo_id": fixo_id,
+    }).execute()
+
+    novo_pago = round(ja_pago + payload.valor, 2)
+    return db.table("gastos_fixos").update({
+        "valor_pago": novo_pago,
+        "pago": novo_pago >= valor_conta - 0.005,
+    }).eq("id", fixo_id).execute().data[0]
 
 
 @router.delete("/{fixo_id}")

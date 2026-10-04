@@ -12,6 +12,7 @@ class FixosCard extends StatelessWidget {
   final VoidCallback onLongPress;
   final VoidCallback onEditar;
   final VoidCallback onExcluir;
+  final VoidCallback? onPagarParte;
 
   const FixosCard({
     super.key,
@@ -23,6 +24,7 @@ class FixosCard extends StatelessWidget {
     required this.onLongPress,
     required this.onEditar,
     required this.onExcluir,
+    this.onPagarParte,
   });
 
   @override
@@ -31,6 +33,8 @@ class FixosCard extends StatelessWidget {
     final valor = (fixo['valor'] as num?)?.toDouble() ?? 0.0;
     final pago = fixo['pago'] == true;
     final diaVenc = fixo['dia_vencimento'] as int?;
+    final valorPago = (fixo['valor_pago'] as num?)?.toDouble() ?? 0.0;
+    final parcial = !pago && valorPago > 0;
 
     // Status de vencimento
     final hoje = DateTime.now();
@@ -104,6 +108,9 @@ class FixosCard extends StatelessWidget {
                         ],
                       ],
                     ),
+                    if (parcial)
+                      Text('Pago ${brl(valorPago)} · falta ${brl(valor - valorPago)}',
+                          style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
                   ],
                 ),
               ),
@@ -122,8 +129,10 @@ class FixosCard extends StatelessWidget {
                 onSelected: (val) {
                   if (val == 'editar') onEditar();
                   if (val == 'excluir') onExcluir();
+                  if (val == 'parte') onPagarParte?.call();
                 },
                 itemBuilder: (ctx) => [
+                  if (!pago && onPagarParte != null) const PopupMenuItem(value: 'parte', child: Text('Pagar parte')),
                   const PopupMenuItem(value: 'editar', child: Text('Editar')),
                   const PopupMenuItem(
                     value: 'excluir',

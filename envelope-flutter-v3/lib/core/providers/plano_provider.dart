@@ -61,6 +61,7 @@ List<CompraMes> comprasDoMes(
 final limiteMesProvider = Provider.autoDispose<AsyncValue<LimiteMes>>((ref) {
   final mes = ref.watch(mesAtualProvider);
   final receitas = ref.watch(entradasMesProvider(mes));
+  final receitasAnteriores = ref.watch(entradasMesProvider(somarMeses(mes, -1))).valueOrNull ?? const [];
   final compromissos = ref.watch(compromissosCartaoProvider);
   if (receitas.hasError) return AsyncValue.error(receitas.error!, receitas.stackTrace!);
   if (compromissos.hasError) return AsyncValue.error(compromissos.error!, compromissos.stackTrace!);
@@ -94,5 +95,16 @@ final limiteMesProvider = Provider.autoDispose<AsyncValue<LimiteMes>>((ref) {
       idsVa,
     ),
     vaSobraAnterior: sobraVa,
+    dinheiroAnterior: salarioAnterior(receitasAnteriores),
   ));
 });
+
+/// Salário do mês anterior que paga as contas deste mês: o recebido (ou a
+/// parte reservada para as contas) ou, se ainda não marcado, o previsto.
+double salarioAnterior(List<Map<String, dynamic>> receitasAnteriores) => receitasAnteriores
+    .where((r) => (r['tipo'] ?? 'dinheiro') == 'dinheiro')
+    .fold(0.0, (s, r) => s + ((r['recebido'] == true ? r['valor_recebido'] : null) ?? r['valor'] as num? ?? 0).toDouble());
+
+/// Paga parte de uma conta (gasto fixo); o backend registra no Extrato.
+Future<void> pagarParteDaConta(String fixoId, double valor) =>
+    ApiService.post('/fixos/$fixoId/pagamento', {'valor': valor});
