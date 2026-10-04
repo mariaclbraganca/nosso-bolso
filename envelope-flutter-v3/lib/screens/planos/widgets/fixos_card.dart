@@ -112,14 +112,21 @@ class FixosCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  brl(valor),
-                  style: NBText.valorCartao.copyWith(
-                    fontSize: 16,
-                    color: pago ? NBColors.tintaSuave : NBColors.tinta,
-                    decoration: pago ? TextDecoration.lineThrough : null,
+                if (parcial)
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text('falta', style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
+                    Text(brl(valor - valorPago),
+                        style: NBText.valorCartao.copyWith(fontSize: 16, color: NBColors.estouro)),
+                  ])
+                else
+                  Text(
+                    brl(valor),
+                    style: NBText.valorCartao.copyWith(
+                      fontSize: 16,
+                      color: pago ? NBColors.tintaSuave : NBColors.tinta,
+                      decoration: pago ? TextDecoration.lineThrough : null,
+                    ),
                   ),
-                ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert_rounded, size: 20, color: NBColors.tintaSuave),
                   color: NBColors.cartao,
@@ -142,7 +149,7 @@ class FixosCard extends StatelessWidget {
             if (parcial)
               Padding(
                 padding: const EdgeInsets.only(left: 52, bottom: 2),
-                child: Text('Pago ${brl(valorPago)} · falta ${brl(valor - valorPago)}',
+                child: Text('de ${brl(valor)} · já pago ${brl(valorPago)}',
                     style: NBText.legenda.copyWith(color: NBColors.ambarTexto)),
               ),
           ]),

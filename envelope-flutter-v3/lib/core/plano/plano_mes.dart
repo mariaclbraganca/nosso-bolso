@@ -171,6 +171,9 @@ class LimiteMes {
   double get vaiSairDaReserva => faltaCaixa + deficitReserva;
   double get aindaFaltaSair => _max0(vaiSairDaReserva - cobertoPelaReserva);
 
+  /// O que ainda vai sair da reserva para fechar as contas deste mês.
+  double get faltaSairNoMes => _max0(faltaCaixa - cobertoPelaReserva);
+
   SeloMes get selo => podeGastar < 0
       ? SeloMes.acimaDoOrcamento
       : vaiSairDaReserva > 0

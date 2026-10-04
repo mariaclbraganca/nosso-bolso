@@ -161,22 +161,31 @@ class SeloDoMes extends StatelessWidget {
           NBColors.estouroClaro,
           NBColors.estouro,
         ),
-      SeloMes.dependeDaReserva => (
-          'Depende da reserva: ${brl(l.vaiSairDaReserva)} até o salário de ${ultimoDiaUtil(l.mes)}',
-          NBColors.ambarClaro,
-          NBColors.ambarTexto,
-        ),
+      SeloMes.dependeDaReserva => ('', NBColors.ambarClaro, NBColors.ambarTexto),
       SeloMes.cobertoPeloSalario => (
           'Coberto pelo salário · sobra ${brl(l.resultadoProjetado)}',
           NBColors.verdeClaro,
           NBColors.verdeProfundo,
         ),
     };
+    final forte = NBText.corpo.copyWith(color: cor, fontSize: 13, fontWeight: FontWeight.w700);
+    final leve = NBText.corpo.copyWith(color: cor, fontSize: 13);
+    final mes = nomeMes(l.mes), proximo = nomeMes(somarMeses(l.mes, 1));
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(10)),
-      child: Text(texto, style: NBText.corpo.copyWith(color: cor, fontSize: 13, fontWeight: FontWeight.w700)),
+      child: l.selo != SeloMes.dependeDaReserva
+          ? Text(texto, style: forte)
+          // Um mês de cada vez: o que sai para fechar este mês e o que o próximo já começa devendo.
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (l.faltaSairNoMes > 0) ...[
+                Text('Vai sair da reserva em $mes: ${brl(l.faltaSairNoMes)}', style: forte),
+                Text('para terminar de pagar as contas de $mes', style: leve),
+              ],
+              if (l.faltaSairNoMes > 0 && l.deficitReserva > 0) const SizedBox(height: 4),
+              if (l.deficitReserva > 0) Text('Para $proximo já estamos devendo ${brl(l.deficitReserva)}', style: forte),
+            ]),
     );
   }
 }

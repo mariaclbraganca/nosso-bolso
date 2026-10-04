@@ -41,11 +41,12 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('PODE GASTAR AINDA EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(2666)), findsOneWidget);
-    // 6.861,33 das contas de outubro + 4.744,24 do ciclo do salário
-    expect(find.text('Depende da reserva: ${brl(11605.57)} até o salário de 30/10'), findsOneWidget);
+    expect(find.text('Vai sair da reserva em outubro: ${brl(6861.33)}'), findsOneWidget);
+    expect(find.text('para terminar de pagar as contas de outubro'), findsOneWidget);
+    expect(find.text('Para novembro já estamos devendo ${brl(4744.24)}'), findsOneWidget);
     expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(12231.71)), findsOneWidget);
-    expect(find.text(brl(6861.33)), findsOneWidget);
+    expect(find.text(brl(6861.33)), findsOneWidget); // falta pagar no card de contas
     expect(find.text('Vale-alimentação'), findsOneWidget);
     expect(find.text(brl(720)), findsOneWidget);
   });

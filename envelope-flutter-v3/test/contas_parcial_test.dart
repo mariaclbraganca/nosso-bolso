@@ -22,7 +22,8 @@ void main() {
         ),
       ),
     ));
-    expect(find.text('Pago ${brl(5370.38)} · falta ${brl(1688.08)}'), findsOneWidget);
+    expect(find.text(brl(1688.08)), findsOneWidget); // o número grande é o que falta
+    expect(find.text('de ${brl(7058.46)} · já pago ${brl(5370.38)}'), findsOneWidget);
     await t.tap(find.byIcon(Icons.more_vert_rounded));
     await t.pumpAndSettle();
     await t.tap(find.text('Pagar parte'));
