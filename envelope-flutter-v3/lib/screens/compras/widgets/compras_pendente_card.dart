@@ -7,7 +7,7 @@ import '../../../ui/components/nb_components.dart';
 import '../../../ui/theme/nb_theme.dart';
 import '../../sheets/comum.dart';
 import '../nfce_fluxo.dart';
-import 'confirmar_compra_dialog.dart';
+import '../../lancar/lancar.dart';
 import 'qr_scanner_sheet.dart';
 
 class ComprasPendenteCard extends ConsumerStatefulWidget {
@@ -65,12 +65,7 @@ class _ComprasPendenteCardState extends ConsumerState<ComprasPendenteCard> {
     );
   }
 
-  void _confirmar() {
-    showDialog(
-      context: context,
-      builder: (_) => ConfirmarCompraDialog(compra: widget.compra),
-    );
-  }
+  void _confirmar() => abrirSheet(context, SheetCompra(captura: widget.compra));
 
   @override
   Widget build(BuildContext context) {

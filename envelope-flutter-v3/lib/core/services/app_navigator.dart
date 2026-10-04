@@ -7,10 +7,11 @@ final navigatorKey = GlobalKey<NavigatorState>();
 // do BuildContext de um sheet que já foi fechado (evita erro de árvore).
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-// Índices do IndexedStack do ShellScreen (5 abas)
+// Índices do IndexedStack do ShellScreen. Na barra: Início, Orçamento, [+],
+// Extrato e Mais (Compras e Minha Vida abrem pelo Mais).
 const int navHome     = 0;
-const int navExtrato  = 1;
-const int navPlanos   = 2;
+const int navPlanos   = 1;
+const int navExtrato  = 2;
 const int navCompras  = 3;
 const int navVida     = 4;
 
