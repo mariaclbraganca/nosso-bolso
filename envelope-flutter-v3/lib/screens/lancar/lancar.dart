@@ -11,22 +11,56 @@ import '../../core/services/api_service.dart';
 import '../../core/utils/moeda.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
+import '../compras/nfce_fluxo.dart';
+import '../compras/widgets/compras_pendente_card.dart';
+import '../compras/widgets/inserir_url_dialog.dart';
+import '../compras/widgets/qr_scanner_sheet.dart';
 import '../sheets/comum.dart';
 
-/// Botão "+ Lançar": escolhe entre compra e receita.
+/// Botão "+ Lançar": compra (digitada ou pela nota fiscal), compras
+/// capturadas a confirmar e receita.
 Future<void> abrirNovoLancamento(BuildContext context) => abrirSheet(context, const SheetNovoLancamento());
 
-class SheetNovoLancamento extends StatelessWidget {
+class SheetNovoLancamento extends ConsumerStatefulWidget {
   const SheetNovoLancamento({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    void ir(Widget folha) {
-      final nav = Navigator.of(context);
-      nav.pop();
-      abrirSheet(nav.context, folha);
-    }
+  ConsumerState<SheetNovoLancamento> createState() => _SheetNovoLancamentoState();
+}
 
+class _SheetNovoLancamentoState extends ConsumerState<SheetNovoLancamento> {
+  String _etapa = '';
+
+  void _ir(Widget folha) {
+    final nav = Navigator.of(context);
+    nav.pop();
+    abrirSheet(nav.context, folha);
+  }
+
+  /// A nota vira uma compra a confirmar logo abaixo (a sheet continua aberta).
+  Future<void> _processar(String url) async {
+    if (_etapa.isNotEmpty) return;
+    await processarNota(ref, url, onEtapa: (e) {
+      if (mounted) setState(() => _etapa = e);
+    });
+    if (mounted) setState(() => _etapa = '');
+  }
+
+  void _escanear() => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => QrScannerSheet(onCodeScanned: _processar),
+      );
+
+  Future<void> _colarLink() async {
+    final url = await showDialog<String>(context: context, builder: (_) => const InserirUrlDialog());
+    if (url != null) await _processar(url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull ?? const [];
     return CascaSheet(
       filhos: [
         const TopoSheet(titulo: 'Novo lançamento'),
@@ -40,7 +74,7 @@ class SheetNovoLancamento extends StatelessWidget {
                 fundo: NBColors.estouroClaro,
                 titulo: 'Compra',
                 texto: 'Cartão, Pix ou vale-alimentação',
-                onTap: () => ir(const SheetCompra()),
+                onTap: () => _ir(const SheetCompra()),
               ),
             ),
             const SizedBox(width: NBSpacing.m),
@@ -51,11 +85,40 @@ class SheetNovoLancamento extends StatelessWidget {
                 fundo: NBColors.verdeClaro,
                 titulo: 'Receita',
                 texto: 'Salário, aluguel ou trabalho de alguém da casa',
-                onTap: () => ir(const SheetReceita()),
+                onTap: () => _ir(const SheetReceita()),
               ),
             ),
           ],
         ),
+        const SizedBox(height: NBSpacing.s),
+        Wrap(spacing: 4, children: [
+          TextButton.icon(
+            onPressed: _escanear,
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+            label: const Text('Escanear nota fiscal'),
+          ),
+          TextButton.icon(
+            onPressed: _colarLink,
+            icon: const Icon(Icons.link_rounded, size: 20),
+            label: const Text('Link da NFC-e'),
+          ),
+        ]),
+        if (_etapa.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(children: [
+              const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2)),
+              const SizedBox(width: NBSpacing.m),
+              Expanded(child: Text(_etapa, style: NBText.corpo)),
+            ]),
+          ),
+        if (pendentes.isNotEmpty) ...[
+          const SizedBox(height: NBSpacing.m),
+          Text('COMPRAS A CONFIRMAR', style: NBText.eyebrow),
+          Text('Chegaram pelo Nubank ou pela nota fiscal; falta escolher o envelope.', style: NBText.legenda),
+          const SizedBox(height: 4),
+          for (final c in pendentes) ComprasPendenteCard(compra: c),
+        ],
       ],
       botao: BotaoSecundario(rotulo: 'Cancelar', onPressed: () => Navigator.pop(context)),
     );

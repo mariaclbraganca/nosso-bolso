@@ -44,8 +44,6 @@ class PlanoMesTab extends ConsumerWidget {
                   const SizedBox(height: NBSpacing.l),
                   _Transicao(limite: l),
                 ],
-                const SizedBox(height: NBSpacing.l),
-                ProximosMeses(limite: l),
               ],
             ),
           ),
@@ -229,7 +227,7 @@ class _Transicao extends StatelessWidget {
   }
 }
 
-/// Limite de compras dos próximos meses (sem receitas eventuais).
+/// Disponível para planejar nos próximos meses (sem receitas eventuais).
 class ProximosMeses extends StatelessWidget {
   const ProximosMeses({super.key, required this.limite});
   final LimiteMes limite;
@@ -240,7 +238,7 @@ class ProximosMeses extends StatelessWidget {
     final virada = meses.where((m) => m.limite >= 0).firstOrNull;
     return CartaoNB(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('LIMITE DE COMPRAS DOS PRÓXIMOS MESES', style: NBText.eyebrow),
+        Text('DISPONÍVEL PARA PLANEJAR NOS PRÓXIMOS MESES', style: NBText.eyebrow),
         Text('Salário − contas do mês seguinte − parcelas que ainda faltam (sem receitas eventuais)', style: NBText.legenda),
         const SizedBox(height: 6),
         for (final m in meses)
@@ -248,13 +246,9 @@ class ProximosMeses extends StatelessWidget {
         const Divider(height: 12),
         Text(
           virada == null
-              ? 'Nos próximos 5 meses o limite continua negativo. Vale rever as contas fixas.'
-              : 'O limite volta a ficar positivo em ${nomeMes(virada.mes)}.',
+              ? 'Nos próximos 5 meses continua negativo. Vale rever as contas fixas.'
+              : 'Volta a ficar positivo em ${nomeMes(virada.mes)}.',
           style: NBText.rotulo.copyWith(color: virada == null ? NBColors.estouro : NBColors.verde),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompromissosScreen())),
-          child: const Text('Ver lançamentos futuros do cartão'),
         ),
       ]),
     );

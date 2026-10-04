@@ -7,17 +7,18 @@ import '../../core/providers/fixos_provider.dart';
 import '../../core/providers/plano_provider.dart';
 import '../../core/providers/saude_provider.dart';
 import '../../core/providers/usuarios_provider.dart';
+import '../../core/providers/mes_provider.dart';
+import '../../core/services/api_service.dart';
 import '../../core/services/app_navigator.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
-import '../compras/compras_screen.dart';
 import '../config/config_screen.dart';
 import '../extrato/extrato_screen.dart';
 import '../home/home_screen.dart';
 import '../lancar/lancar.dart';
 import '../planos/contas_tab.dart';
 import '../planos/planos_screen.dart';
-import '../planos/widgets/plano_sheets.dart';
+import '../planos/futuro_screen.dart';
 import '../sheets/comum.dart';
 import 'barra_modulo.dart';
 import 'modulos_saude.dart';
@@ -42,6 +43,26 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   void initState() {
     super.initState();
     registrarDestinos(_abrir);
+    ref.listenManual(perfilUsuarioLogadoProvider, (_, perfil) {
+      final fam = perfil.valueOrNull?['familia_id'] as String?;
+      if (fam != null) _fecharMesAnterior(fam);
+    }, fireImmediately: true);
+  }
+
+  static bool _fechamentoConferido = false;
+
+  /// O mês fecha sozinho: na primeira abertura do mês, o backend fecha o
+  /// anterior (se ainda não foi). Falha de rede não atrapalha o uso.
+  Future<void> _fecharMesAnterior(String familiaId) async {
+    if (_fechamentoConferido) return;
+    _fechamentoConferido = true;
+    try {
+      final r = await ApiService.post('/fechamento/automatico', {'familia_id': familiaId});
+      if (r['fechado'] == true) avisar('O mês de ${mesLabelLongo(r['mes'] as String).toLowerCase()} foi fechado.');
+    } catch (e) {
+      _fechamentoConferido = false;
+      debugPrint('[Fechamento] automático não rodou: $e');
+    }
   }
 
   @override
@@ -73,7 +94,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
         empilhar(const ExtratoScreen());
       case Destino.compras:
         modulo(Modulo.financas);
-        empilhar(const ComprasScreen());
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) abrirNovoLancamento(ctx);
       case Destino.alimentacao:
         modulo(Modulo.alimentacao);
       case Destino.jejum:
@@ -110,7 +132,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
 class _FinancasShell extends ConsumerWidget {
   const _FinancasShell();
 
-  Future<void> _abrirMais(BuildContext context, int pendentes) async {
+  Future<void> _abrirMais(BuildContext context) async {
     final escolha = await showModalBottomSheet<Widget>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -121,30 +143,19 @@ class _FinancasShell extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.update_rounded),
               title: const Text('Futuro'),
-              subtitle: const Text('O que já devo, parcelas e quando terminam'),
-              onTap: () => Navigator.pop(ctx, const CompromissosScreen()),
+              subtitle: const Text('O que já devo, parcelas e simulações'),
+              onTap: () => Navigator.pop(ctx, const FuturoScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.format_list_bulleted_rounded),
               title: const Text('Extrato'),
-              subtitle: const Text('Tudo o que aconteceu no mês'),
+              subtitle: const Text('O que aconteceu, meses fechados e relatórios'),
               onTap: () => Navigator.pop(ctx, const ExtratoScreen()),
-            ),
-            ListTile(
-              leading: Badge(
-                isLabelVisible: pendentes > 0,
-                backgroundColor: NBColors.estouro,
-                label: Text('$pendentes'),
-                child: const Icon(Icons.receipt_long_outlined),
-              ),
-              title: const Text('Notas fiscais'),
-              subtitle: const Text('Escanear nota e compras a confirmar'),
-              onTap: () => Navigator.pop(ctx, const ComprasScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.savings_outlined),
               title: const Text('Patrimônio e reserva'),
-              subtitle: const Text('Contas, investimentos e a reserva'),
+              subtitle: const Text('Contas, investimentos, reserva e metas'),
               onTap: () => Navigator.pop(ctx, const PatrimonioScreen()),
             ),
             ListTile(
@@ -164,7 +175,6 @@ class _FinancasShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final aba = ref.watch(abaFinancasProvider);
-    final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
     return Scaffold(
       body: IndexedStack(
         index: aba,
@@ -175,10 +185,10 @@ class _FinancasShell extends ConsumerWidget {
           itemBarra('Início', Icons.home_outlined, Icons.home_rounded),
           itemBarra('Envelopes', Icons.mail_outline_rounded, Icons.mail_rounded),
           itemBarra('Contas', Icons.receipt_outlined, Icons.receipt_rounded),
-          itemBarra('Mais', Icons.menu_rounded, null, pendentes),
+          itemBarra('Mais', Icons.menu_rounded),
         ],
         ativo: aba,
-        onItem: (i) => i == 3 ? _abrirMais(context, pendentes) : ref.read(abaFinancasProvider.notifier).state = i,
+        onItem: (i) => i == 3 ? _abrirMais(context) : ref.read(abaFinancasProvider.notifier).state = i,
         onLancar: () => abrirNovoLancamento(context),
       ),
     );

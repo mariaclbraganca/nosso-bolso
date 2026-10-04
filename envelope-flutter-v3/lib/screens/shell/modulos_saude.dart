@@ -5,6 +5,11 @@ import '../../core/providers/usuarios_provider.dart';
 import '../../core/services/saude_api_service.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
+import '../../core/providers/compras_provider.dart';
+import '../../core/services/api_service.dart';
+import '../compras/nfce_fluxo.dart';
+import '../compras/widgets/compras_falhas_card.dart';
+import '../compras/widgets/feedback_consumo_tab.dart';
 import '../compras/widgets/lista_compras_tab.dart';
 import '../minha_vida/exercicio/exercicio_historico_view.dart';
 import '../minha_vida/exercicio/exercicio_tab.dart';
@@ -222,15 +227,58 @@ class SeletorMembroSaude extends ConsumerWidget {
   }
 }
 
-/// Despensa: lista de compras sugerida e estoque (vem das notas fiscais).
-class DespensaScreen extends StatelessWidget {
+/// Despensa: lista de compras sugerida, controle de estoque (vem das notas
+/// fiscais) e as notas que falharam na leitura.
+class DespensaScreen extends ConsumerStatefulWidget {
   const DespensaScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text('Despensa', style: NBText.secao)),
-        body: const SafeArea(bottom: false, child: ListaComprasTab()),
-      );
+  ConsumerState<DespensaScreen> createState() => _DespensaScreenState();
+}
+
+class _DespensaScreenState extends ConsumerState<DespensaScreen> {
+  var _estoque = false;
+
+  Future<void> _dispensarFalhas() async {
+    try {
+      await ApiService.delete('/api/v1/compras/falhas', familiaId: perfilOuErro(ref)['familia_id'] as String);
+      ref.invalidate(comprasFalhasProvider);
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final falhas = ref.watch(comprasFalhasProvider).valueOrNull ?? const [];
+    final feedback = ref.watch(feedbackPendenteProvider).valueOrNull ?? const [];
+    return Scaffold(
+      appBar: AppBar(title: Text('Despensa', style: NBText.secao)),
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          if (falhas.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 8, NBSpacing.margemTela, 0),
+              child: ComprasFalhasCard(
+                falhas: falhas,
+                onTentarDeNovo: (url) => processarNota(ref, url),
+                onDispensar: _dispensarFalhas,
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: NBSpacing.margemTela, vertical: 8),
+            child: Segmentado<bool>(
+              opcoes: {false: 'Lista de compras', true: feedback.isEmpty ? 'Estoque' : 'Estoque (${feedback.length})'},
+              valor: _estoque,
+              onChanged: (v) => setState(() => _estoque = v),
+            ),
+          ),
+          Expanded(child: _estoque ? const FeedbackConsumoTab() : const ListaComprasTab()),
+        ]),
+      ),
+    );
+  }
 }
 
 // ── Exercícios ─────────────────────────────────────────────────────────

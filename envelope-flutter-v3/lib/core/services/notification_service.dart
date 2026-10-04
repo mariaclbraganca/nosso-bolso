@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'app_navigator.dart';
-import '../../screens/fechamento_dia/fechamento_dia_screen.dart';
 
 // ── IDs fixos por tipo de notificação ────────────────────────────────────────
 class _NId {
@@ -65,14 +64,8 @@ class NotificationService {
         d?.notificationResponse?.payload == payloadFechamentoDia;
   }
 
-  static void abrirFechamentoDia() {
-    final nav = navigatorKey.currentState;
-    if (nav == null) return;
-    nav.push(MaterialPageRoute(
-      settings: const RouteSettings(name: 'fechamento_dia'),
-      builder: (_) => const FechamentoDiaScreen(),
-    ));
-  }
+  /// Alarme das 23h30: abre o lançamento com as compras a confirmar.
+  static void abrirFechamentoDia() => abrirDestino(Destino.compras);
 
   // ── Permissão (Android 13+) ───────────────────────────────────────────────
   static Future<bool> requestPermission() async {

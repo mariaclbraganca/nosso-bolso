@@ -10,8 +10,9 @@ import 'package:nosso_bolso_v3/core/providers/patrimonio_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/fixos_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/envelopes_provider.dart';
-import 'package:nosso_bolso_v3/screens/compras/compras_screen.dart';
+import 'package:nosso_bolso_v3/screens/shell/modulos_saude.dart';
 import 'package:nosso_bolso_v3/screens/planos/contas_tab.dart';
+import 'package:nosso_bolso_v3/screens/planos/futuro_screen.dart';
 import 'package:nosso_bolso_v3/screens/planos/planos_screen.dart';
 
 class _Perfil extends PerfilUsuarioNotifier {
@@ -44,7 +45,7 @@ void main() {
     perfilUsuarioLogadoProvider.overrideWith(_Perfil.new),
     envelopesProvider.overrideWith((ref) => Stream.value([{'id': 'e1', 'nome_envelope': 'Mercado', 'saldo_atual': 400, 'valor_planejado': 1200, 'natureza': 'consumo'}])),
   ];
-  testWidgets('Compras com pendente real e todas as abas', (t) async {
+  testWidgets('Despensa: lista de compras e estoque', (t) async {
     await t.pumpWidget(ProviderScope(overrides: [
       ...base,
       comprasPendentesProvider.overrideWith((ref) async => [compra]),
@@ -55,11 +56,12 @@ void main() {
         'itens': [{'nome': 'Café', 'categoria': 'mercearia', 'quantidade_sugerida': 2, 'unidade': 'un', 'preco_estimado': 38.0, 'motivo': 'acaba em 5 dias'}],
         'custo_estimado_total': 38.0, 'saldo_envelope': 412.3, 'dentro_do_orcamento': true, 'dias_cobertura': 12,
       }),
-    ], child: MaterialApp(theme: nossoBolsoTheme(), home: const ComprasScreen())));
+      comprasFalhasProvider.overrideWith((ref) async => <Map<String, dynamic>>[]),
+    ], child: MaterialApp(theme: nossoBolsoTheme(), home: const DespensaScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.textContaining('Assaí'), findsWidgets);
-    await abrirAbas(t, ['Lista IA', 'Feedback', 'Pendentes']);
+    expect(find.textContaining('Café'), findsWidgets); // lista de compras abre primeiro
+    await abrirAbas(t, ['Estoque', 'Lista de compras']);
   });
   final planos = [
       ...base,
@@ -78,8 +80,17 @@ void main() {
     expect(find.textContaining('DISPONÍVEL PARA PLANEJAR'), findsOneWidget); // aba Orçamento abre primeiro
     await abrirAbas(t, ['Resumo']);
     expect(find.text('Salário'), findsOneWidget);
-    await abrirAbas(t, ['Metas', 'Orçamento']);
-    expect(find.text('Contas'), findsNothing); // Contas agora fica na barra de Finanças
+    await abrirAbas(t, ['Orçamento']);
+    expect(find.text('Contas'), findsNothing); // Contas fica na barra de Finanças
+    expect(find.text('Metas'), findsNothing); // Metas ficam em Patrimônio e reserva
+  });
+  testWidgets('Futuro: próximos meses, parcelas e simulações', (t) async {
+    await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const FuturoScreen())));
+    await t.pump(const Duration(milliseconds: 500));
+    expect(t.takeException(), isNull);
+    expect(find.text('DISPONÍVEL PARA PLANEJAR NOS PRÓXIMOS MESES'), findsOneWidget);
+    await abrirAbas(t, ['Parcelas', 'Simulações']);
+    expect(find.text('Simular um cenário'), findsOneWidget);
   });
   testWidgets('Contas: fixos e boletos na mesma lista', (t) async {
     await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const ContasScreen())));

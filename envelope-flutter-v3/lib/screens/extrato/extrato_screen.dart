@@ -5,6 +5,7 @@ import '../../core/providers/mes_provider.dart';
 import '../../core/providers/transacoes_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
+import '../retrospectiva/retrospectiva_screen.dart';
 import 'exportar_dialog.dart';
 import 'lixeira_screen.dart';
 import 'relatorios_tab.dart';
@@ -77,7 +78,9 @@ class _ExtratoScreenState extends ConsumerState<ExtratoScreen> {
             color: NBColors.cartao,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NBRadius.cartao)),
             onSelected: (val) {
-              if (val == 'resumo') {
+              if (val == 'meses') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const RetrospectivaScreen()));
+              } else if (val == 'resumo') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ResumoMensalScreen()));
               } else if (val == 'lixeira') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const LixeiraScreen()));
@@ -86,8 +89,9 @@ class _ExtratoScreenState extends ConsumerState<ExtratoScreen> {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'resumo', child: Row(children: [Icon(Icons.pie_chart_outline_rounded, size: 18), SizedBox(width: 10), Text('Resumo Executivo')])),
-              const PopupMenuItem(value: 'exportar', child: Row(children: [Icon(Icons.download_rounded, size: 18), SizedBox(width: 10), Text('Exportar CSV')])),
+              const PopupMenuItem(value: 'meses', child: Row(children: [Icon(Icons.history_rounded, size: 18), SizedBox(width: 10), Text('Meses fechados')])),
+              const PopupMenuItem(value: 'resumo', child: Row(children: [Icon(Icons.pie_chart_outline_rounded, size: 18), SizedBox(width: 10), Text('Relatórios do mês')])),
+              const PopupMenuItem(value: 'exportar', child: Row(children: [Icon(Icons.download_rounded, size: 18), SizedBox(width: 10), Text('Exportar PDF ou CSV')])),
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'lixeira', child: Row(children: [Icon(Icons.delete_outline_rounded, size: 18, color: NBColors.estouro), SizedBox(width: 10), Text('Lixeira', style: TextStyle(color: NBColors.estouro))])),
             ],

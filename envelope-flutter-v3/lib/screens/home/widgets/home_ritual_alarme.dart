@@ -5,7 +5,7 @@ import '../../../ui/theme/nb_theme.dart';
 
 const _kPermissaoPedida = 'alarme_fechamento_permissao';
 
-/// Se o app foi aberto pelo alarme, vai direto ao fechamento do dia (o tap
+/// Se o app foi aberto pelo alarme, vai direto às compras a confirmar (o tap
 /// com o app fechado não passa pelo onDidReceiveNotificationResponse).
 /// Senão, na primeira abertura explica o alarme das 23h30 e pede as
 /// permissões (notificações, alarme exato, tela cheia) que ele precisa.
@@ -28,10 +28,10 @@ Future<void> _preparar(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: NBColors.cartao,
-      title: Text('Conferência diária (23h30)', style: NBText.secao),
+      title: Text('Lembrete das 23h30', style: NBText.secao),
       content: Text(
-        'Todo dia às 23h30 o celular toca para a família fechar o dia: conferir os gastos '
-        'e confirmar os envelopes. Leva 30 segundos.\n\n'
+        'Todo dia às 23h30 o celular toca e abre as compras do dia que ainda estão sem envelope. '
+        'Leva 30 segundos.\n\n'
         'Na próxima tela, permita notificações, alarmes e tela cheia.',
         style: NBText.corpo,
       ),

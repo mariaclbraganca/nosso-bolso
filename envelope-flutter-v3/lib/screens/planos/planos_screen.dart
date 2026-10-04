@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../retrospectiva/retrospectiva_screen.dart';
-import '../sheets/sheet_fechar_mes.dart';
 import '../../core/providers/mes_provider.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
-import 'metas_tab.dart';
 import 'plano_mes_tab.dart';
 import '../sheets/sheet_planejar_mes.dart';
 
-enum AbaPlanos { orcamento, mes, metas }
+enum AbaPlanos { orcamento, mes }
 
 class PlanosScreen extends ConsumerStatefulWidget {
   const PlanosScreen({super.key});
@@ -26,26 +23,11 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
     final abasMap = <AbaPlanos, String>{
       AbaPlanos.orcamento: 'Orçamento',
       AbaPlanos.mes: 'Resumo',
-      AbaPlanos.metas: 'Metas',
     };
 
     return Scaffold(
       appBar: AppBar(
         title: const TituloMes(),
-        actions: [
-          IconButton(
-            tooltip: 'Retrospectiva',
-            icon: const Icon(Icons.history_rounded),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RetrospectivaScreen()),
-            ),
-          ),
-          TextButton(
-            onPressed: () => abrirSheet(context, const SheetFecharMes()),
-            child: const Text('Fechar mês'),
-          ),
-          const SizedBox(width: 4),
-        ],
       ),
       body: SafeArea(
         bottom: false,
@@ -63,7 +45,6 @@ class _PlanosScreenState extends ConsumerState<PlanosScreen> {
               child: switch (_aba) {
                 AbaPlanos.orcamento => const OrcamentoMensal(),
                 AbaPlanos.mes => const PlanoMesTab(),
-                AbaPlanos.metas => const MetasTab(),
               },
             ),
           ],

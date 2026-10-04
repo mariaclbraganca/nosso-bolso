@@ -36,7 +36,6 @@ class HomeCabecalho extends ConsumerWidget {
     final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
     final mes = mesLabelLongo(ref.watch(mesAtualProvider)).split(' ').first.toLowerCase();
     final familia = (perfil?['familias'] as Map?)?['nome'] as String?;
-    final nome = ((perfil?['nome'] as String?) ?? '').split(' ').first;
 
     return Row(
       children: [

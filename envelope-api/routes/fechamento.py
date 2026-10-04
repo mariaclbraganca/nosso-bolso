@@ -12,6 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
 from models import FecharMesPayload
 from auth import AuthUser, get_current_user, assert_mesma_familia
+from datetime import datetime, timedelta
+from uuid import UUID
+from zoneinfo import ZoneInfo
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -60,6 +64,39 @@ def fechar_mes(
             "coberto_por_fora": ciclo_dados.get("coberto", 0),
         },
     }
+
+
+# Meses antes do modelo novo (out/2026) ficam como estão: não fecham sozinhos.
+INICIO_FECHAMENTO_AUTOMATICO = "2026-10"
+
+
+class FechamentoAutomaticoPayload(BaseModel):
+    familia_id: UUID
+
+
+@router.post("/automatico")
+def fechar_automatico(
+    payload: FechamentoAutomaticoPayload,
+    user: AuthUser = Depends(get_current_user),
+):
+    """
+    O mês fecha sozinho: o app chama ao abrir. Fecha o mês anterior (horário de
+    Brasília) se ainda não foi fechado. Rodar de novo no mesmo mês não faz nada.
+    """
+    fam = assert_mesma_familia(user, payload.familia_id)
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    anterior = (hoje.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    if anterior < INICIO_FECHAMENTO_AUTOMATICO:
+        return {"fechado": False, "mes": anterior, "motivo": "antes do modelo novo"}
+
+    db = get_supabase()
+    ja = (db.table("historico_mensal").select("mes")
+          .eq("familia_id", fam).eq("mes", anterior).limit(1).execute().data)
+    if ja:
+        return {"fechado": False, "mes": anterior, "motivo": "já fechado"}
+
+    r = fechar_mes(FecharMesPayload(familia_id=fam, mes=anterior), user)
+    return {"fechado": True, "mes": anterior, "ciclo": r["ciclo"]}
 
 
 @router.get("/retrospectiva/{mes}")

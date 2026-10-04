@@ -233,8 +233,19 @@ class _SheetCompromissoState extends ConsumerState<SheetCompromisso> {
 }
 
 /// Lista de parcelas e assinaturas ativas, com quantas faltam e o fim.
-class CompromissosScreen extends ConsumerWidget {
+class CompromissosScreen extends StatelessWidget {
   const CompromissosScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Lançamentos futuros')),
+        body: const ListaCompromissos(),
+      );
+}
+
+/// Parcelas e assinaturas das próximas faturas (arrastar para remover).
+class ListaCompromissos extends ConsumerWidget {
+  const ListaCompromissos({super.key});
 
   Future<void> _remover(WidgetRef ref, Map<String, dynamic> c) async {
     try {
@@ -248,9 +259,7 @@ class CompromissosScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mesFatura = somarMeses(ref.watch(mesAtualProvider), 1);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Lançamentos futuros')),
-      body: ref.watch(compromissosCartaoProvider).when(
+    return ref.watch(compromissosCartaoProvider).when(
             loading: () => const UnicornCarregando(),
             error: (e, _) => UnicornErro(mensagem: mensagemErro(e), onTentar: () => ref.invalidate(compromissosCartaoProvider)),
             data: (lista) {
@@ -284,8 +293,7 @@ class CompromissosScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
-    );
+          );
   }
 }
 

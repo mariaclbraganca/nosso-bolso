@@ -9,10 +9,9 @@ import '../../ui/theme/nb_theme.dart';
 import '../sheets/comum.dart';
 import 'notificacoes_screen.dart';
 import 'ia_config_screen.dart';
-import 'insights_astrix_screen.dart';
-import 'simulador_gastos_screen.dart';
 import 'perfil_familia_screen.dart';
 import 'pin_config_screen.dart';
+import '../planos/metas_tab.dart';
 import '../planos/patrimonio_tab.dart';
 
 /// Central de configurações da v3.
@@ -161,29 +160,9 @@ List<SecaoConfig> secoesConfig(BuildContext context, WidgetRef ref) {
         subtitulo: 'Chaves do Gemini usadas pelo app',
         abrir: () => abrir(const IaConfigScreen()),
       ),
-      ItemConfig(
-        icone: Icons.insights_outlined,
-        titulo: 'Relatório da semana',
-        subtitulo: 'Nota e dicas do Astrix sobre finanças, alimentação e exercício',
-        abrir: () => abrir(const InsightsAstrixScreen()),
-      ),
-    ]),
-    SecaoConfig('Ferramentas', [
-      ItemConfig(
-        icone: Icons.calculate_outlined,
-        titulo: 'Simulador de gastos',
-        subtitulo: 'Cenários "e se" antes de decidir',
-        abrir: () => abrir(const SimuladorGastosScreen()),
-      ),
     ]),
     if (admin)
-      SecaoConfig('Patrimônio e segurança', [
-        ItemConfig(
-          icone: Icons.savings_outlined,
-          titulo: 'Patrimônio e reserva',
-          subtitulo: 'Contas, investimentos, metas de saldo e a reserva de emergência',
-          abrir: () => abrir(const PatrimonioScreen()),
-        ),
+      SecaoConfig('Segurança', [
         ItemConfig(
           icone: Icons.lock_outline_rounded,
           titulo: 'PIN do Patrimônio',
@@ -211,13 +190,30 @@ class _LinhaConfig extends StatelessWidget {
   }
 }
 
-/// Patrimônio fora de Planos: mesma tela (com o PIN), aberta pelas Configurações.
-class PatrimonioScreen extends StatelessWidget {
+/// Patrimônio e reserva (com o PIN) e as metas de economia, aberto pelo Mais.
+class PatrimonioScreen extends StatefulWidget {
   const PatrimonioScreen({super.key});
+
+  @override
+  State<PatrimonioScreen> createState() => _PatrimonioScreenState();
+}
+
+class _PatrimonioScreenState extends State<PatrimonioScreen> {
+  var _metas = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Patrimônio e reserva')),
-        body: const PatrimonioTab(),
+        body: Column(children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: NBSpacing.margemTela, vertical: 8),
+            child: Segmentado<bool>(
+              opcoes: const {false: 'Patrimônio', true: 'Metas'},
+              valor: _metas,
+              onChanged: (v) => setState(() => _metas = v),
+            ),
+          ),
+          Expanded(child: _metas ? const MetasTab() : const PatrimonioTab()),
+        ]),
       );
 }
