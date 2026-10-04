@@ -124,8 +124,8 @@ class EnvelopeUpdate(BaseModel):
     @field_validator('valor_planejado')
     @classmethod
     def valor_positivo(cls, v):
-        if v is not None and v <= 0:
-            raise ValueError('valor_planejado deve ser maior que zero')
+        if v is not None and v < 0:
+            raise ValueError('O orçamento do envelope não pode ser negativo')
         return v
 
     @field_validator('natureza')

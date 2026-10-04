@@ -12,6 +12,7 @@ import '../utils/moeda.dart';
 
 /// Ponto central de escuta de notificações.
 /// Roteia para iFood e Nubank a partir de um único receivePort.
+@pragma('vm:entry-point')
 class IfoodNotificationService {
   static final _regexValor = RegExp(
     r'Compra de R\$\s*([\d.,]+) aprovada em (.+)\.',

@@ -55,13 +55,15 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     }
     setState(() => _salvando = true);
     final p = perfilOuErro(ref);
+    final nomes = {for (final e in ref.read(envelopesProvider).valueOrNull ?? const <Map<String, dynamic>>[]) e['id']: e['nome_envelope']};
     final falhas = <String>[];
     for (final m in mudados) {
       try {
         await ApiService.put('/envelopes/${m.key}?familia_id=${p['familia_id']}', {'valor_planejado': parseMoeda(m.value.text)});
         _original[m.key] = parseMoeda(m.value.text);
-      } catch (_) {
-        falhas.add(m.key);
+      } catch (e) {
+        debugPrint('[Orçamento] ${nomes[m.key]}: $e');
+        falhas.add('${nomes[m.key] ?? 'Envelope'}: ${mensagemErro(e)}');
       }
     }
     ref.invalidate(envelopesProvider);
@@ -71,7 +73,7 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
       avisar('Orçamento salvo (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
       if (widget.emFolha) Navigator.pop(context, true);
     } else {
-      avisar('${falhas.length} envelope(s) não salvaram. Tente de novo.', erro: true);
+      avisar('Não salvou — ${falhas.join(' · ')}', erro: true);
     }
   }
 
