@@ -91,7 +91,7 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
       if (limite != null)
         LimiteResumoCard(limite: limite, totalOrcado: total)
       else
-        CartaoNB(child: LinhaValorNB('Total orçado', total, forte: true)),
+        CartaoNB(child: LinhaValorNB('Total planejado dos envelopes', total, forte: true)),
       const SizedBox(height: NBSpacing.l),
       Text('Orçado por envelope', style: NBText.secao),
       Text('Compras no cartão ou Pix. Altere os valores e veja o saldo a distribuir mudar.', style: NBText.legenda),

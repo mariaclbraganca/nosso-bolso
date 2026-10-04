@@ -150,7 +150,7 @@ class _DeOndeVem extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('DE ONDE VEM E PARA ONDE VAI', style: NBText.eyebrow),
         const SizedBox(height: 4),
-        LinhaValorNB('Salário de ${ultimoDiaUtil(l.mes)}', l.salario, cor: NBColors.verde),
+        LinhaValorNB(l.nomeSalario, l.salario, cor: NBColors.verde),
         LinhaValorNB(
           '(−) Fatura Nubank · vence 7/${l.mesFatura.substring(5)}',
           -l.faturaEmFormacao,
@@ -238,7 +238,7 @@ class ProximosMeses extends StatelessWidget {
     final virada = meses.where((m) => m.limite >= 0).firstOrNull;
     return CartaoNB(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('DISPONÍVEL PARA PLANEJAR NOS PRÓXIMOS MESES', style: NBText.eyebrow),
+        Text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES', style: NBText.eyebrow),
         Text('Salário − contas do mês seguinte − parcelas que ainda faltam (sem receitas eventuais)', style: NBText.legenda),
         const SizedBox(height: 6),
         for (final m in meses)

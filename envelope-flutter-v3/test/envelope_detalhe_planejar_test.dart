@@ -68,14 +68,14 @@ void main() {
         extras: [limiteMesProvider.overrideWith((ref) => AsyncValue.data(limite))]));
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    expect(find.text('Disponível para planejar'), findsOneWidget);
+    expect(find.text('Valor disponível para planejar os envelopes'), findsOneWidget);
     expect(find.text(brl(2500)), findsOneWidget); // 5000 − 2000 − 500
     expect(find.text(brl(-1500)), findsOneWidget); // orçado 1200 + 300
-    expect(find.text('Saldo a distribuir'), findsOneWidget);
+    expect(find.text('Ainda pode distribuir'), findsOneWidget);
     expect(find.text(brl(1000)), findsOneWidget);
 
     await t.enterText(find.widgetWithText(TextField, '300,00'), '2000');
     await t.pumpAndSettle();
-    expect(find.text('Resultado previsto (sai da reserva)'), findsOneWidget);
+    expect(find.text('Falta no salário (sai da reserva)'), findsOneWidget);
   });
 }

@@ -77,9 +77,9 @@ void main() {
     await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const PlanosScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.textContaining('DISPONÍVEL PARA PLANEJAR'), findsOneWidget); // aba Orçamento abre primeiro
+    expect(find.textContaining('ORÇAMENTO DE'), findsOneWidget); // aba Orçamento abre primeiro
     await abrirAbas(t, ['Resumo']);
-    expect(find.text('Salário'), findsOneWidget);
+    expect(find.text('Salário'), findsWidgets); // na lista de receitas e no "de onde vem"
     await abrirAbas(t, ['Orçamento']);
     expect(find.text('Contas'), findsNothing); // Contas fica na barra de Finanças
     expect(find.text('Metas'), findsNothing); // Metas ficam em Patrimônio e reserva
@@ -88,7 +88,7 @@ void main() {
     await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const FuturoScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.text('DISPONÍVEL PARA PLANEJAR NOS PRÓXIMOS MESES'), findsOneWidget);
+    expect(find.text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES'), findsOneWidget);
     await abrirAbas(t, ['Parcelas', 'Simulações']);
     expect(find.text('Simular um cenário'), findsOneWidget);
   });

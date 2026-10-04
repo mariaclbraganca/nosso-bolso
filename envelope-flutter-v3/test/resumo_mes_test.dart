@@ -44,6 +44,6 @@ void main() {
     expect(find.text('Déficit coberto pela reserva'), findsOneWidget);
     expect(find.textContaining('eventual · Ana'), findsOneWidget);
     expect(find.textContaining('Transição de outubro'), findsOneWidget);
-    expect(find.text('DISPONÍVEL PARA PLANEJAR NOS PRÓXIMOS MESES'), findsNothing); // fica no Futuro
+    expect(find.text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES'), findsNothing); // fica no Futuro
   });
 }

@@ -72,16 +72,16 @@ class LimiteResumoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('DISPONÍVEL PARA PLANEJAR · COMPRAS DE ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
+          Text('ORÇAMENTO DE ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
           const SizedBox(height: 4),
-          LinhaValorNB('Salário de ${ultimoDiaUtil(l.mes)}', l.salario),
+          LinhaValorNB(l.nomeSalario, l.salario),
           LinhaValorNB(
-            '(−) Provisão para contas de $proximo',
+            '(−) Possíveis contas de $proximo',
             -l.provisaoContas,
             detalhe: [for (final c in l.contasProximoMes) ((c['nome'] as String?) ?? '', (c['valor'] as num).toDouble())],
           ),
           LinhaValorNB(
-            '(−) Lançamentos futuros da fatura 7/${l.mesFatura.substring(5)}',
+            '(−) Parcelas e assinaturas da fatura de 7/${l.mesFatura.substring(5)}',
             -l.lancamentosFuturos,
             detalhe: [
               for (final i in itensDaFatura(l.compromissos, l.mesFatura))
@@ -89,11 +89,11 @@ class LimiteResumoCard extends StatelessWidget {
             ],
           ),
           const Divider(height: 8),
-          LinhaValorNB('Disponível para planejar', l.limite, forte: true),
-          LinhaValorNB('(−) Total orçado nos envelopes', -orcado),
+          LinhaValorNB('Valor disponível para planejar os envelopes', l.limite, forte: true),
+          LinhaValorNB('(−) Total planejado dos envelopes', -orcado),
           const Divider(height: 8),
           LinhaValorNB(
-            saldo >= 0 ? 'Saldo a distribuir' : 'Resultado previsto (sai da reserva)',
+            saldo >= 0 ? 'Ainda pode distribuir' : 'Falta no salário (sai da reserva)',
             saldo,
             forte: true,
             cor: saldo >= 0 ? NBColors.verde : NBColors.estouro,
@@ -105,7 +105,7 @@ class LimiteResumoCard extends StatelessWidget {
               decoration: BoxDecoration(color: NBColors.ambarClaro, borderRadius: BorderRadius.circular(12)),
               child: Text(
                 'Se gastarem exatamente o orçado, faltarão ${brl(-saldo)} no salário de ${ultimoDiaUtil(l.mes)}. '
-                'Esse valor sai da reserva. Para fechar sem reserva, o total orçado precisa caber no disponível para planejar.',
+                'Esse valor sai da reserva. Para fechar sem reserva, o total planejado precisa caber no valor disponível para os envelopes.',
                 style: NBText.corpo.copyWith(fontSize: 13.5, color: NBColors.ambarTexto),
               ),
             ),

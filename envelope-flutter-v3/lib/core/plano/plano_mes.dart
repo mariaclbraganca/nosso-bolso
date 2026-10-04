@@ -103,6 +103,15 @@ class LimiteMes {
       .where((r) => (r['tipo'] ?? 'dinheiro') == 'dinheiro')
       .fold(0.0, (s, r) => s + (r['recebido'] == true ? _recebido(r) : _n(r['valor'])));
 
+  /// Nome das receitas garantidas, como cadastradas (ex.: "Salário SENAI").
+  String get nomeSalario {
+    final nomes = {
+      for (final r in receitas)
+        if ((r['tipo'] ?? 'dinheiro') == 'dinheiro') ((r['nome'] as String?)?.trim().isNotEmpty ?? false) ? r['nome'] as String : 'Salário',
+    };
+    return nomes.isEmpty ? 'Salário' : nomes.join(' + ');
+  }
+
   Iterable<Map<String, dynamic>> get _eventuaisRecebidas =>
       receitas.where((r) => r['tipo'] == 'eventual' && r['recebido'] == true);
 
