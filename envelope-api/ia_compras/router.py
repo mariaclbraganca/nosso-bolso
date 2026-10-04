@@ -264,7 +264,7 @@ def confirmar_compra(
     if compra["status_integracao"] != "pendente":
         raise HTTPException(400, f"Compra ja esta com status {compra['status_integracao']}")
 
-    return integrar_compra(compra, str(payload.envelope_id), usr, fam)
+    return integrar_compra(compra, str(payload.envelope_id), usr, fam, parcelas=payload.parcelas)
 
 
 def forma_pagamento_da_compra(compra: dict) -> str | None:
@@ -275,7 +275,21 @@ def forma_pagamento_da_compra(compra: dict) -> str | None:
     return {"compra": "credito", "pix_enviado": "pix"}.get(compra.get("tipo_notificacao"))
 
 
-def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
+def somar_meses(mes: str, n: int) -> str:
+    total = int(mes[:4]) * 12 + int(mes[5:7]) - 1 + n
+    return f"{total // 12}-{total % 12 + 1:02d}"
+
+
+def compromisso_da_parcelada(fam: str, descricao: str, valor_parcela: float, parcelas: int, mes_compra: str) -> dict:
+    """Parcelas 2..n: a 1ª vem na fatura do mês seguinte à compra; a 2ª na
+    fatura de dois meses depois."""
+    return {
+        "familia_id": fam, "descricao": descricao, "valor": valor_parcela,
+        "mes_fatura": somar_meses(mes_compra, 2), "parcela_atual": 2, "total_parcelas": parcelas,
+    }
+
+
+def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str, parcelas: int = 1) -> dict:
     """Lança a compra pendente como despesa no Supabase e marca como confirmada.
     Usado por /confirmar e pelo fechamento do dia (/dia/fechar)."""
     col = get_compras_collection()
@@ -315,8 +329,13 @@ def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
     else:
         descricao = compra["supermercado"]  # captura Nubank: sem itens
 
+    parcelado = parcelas > 1 and forma_pagamento_da_compra(compra) == "credito"
+    valor_mes = round(float(compra["valor_total"]) / parcelas, 2) if parcelado else compra["valor_total"]
+    if parcelado:
+        descricao = f"{descricao} · 1/{parcelas}"
+
     transacao = {
-        "valor": compra["valor_total"],
+        "valor": valor_mes,
         "tipo": "despesa",
         "usuario_id": usr,
         "envelope_id": envelope_id,
@@ -350,9 +369,13 @@ def integrar_compra(compra: dict, envelope_id: str, usr: str, fam: str) -> dict:
         raise HTTPException(500, "Falha ao registrar transacao no Supabase")
 
     transacao_id = result.data[0]["id"]
+    if parcelado:
+        db.table("cartao_compromissos").insert(compromisso_da_parcelada(
+            fam, compra["supermercado"], valor_mes, parcelas, compra["data_compra"][:7])).execute()
     col.update_one(
         {"compra_id": compra_id},
-        {"$set": {"status_integracao": "confirmado", "transacao_supabase_id": transacao_id}}
+        {"$set": {"status_integracao": "confirmado", "transacao_supabase_id": transacao_id,
+                  "parcelas": parcelas}}
     )
 
     envelope = db.table("envelopes").select("saldo_atual") \

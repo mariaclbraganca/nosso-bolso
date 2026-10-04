@@ -72,6 +72,9 @@ class ConfirmarCompraRequest(BaseModel):
     familia_id: UUID
     usuario_id: UUID
     envelope_id: UUID
+    # Compra no cartão parcelada: a 1ª parcela entra no mês; as demais viram
+    # lançamentos futuros (cartao_compromissos).
+    parcelas: int = Field(default=1, ge=1, le=24)
 
 
 class PlanejamentoRequest(BaseModel):
