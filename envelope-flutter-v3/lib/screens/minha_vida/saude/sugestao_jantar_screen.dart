@@ -123,14 +123,14 @@ class _SugestaoJantarScreenState extends ConsumerState<SugestaoJantarScreen> {
                                       ),
                                       TextButton(
                                         onPressed: () => setState(() => suspeitos.remove(item)),
-                                        child: const Text('Tem'),
+                                        child: const Text('Disponível'),
                                       ),
                                       TextButton(
                                         onPressed: () {
                                           _ausentes.add(item['nome'] as String);
                                           _buscar();
                                         },
-                                        child: const Text('Acabou', style: TextStyle(color: NBColors.estouro)),
+                                        child: const Text('Esgotado', style: TextStyle(color: NBColors.estouro)),
                                       ),
                                     ],
                                   ),

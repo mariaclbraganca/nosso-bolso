@@ -109,7 +109,7 @@ class _SheetEnvelopeState extends ConsumerState<SheetEnvelope> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           if (estado.saldo > 0)
-            TextButton(onPressed: () => Navigator.pop(ctx, 'remanejar'), child: const Text('Remanejar')),
+            TextButton(onPressed: () => Navigator.pop(ctx, 'remanejar'), child: const Text('Transferir orçamento')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'excluir'),
             child: const Text('Excluir', style: TextStyle(color: NBColors.estouro)),
@@ -188,7 +188,7 @@ class _SheetEnvelopeState extends ConsumerState<SheetEnvelope> {
         const SizedBox(height: NBSpacing.s),
         Text(
           switch (_natureza) {
-            NaturezaEnvelope.consumo => 'Gastos do mês. Volta a zero quando o mês fecha.',
+            NaturezaEnvelope.consumo => 'Despesas do mês. O orçamento recomeça a cada mês.',
             NaturezaEnvelope.reserva => 'Segurança da família. O saldo acumula de um mês para o outro.',
             NaturezaEnvelope.objetivo => 'Algo para juntar (viagem, compra). Acumula até a meta.',
           },

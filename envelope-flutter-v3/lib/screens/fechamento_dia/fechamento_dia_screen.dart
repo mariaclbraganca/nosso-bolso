@@ -10,7 +10,7 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../sheets/comum.dart';
-import '../sheets/sheet_lancamento.dart';
+import '../lancar/lancar.dart';
 import 'widgets/cartao_resumo_dia.dart';
 import 'widgets/fechamento_pendente_card.dart';
 import 'widgets/seletor_envelope_modal.dart';
@@ -171,7 +171,7 @@ class _FechamentoDiaScreenState extends ConsumerState<FechamentoDiaScreen> {
                   ),
                 const SizedBox(height: NBSpacing.m),
                 OutlinedButton.icon(
-                  onPressed: () => abrirLancamento(context),
+                  onPressed: () => abrirNovoLancamento(context),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Faltou algum gasto?'),
                 ),

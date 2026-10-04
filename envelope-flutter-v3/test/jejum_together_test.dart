@@ -42,7 +42,7 @@ void main() {
     await t.pump(const Duration(milliseconds: 300));
     expect(t.takeException(), isNull);
     expect(find.text('5h07'), findsOneWidget);
-    expect(find.text('Comendo com calma'), findsOneWidget);
+    expect(find.text('Fora do jejum'), findsOneWidget);
     expect(find.text('60%'), findsOneWidget);
     expect(find.text('Que dupla linda!'), findsOneWidget);
     await t.scrollUntilVisible(find.text('Enviar incentivo'), 200, scrollable: find.byType(Scrollable).first);

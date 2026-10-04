@@ -28,7 +28,7 @@ Future<void> _preparar(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: NBColors.cartao,
-      title: Text('Alarme das 23h30', style: NBText.secao),
+      title: Text('Conferência diária (23h30)', style: NBText.secao),
       content: Text(
         'Todo dia às 23h30 o celular toca para a família fechar o dia: conferir os gastos '
         'e confirmar os envelopes. Leva 30 segundos.\n\n'

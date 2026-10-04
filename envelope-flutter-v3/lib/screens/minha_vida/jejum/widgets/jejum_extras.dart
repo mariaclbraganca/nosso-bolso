@@ -106,7 +106,7 @@ class JejumOnboardingCard extends ConsumerWidget {
           const SizedBox(height: NBSpacing.s),
           Text(s['justificativa'] as String? ?? '', style: NBText.corpo.copyWith(fontSize: 14)),
           if (s['janela_inicio'] != null)
-            Text('Janela para comer: ${s['janela_inicio']} às ${s['janela_fim']}', style: NBText.legenda),
+            Text('Janela alimentar: ${s['janela_inicio']} às ${s['janela_fim']}', style: NBText.legenda),
           const SizedBox(height: NBSpacing.m),
           Align(
             alignment: Alignment.centerLeft,

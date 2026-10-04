@@ -72,7 +72,7 @@ class _ComprasScreenState extends ConsumerState<ComprasScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Compras IA', style: NBText.secao),
+        title: Text('Compras', style: NBText.secao),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -123,7 +123,7 @@ class _ComprasScreenState extends ConsumerState<ComprasScreen> {
                         ComprasFalhasCard(falhas: falhas, onTentarDeNovo: _processar, onDispensar: _dispensarFalhas),
                       ],
                       const SizedBox(height: NBSpacing.l),
-                      const CabecalhoSecao(titulo: 'Notas a Confirmar'),
+                      const CabecalhoSecao(titulo: 'Compras a confirmar'),
                       const SizedBox(height: NBSpacing.s),
                       if (pendentes.isEmpty)
                         const Padding(

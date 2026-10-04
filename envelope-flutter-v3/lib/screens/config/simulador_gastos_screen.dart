@@ -104,7 +104,7 @@ class _SimuladorGastosScreenState extends State<SimuladorGastosScreen> {
           ? const SizedBox.shrink()
           : l.isEmpty
               ? UnicornVazio(
-                  titulo: 'E se…?',
+                  titulo: 'Simulações',
                   texto: 'Monte cenários antes de decidir: um aluguel novo, um carro, um filho. Fica só neste celular.',
                   acao: _nova,
                   rotuloAcao: 'Criar simulação',
@@ -177,12 +177,12 @@ class _DetalheSimulacaoScreenState extends State<DetalheSimulacaoScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nome, autofocus: true, decoration: const InputDecoration(labelText: 'O quê')),
+            TextField(controller: nome, autofocus: true, decoration: const InputDecoration(labelText: 'Descrição')),
             const SizedBox(height: 12),
             TextField(
               controller: valor,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Quanto por mês', prefixText: 'R\$ '),
+              decoration: const InputDecoration(labelText: 'Valor mensal', prefixText: 'R\$ '),
             ),
           ],
         ),

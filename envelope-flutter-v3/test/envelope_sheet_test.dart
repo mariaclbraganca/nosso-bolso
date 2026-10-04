@@ -46,6 +46,6 @@ void main() {
     await t.tap(find.text('Excluir envelope'));
     await t.pumpAndSettle();
     expect(find.textContaining('412,30'), findsOneWidget);
-    expect(find.text('Remanejar'), findsOneWidget);
+    expect(find.text('Transferir orçamento'), findsOneWidget);
   });
 }

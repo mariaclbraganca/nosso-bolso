@@ -144,14 +144,14 @@ class _JejumTogetherScreenState extends ConsumerState<JejumTogetherScreen> {
         ),
         if (ambos) ...[
           const SizedBox(height: NBSpacing.m),
-          Text('Vocês duas estão em jejum agora ✨', style: NBText.rotulo.copyWith(color: NBColors.lavanda), textAlign: TextAlign.center),
+          Text('Ambos em jejum agora ✨', style: NBText.rotulo.copyWith(color: NBColors.lavanda), textAlign: TextAlign.center),
         ],
         const SizedBox(height: NBSpacing.l),
         CartaoNB(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Este mês juntas', style: NBText.rotulo),
+              Text('Este mês em dupla', style: NBText.rotulo),
               const SizedBox(height: NBSpacing.m),
               Row(
                 children: [
@@ -223,7 +223,7 @@ class CartaoDupla extends StatelessWidget {
             const SizedBox(height: 4),
             Text('meta ${meta.round()}h', style: NBText.legenda),
           ] else
-            Text('Comendo com calma', style: NBText.corpo.copyWith(color: NBColors.tintaSuave)),
+            Text('Fora do jejum', style: NBText.corpo.copyWith(color: NBColors.tintaSuave)),
           const SizedBox(height: NBSpacing.s),
           Text('🔥 ${dados['sequencia'] ?? 0} dias', style: NBText.legenda),
         ],

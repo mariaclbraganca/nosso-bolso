@@ -139,7 +139,7 @@ class _JejumConfigSheetState extends ConsumerState<JejumConfigSheet> {
             );
           }),
           const SizedBox(height: 8),
-          Text('Janela para comer', style: NBText.rotulo),
+          Text('Janela alimentar', style: NBText.rotulo),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -165,7 +165,7 @@ class _JejumConfigSheetState extends ConsumerState<JejumConfigSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Folgas por mês', style: NBText.rotulo),
+                    Text('Dias de pausa por mês', style: NBText.rotulo),
                     Text('Dias livres que não quebram a sequência', style: NBText.legenda),
                   ],
                 ),

@@ -10,9 +10,9 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import 'comum.dart';
-import 'sheet_abastecer.dart';
+import '../lancar/lancar.dart';
+import 'sheet_planejar_mes.dart';
 import 'sheet_envelope.dart';
-import 'sheet_lancamento.dart';
 import 'sheet_remanejar.dart';
 
 /// Lançamentos de um envelope, mais recentes primeiro, sem os da lixeira.
@@ -119,7 +119,7 @@ class SheetEnvelopeDetalhe extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('Gasto no mês', style: NBText.legenda),
+                        Text('Despesas do mês', style: NBText.legenda),
                         Text(brl(gasto), style: NBText.corpo.copyWith(fontWeight: FontWeight.w700)),
                         if (e.planejado > 0) Text('de ${brl(e.planejado, curto: true)}', style: NBText.legenda),
                       ],
@@ -137,19 +137,17 @@ class SheetEnvelopeDetalhe extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _Acao(Icons.move_to_inbox_rounded, 'Abastecer',
-                          () => trocar(SheetAbastecer(envelopeId: envelopeId))),
+                      child: _Acao(Icons.tune_rounded, 'Orçamento', () => trocar(const SheetPlanejarMes())),
                     ),
                     const SizedBox(width: NBSpacing.s),
                     Expanded(
-                      child: _Acao(Icons.remove_rounded, 'Gastar',
-                          () => trocar(SheetLancamento(envelopeInicial: envelopeId))),
+                      child: _Acao(Icons.remove_rounded, 'Compra', () => trocar(SheetCompra(envelopeInicial: envelopeId))),
                     ),
                     const SizedBox(width: NBSpacing.s),
                     Expanded(
                       child: _Acao(
                         Icons.swap_horiz_rounded,
-                        e.estourado ? 'Cobrir' : 'Mover',
+                        'Transferir',
                         () => trocar(e.estourado
                             ? SheetRemanejar(destinoId: envelopeId)
                             : SheetRemanejar(origemId: envelopeId)),

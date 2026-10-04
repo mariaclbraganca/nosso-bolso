@@ -61,7 +61,7 @@ class _HomeMonitorIAState extends ConsumerState<HomeMonitorIA> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('MONITOR DO ASTRIX', style: NBText.eyebrow),
+                      Text('ANÁLISE DO ASTRIX', style: NBText.eyebrow),
                       Text(
                         analise?.titulo ?? 'Olhando os números do mês…',
                         style: NBText.rotulo.copyWith(color: analise == null ? NBColors.tintaSuave : corStatusMonitor(analise.status)),
@@ -125,7 +125,7 @@ class _HomeMonitorIAState extends ConsumerState<HomeMonitorIA> {
         ],
         if (a.acoesRecomendadas.isNotEmpty) ...[
           const SizedBox(height: NBSpacing.m),
-          Text('O QUE FAZER', style: NBText.eyebrow),
+          Text('RECOMENDAÇÕES', style: NBText.eyebrow),
           for (final acao in a.acoesRecomendadas)
             Padding(
               padding: const EdgeInsets.only(top: 4),

@@ -31,7 +31,7 @@ class _InserirUrlDialogState extends State<InserirUrlDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: NBColors.cartao,
-      title: Text('Colar link da nota', style: NBText.secao),
+      title: Text('Informar link da NFC-e', style: NBText.secao),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

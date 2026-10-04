@@ -83,7 +83,7 @@ class RelatorioAstrix extends StatelessWidget {
         CartaoNB(
           child: Column(
             children: [
-              Text('NOTA DA SEMANA', style: NBText.eyebrow),
+              Text('ÍNDICE DA SEMANA (0–100)', style: NBText.eyebrow),
               Text('$nota', style: NBText.saldo.copyWith(color: _cor(nota))),
               Text('de 100', style: NBText.legenda),
               const SizedBox(height: NBSpacing.m),

@@ -67,7 +67,7 @@ class _SheetFecharMesState extends ConsumerState<SheetFecharMes> {
           child: Column(
             children: [
               LinhaPrevia(rotulo: 'Receita', valor: stats.totalReceita, corValor: NBColors.verde),
-              LinhaPrevia(rotulo: 'Saídas', valor: stats.totalDespesa),
+              LinhaPrevia(rotulo: 'Despesas', valor: stats.totalDespesa),
               const Divider(height: 16),
               LinhaPrevia(rotulo: 'Resultado', valor: stats.saldo, corValor: NBColors.verde),
             ],

@@ -198,8 +198,9 @@ String abvMes(String mes) => _abvMes[int.parse(mes.substring(5, 7)) - 1];
 /// Compra: lançamento manual ou confirmação de uma captura do Nubank
 /// ([captura] = documento pendente). Pergunta se foi parcelada.
 class SheetCompra extends ConsumerStatefulWidget {
-  const SheetCompra({super.key, this.captura});
+  const SheetCompra({super.key, this.captura, this.envelopeInicial});
   final Map<String, dynamic>? captura;
+  final String? envelopeInicial;
 
   @override
   ConsumerState<SheetCompra> createState() => _SheetCompraState();
@@ -219,7 +220,7 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
   @override
   void initState() {
     super.initState();
-    _envelopeId = widget.captura?['envelope_id'] as String?;
+    _envelopeId = widget.captura?['envelope_id'] as String? ?? widget.envelopeInicial;
   }
 
   @override

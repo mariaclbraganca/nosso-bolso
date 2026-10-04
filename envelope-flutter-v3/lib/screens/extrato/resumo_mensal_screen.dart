@@ -70,16 +70,15 @@ class ResumoMensalScreen extends ConsumerWidget {
           CartaoNB(
             child: Column(
               children: [
-                LinhaPrevia(rotulo: 'Entradas do ciclo', valor: stats.totalReceita, corValor: NBColors.verde),
-                LinhaPrevia(rotulo: 'Saídas totais', valor: stats.totalDespesa, corValor: NBColors.tinta),
-                LinhaPrevia(rotulo: 'Total abastecido', valor: stats.totalAbastecido, corValor: NBColors.reserva),
+                LinhaPrevia(rotulo: 'Receitas do mês', valor: stats.totalReceita, corValor: NBColors.verde),
+                LinhaPrevia(rotulo: 'Total de despesas', valor: stats.totalDespesa, corValor: NBColors.tinta),
                 const Divider(height: 16),
                 LinhaPrevia(rotulo: 'Saldo final', valor: stats.saldo, corValor: stats.saldo < 0 ? NBColors.estouro : NBColors.verde),
               ],
             ),
           ),
           const SizedBox(height: NBSpacing.l),
-          const CabecalhoSecao(titulo: 'Top 5 Envelopes com Mais Gastos'),
+          const CabecalhoSecao(titulo: 'Envelopes com maiores despesas'),
           const SizedBox(height: NBSpacing.s),
           if (top.isEmpty)
             const Padding(

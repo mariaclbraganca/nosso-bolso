@@ -99,8 +99,8 @@ class _RetrospectivaScreenState extends ConsumerState<RetrospectivaScreen> {
               CartaoNB(
                 child: Column(
                   children: [
-                    LinhaPrevia(rotulo: 'Entrou (receita)', valor: receita, corValor: NBColors.verde),
-                    LinhaPrevia(rotulo: 'Gastos do dia a dia', valor: -consumo),
+                    LinhaPrevia(rotulo: 'Receitas', valor: receita, corValor: NBColors.verde),
+                    LinhaPrevia(rotulo: 'Despesas por envelope', valor: -consumo),
                     LinhaPrevia(rotulo: 'Contas fixas e parcelas', valor: -compromisso),
                     const Divider(height: 16),
                     LinhaPrevia(rotulo: 'Resultado do mês', valor: resultado, corValor: NBColors.verde),
@@ -111,7 +111,7 @@ class _RetrospectivaScreenState extends ConsumerState<RetrospectivaScreen> {
               ),
               if (envelopes.isNotEmpty) ...[
                 const SizedBox(height: NBSpacing.xl),
-                Text('Planejado × gasto', style: NBText.secao),
+                Text('Orçado × realizado', style: NBText.secao),
                 const SizedBox(height: NBSpacing.s),
                 for (final e in envelopes) _LinhaEnvelope(e: e),
               ],

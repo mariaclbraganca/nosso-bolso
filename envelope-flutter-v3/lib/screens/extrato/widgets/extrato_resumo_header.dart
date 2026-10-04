@@ -27,7 +27,7 @@ class ExtratoResumoHeader extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('RESUMO DO CICLO', style: NBText.eyebrow),
+              Text('RESUMO DO MÊS', style: NBText.eyebrow),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -49,7 +49,7 @@ class ExtratoResumoHeader extends ConsumerWidget {
             children: [
               Expanded(
                 child: _ColunaInfo(
-                  titulo: 'Entradas',
+                  titulo: 'Receitas',
                   valor: stats.totalReceita,
                   corValor: NBColors.verde,
                   icone: Icons.arrow_downward_rounded,
@@ -59,7 +59,7 @@ class ExtratoResumoHeader extends ConsumerWidget {
               Container(width: 1, height: 36, color: NBColors.linha),
               Expanded(
                 child: _ColunaInfo(
-                  titulo: 'Saídas',
+                  titulo: 'Despesas',
                   valor: stats.totalDespesa,
                   corValor: NBColors.tinta,
                   icone: Icons.arrow_upward_rounded,
@@ -69,7 +69,7 @@ class ExtratoResumoHeader extends ConsumerWidget {
               Container(width: 1, height: 36, color: NBColors.linha),
               Expanded(
                 child: _ColunaInfo(
-                  titulo: 'Líquido',
+                  titulo: 'Resultado líquido',
                   valor: saldo,
                   corValor: negativo ? NBColors.estouro : NBColors.verde,
                   icone: negativo ? Icons.warning_amber_rounded : Icons.account_balance_wallet_outlined,

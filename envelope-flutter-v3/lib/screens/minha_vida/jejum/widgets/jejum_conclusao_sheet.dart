@@ -130,7 +130,7 @@ class _JejumConclusaoSheetState extends ConsumerState<JejumConclusaoSheet> {
           ),
           const SizedBox(height: 8),
           BotaoSecundario(
-            rotulo: 'Dia de descanso 🌸',
+            rotulo: 'Pausa',
             onPressed: () => _concluir('interrompido'),
           ),
           const SizedBox(height: 20),

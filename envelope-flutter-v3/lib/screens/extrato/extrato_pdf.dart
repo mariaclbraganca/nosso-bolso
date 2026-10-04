@@ -136,7 +136,7 @@ Future<void> exportarPdf(
               color: const PdfColor.fromInt(0xFF9ED465), letterSpacing: 2,
             )),
             pw.SizedBox(height: 8),
-            pw.Text('Relatorio Financeiro', style: pw.TextStyle(
+            pw.Text('Relatório financeiro', style: pw.TextStyle(
               fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.white,
             )),
             pw.Text(mesLabel, style: const pw.TextStyle(
@@ -186,7 +186,7 @@ Future<void> exportarPdf(
             pw.Text('${pctDespesa.toStringAsFixed(1)}% da receita comprometida com despesas',
                 style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
             pw.SizedBox(height: 24),
-            pw.Text('Gastos por Categoria', style: pw.TextStyle(
+            pw.Text('Despesas por envelope', style: pw.TextStyle(
               fontSize: 11, fontWeight: pw.FontWeight.bold,
             )),
             pw.SizedBox(height: 10),
@@ -252,7 +252,7 @@ Future<void> exportarPdf(
         build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
           pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
             pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('Analise Inteligente', style: pw.TextStyle(
+              pw.Text('Análise inteligente', style: pw.TextStyle(
                 fontSize: 18, fontWeight: pw.FontWeight.bold,
               )),
               pw.Text('Gerada por Gemini AI com base nas transacoes de $mesLabel',
@@ -277,7 +277,7 @@ Future<void> exportarPdf(
           pw.Divider(),
           pw.SizedBox(height: 12),
           if (a.insights.isNotEmpty) ...[
-            pw.Text('Pontos de Atencao', style: pw.TextStyle(
+            pw.Text('Pontos de atenção', style: pw.TextStyle(
               fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800,
             )),
             pw.SizedBox(height: 8),
@@ -324,7 +324,7 @@ Future<void> exportarPdf(
                 border: pw.Border.all(color: PdfColors.grey300),
               ),
               child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text('Projecao para o fim do mes', style: pw.TextStyle(
+                pw.Text('Projeção para o fim do mês', style: pw.TextStyle(
                   fontSize: 9, fontWeight: pw.FontWeight.bold,
                 )),
                 pw.SizedBox(height: 4),
@@ -334,7 +334,7 @@ Future<void> exportarPdf(
             pw.SizedBox(height: 12),
           ],
           if (a.acoesRecomendadas.isNotEmpty) ...[
-            pw.Text('Recomendacoes para o proximo mes', style: pw.TextStyle(
+            pw.Text('Recomendações para o próximo mês', style: pw.TextStyle(
               fontSize: 10, fontWeight: pw.FontWeight.bold,
             )),
             pw.SizedBox(height: 8),
@@ -367,7 +367,7 @@ Future<void> exportarPdf(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.fromLTRB(40, 40, 40, 32),
       build: (ctx) => [
-        pw.Text('Detalhamento das Transacoes', style: pw.TextStyle(
+        pw.Text('Detalhamento das transações', style: pw.TextStyle(
           fontSize: 14, fontWeight: pw.FontWeight.bold,
         )),
         pw.Text(mesLabel, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),

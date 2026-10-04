@@ -122,7 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   TextButton.icon(
                     onPressed: () => abrirSheet(context, const SheetRemanejar()),
                     icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                    label: const Text('Remanejar'),
+                    label: const Text('Transferir'),
                   ),
                 ],
               ),

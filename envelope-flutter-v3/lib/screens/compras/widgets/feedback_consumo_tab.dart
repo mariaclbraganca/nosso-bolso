@@ -52,7 +52,7 @@ class FeedbackConsumoTab extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('CALIBRAÇÃO DE DESPENSA', style: NBText.eyebrow),
+                  Text('CONTROLE DE ESTOQUE', style: NBText.eyebrow),
                   const SizedBox(height: 6),
                   Text(
                     'Ajude a IA a entender o ritmo de consumo da sua casa para evitar desperdícios.',
@@ -89,7 +89,7 @@ class FeedbackConsumoTab extends ConsumerWidget {
                               side: const BorderSide(color: NBColors.verde),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                            child: const Text('Acabou'),
+                            child: const Text('Esgotado'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -101,7 +101,7 @@ class FeedbackConsumoTab extends ConsumerWidget {
                               side: const BorderSide(color: NBColors.linha),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                            child: const Text('Ainda tem'),
+                            child: const Text('Em estoque'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -113,7 +113,7 @@ class FeedbackConsumoTab extends ConsumerWidget {
                               side: const BorderSide(color: NBColors.estouroClaro),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                            child: const Text('Estragou'),
+                            child: const Text('Descartado'),
                           ),
                         ),
                       ],

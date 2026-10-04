@@ -29,7 +29,7 @@ class ComprasHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('LEITOR INTELIGENTE NFC-e', style: NBText.eyebrow),
+                    Text('LEITURA DE NFC-e', style: NBText.eyebrow),
                     const SizedBox(height: 2),
                     Text(
                       pendentesCount > 0

@@ -49,7 +49,7 @@ class ListaComprasTab extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('LISTA INTELIGENTE (7 DIAS)', style: NBText.eyebrow),
+                        Text('LISTA DE COMPRAS SUGERIDA (7 DIAS)', style: NBText.eyebrow),
                         const SizedBox(height: 4),
                         Text(
                           '${checados.length} de ${itens.length} itens no carrinho',

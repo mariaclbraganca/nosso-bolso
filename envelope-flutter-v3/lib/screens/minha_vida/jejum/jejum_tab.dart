@@ -262,7 +262,7 @@ class _JejumTabState extends ConsumerState<JejumTab> {
                 const SizedBox(height: 20),
                 if (ativo != null)
                   BotaoPrincipal(
-                    rotulo: 'Concluir Jejum ✨',
+                    rotulo: 'Concluir jejum',
                     onPressed: () => _abrirConclusao(
                       ativo['id']?.toString() ?? '',
                       decorrido,
@@ -271,7 +271,7 @@ class _JejumTabState extends ConsumerState<JejumTab> {
                   )
                 else
                   BotaoPrincipal(
-                    rotulo: 'Iniciar Jejum Agora ⏱️',
+                    rotulo: 'Iniciar jejum',
                     carregando: _iniciando,
                     onPressed: () => _iniciarJejum(metaHoras),
                   ),

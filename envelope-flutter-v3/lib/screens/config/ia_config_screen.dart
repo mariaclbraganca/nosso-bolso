@@ -84,7 +84,7 @@ class _IaConfigScreenState extends ConsumerState<IaConfigScreen> {
               padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, NBSpacing.s, NBSpacing.margemTela, NBSpacing.x4),
               children: [
                 const PainelIA(
-                  titulo: 'Onde a IA trabalha',
+                  titulo: 'Uso da inteligência artificial',
                   texto: 'Lê notas fiscais, entende notificações que o padrão não reconhece, '
                       'sugere listas de compras, analisa refeições e gera os insights do Astrix.',
                 ),

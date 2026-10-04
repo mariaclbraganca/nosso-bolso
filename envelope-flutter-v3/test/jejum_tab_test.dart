@@ -34,6 +34,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Sua Sequência'), findsOneWidget);
-    expect(find.text('Iniciar Jejum Agora ⏱️'), findsOneWidget);
+    expect(find.text('Iniciar jejum'), findsOneWidget);
   });
 }

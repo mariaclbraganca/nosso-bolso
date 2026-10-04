@@ -39,7 +39,7 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Mercado'), findsOneWidget);
     expect(find.textContaining('412,30'), findsOneWidget);
-    for (final a in ['Abastecer', 'Gastar', 'Mover']) {
+    for (final a in ['Orçamento', 'Compra', 'Transferir']) {
       expect(find.text(a), findsOneWidget);
     }
     expect(find.text('Assaí'), findsOneWidget);
