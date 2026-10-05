@@ -7,9 +7,8 @@ import '../../core/services/api_service.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
-import '../home/widgets/home_cartao_saldo.dart' show nomeMes, ultimoDiaUtil;
+import '../home/widgets/home_cartao_saldo.dart' show nomeMes;
 import '../sheets/comum.dart';
-import 'widgets/limite_resumo_card.dart';
 import 'widgets/plano_sheets.dart';
 
 /// Resumo do mês: resultado do ciclo do salário, receitas, de onde vem e para
@@ -33,8 +32,6 @@ class PlanoMesTab extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 4, NBSpacing.margemTela, 120),
               children: [
-                ResultadoCiclo(limite: l),
-                const SizedBox(height: NBSpacing.l),
                 _Receitas(limite: l),
                 const SizedBox(height: NBSpacing.l),
                 _OrcamentoPorEnvelope(limite: l),
@@ -49,35 +46,6 @@ class PlanoMesTab extends ConsumerWidget {
   }
 }
 
-Color _cor(double v) => v < 0 ? NBColors.estouro : NBColors.verde;
-
-/// Projeção final do ciclo: quanto falta (sai da reserva) ou sobra, se o
-/// orçado for todo usado (ou mais, onde já passou).
-class ResultadoCiclo extends StatelessWidget {
-  const ResultadoCiclo({super.key, required this.limite});
-  final LimiteMes limite;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = limite;
-    final proj = l.resultadoProjetado;
-    return CartaoNB(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('RESULTADO DO CICLO · SALÁRIO DE ${ultimoDiaUtil(l.mes)}', style: NBText.eyebrow),
-        const SizedBox(height: 4),
-        LinhaValorNB(proj < 0 ? 'FALTA DINHEIRO (projeção final)' : 'SOBRA (projeção final)', proj.abs(),
-            forte: true, cor: _cor(proj)),
-        const Divider(height: 8),
-        Text(
-          proj < 0
-              ? 'Este valor sairá da sua reserva se você utilizar todo o saldo planejado nos envelopes.'
-              : 'Mesmo usando todo o saldo planejado nos envelopes, o salário cobre o mês.',
-          style: NBText.legenda,
-        ),
-      ]),
-    );
-  }
-}
 
 class _Receitas extends ConsumerWidget {
   const _Receitas({required this.limite});
@@ -132,7 +100,19 @@ class _Receitas extends ConsumerWidget {
       ]),
       if (receitas.isEmpty) Text('Cadastre as receitas previstas: salário e vale-alimentação.', style: NBText.legenda),
       for (final e in receitas)
-        if (e['tipo'] == 'eventual' && e['recebido'] != true)
+        if (e['tipo'] == 'vale')
+          CartaoNB(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            onTap: () => abrirSheet(context, SheetEntrada(mes: limite.mes, entrada: e)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              leading: const Padding(padding: EdgeInsets.all(8), child: Text('💳', style: TextStyle(fontSize: 20))),
+              title: Text(e['nome'] as String? ?? 'Vale-alimentação', style: NBText.corpo),
+              subtitle: Text('crédito automático no cartão benefício', style: NBText.legenda),
+              trailing: Text(brl((e['valor'] as num?) ?? 0), style: NBText.rotulo),
+            ),
+          )
+        else if (e['tipo'] == 'eventual' && e['recebido'] != true)
           CartaoNB(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             onTap: () => abrirSheet(context, SheetEntrada(mes: limite.mes, entrada: e)),
@@ -195,7 +175,8 @@ class _OrcamentoPorEnvelope extends StatelessWidget {
                         style: NBText.corpo.copyWith(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   Text(
-                    '${brl(l.realizadoDe(e))} de ${brl(l.orcadoDe(e))}',
+                    '${brl(l.realizadoDe(e))} de ${brl(l.orcadoDe(e))}'
+                    '${l.orcadoDe(e) > 0 ? ' · ${(l.realizadoDe(e) / l.orcadoDe(e) * 100).round()}%' : ''}',
                     style:
                         NBText.legenda.copyWith(color: l.disponivelDe(e) < 0 ? NBColors.estouro : NBColors.tintaSuave),
                   ),
@@ -207,8 +188,6 @@ class _OrcamentoPorEnvelope extends StatelessWidget {
                 ),
               ]),
             ),
-        const Divider(height: 16),
-        LinhaValorNB('Saldo disponível para gastar hoje', l.podeGastar, forte: true, cor: _cor(l.podeGastar)),
       ]),
     );
   }

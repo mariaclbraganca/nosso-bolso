@@ -161,14 +161,18 @@ class BarraProgresso extends StatelessWidget {
       borderRadius: BorderRadius.circular(NBRadius.pilula),
       child: SizedBox(
         height: altura,
-        child: Stack(
-          children: [
-            Positioned.fill(child: ColoredBox(color: trilho)),
-            FractionallySizedBox(
-              widthFactor: fracao.clamp(0.0, 1.0),
-              child: ColoredBox(color: cor, child: SizedBox(height: altura)),
+        width: double.infinity,
+        child: ColoredBox(
+          color: trilho,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            // Um pouquinho visível mesmo com uso pequeno (ex.: 3%).
+            child: FractionallySizedBox(
+              widthFactor: fracao <= 0 ? 0 : fracao.clamp(0.02, 1.0),
+              heightFactor: 1,
+              child: ColoredBox(color: cor),
             ),
-          ],
+          ),
         ),
       ),
     );

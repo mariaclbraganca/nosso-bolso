@@ -79,7 +79,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final envelopesAsync = ref.watch(envelopesProvider);
     // O vale-alimentação tem card próprio logo abaixo do disponível.
-    final envelopes = ref.watch(envelopesViseisProvider).where((e) => !ehEnvelopeVa(e)).toList();
+    // Só os ativos (com valor planejado), do maior para o menor; reservas e VA
+    // ficam no Orçamento.
+    final envelopes = ref
+        .watch(envelopesViseisProvider)
+        .where((e) => !ehEnvelopeVa(e) && !ehReserva(e) && ((e['valor_planejado'] as num?) ?? 0) > 0)
+        .toList()
+      ..sort((a, b) => ((b['valor_planejado'] as num?) ?? 0).compareTo((a['valor_planejado'] as num?) ?? 0));
 
     return Scaffold(
       body: SafeArea(

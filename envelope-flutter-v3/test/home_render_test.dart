@@ -19,7 +19,7 @@ class _Perfil extends PerfilUsuarioNotifier {
 }
 
 void main() {
-  testWidgets('Home renderiza envelopes, novo envelope e aviso de captura', (t) async {
+  testWidgets('Home renderiza envelopes ativos e aviso de captura', (t) async {
     SharedPreferences.setMockInitialValues({'alarme_fechamento_permissao': true});
     final envelopes = [
       {'id': 'e1', 'nome_envelope': 'Mercado', 'natureza': 'consumo', 'valor_planejado': 1200, 'saldo_atual': 412.3},
@@ -46,8 +46,9 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Início'), findsOneWidget);
     expect(find.text('Captura do Nubank e iFood desligada'), findsOneWidget);
-    await t.scrollUntilVisible(find.text('Novo envelope'), 300);
-    expect(find.text('Mercado'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Mercado'), 300);
+    expect(find.text('Reserva'), findsNothing); // só envelopes ativos; reservas ficam no Orçamento
+    expect(find.textContaining('Saldo em conta'), findsNothing);
     expect(find.text('Transferir'), findsOneWidget); // o orçamento fica na aba Envelopes
   });
 }

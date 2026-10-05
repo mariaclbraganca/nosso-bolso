@@ -13,11 +13,12 @@ final _envs = <Map<String, dynamic>>[
   {'id': 'va', 'nome_envelope': 'Vale Alimentação', 'valor_planejado': 750},
 ];
 
-LimiteMes _limite() => LimiteMes(
+LimiteMes _limite({bool comAluguel = false}) => LimiteMes(
       mes: '2026-10',
-      receitas: const [
-        {'tipo': 'dinheiro', 'valor': 5491.0},
-        {'tipo': 'vale', 'valor': 750.0},
+      receitas: [
+        const {'tipo': 'dinheiro', 'valor': 5491.0},
+        const {'tipo': 'vale', 'valor': 750.0},
+        if (comAluguel) const {'id': 'al', 'nome': 'Aluguel da casa', 'tipo': 'eventual', 'valor': 1150.0, 'recebido': false},
       ],
       contasDoMes: const [
         {'valor': 4706.47, 'recorrente': true},
@@ -29,10 +30,10 @@ LimiteMes _limite() => LimiteMes(
       compras: const [(valor: 56, envelopeId: null, forma: 'credito')],
     );
 
-Widget _app(Widget folha) => ProviderScope(
+Widget _app(Widget folha, {bool comAluguel = false}) => ProviderScope(
       overrides: [
         envelopesViseisProvider.overrideWithValue(_envs),
-        limiteMesProvider.overrideWith((ref) => AsyncValue.data(_limite())),
+        limiteMesProvider.overrideWith((ref) => AsyncValue.data(_limite(comAluguel: comAluguel))),
         perfilUsuarioLogadoProvider.overrideWith(() => _PerfilFixo()),
         listaUsuariosProvider.overrideWith((ref) => Stream.value([
               {'id': 'u1', 'nome': 'Frederico Rosa'},
@@ -86,5 +87,25 @@ void main() {
     await t.pump();
     expect(find.text('Guardado na reserva neste mês'), findsOneWidget);
     expect(find.textContaining('Não muda o limite do mês'), findsOneWidget);
+  });
+
+  testWidgets('Receita: pergunta se é a prevista (aluguel) antes de criar outra', (t) async {
+    t.view.physicalSize = const Size(1200, 3000);
+    t.view.devicePixelRatio = 2.5;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(_app(const SheetReceita(), comAluguel: true));
+    await t.pump();
+    await t.pump();
+    expect(find.text('É UMA DAS RECEITAS PREVISTAS?'), findsOneWidget);
+    expect(find.text('VALOR RECEBIDO'), findsNothing); // primeiro escolhe
+    await t.tap(find.textContaining('Aluguel da casa ·'));
+    await t.pump();
+    expect(find.text('Confirmar recebimento'), findsOneWidget);
+    expect(find.text('DESTINO DO DINHEIRO'), findsNothing); // a prevista já sabe o destino
+    expect(find.text('1150,00'), findsOneWidget);
+    await t.tap(find.text('Outra receita'));
+    await t.pump();
+    expect(find.text('DESTINO DO DINHEIRO'), findsOneWidget);
+    expect(find.text('Lançar receita'), findsOneWidget);
   });
 }

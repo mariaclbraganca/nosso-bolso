@@ -14,6 +14,8 @@ import '../../ui/theme/nb_theme.dart';
 import '../planos/widgets/limite_resumo_card.dart';
 import 'comum.dart';
 import 'sheet_envelope.dart';
+import 'widgets/planejado_real.dart';
+import '../home/widgets/home_cartao_saldo.dart' show nomeMes;
 
 /// Orçamento mensal: quanto vai para cada envelope, comparado ao limite de
 /// compras do mês. Usado como aba (Orçamento) e como folha (botão da Início).
@@ -115,12 +117,14 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
   @override
   Widget build(BuildContext context) {
     // Reserva e vale-alimentação ficam fora: o VA tem limite próprio.
-    final todos = ref.watch(envelopesViseisProvider).where((e) => e['is_reserva'] != true && !ehEnvelopeVa(e)).toList();
+    final todos = ref.watch(envelopesViseisProvider).where((e) => !ehReserva(e) && !ehEnvelopeVa(e)).toList();
     for (final env in todos) {
       _ctrl(env); // cria os campos antes de somar, senão o 1º frame mostra total zero
     }
     bool ativo(Map<String, dynamic> e) => (_original[e['id']] ?? 0) > 0 || _ativados.contains(e['id']);
-    final envelopes = todos.where(ativo).toList();
+    final envelopes = todos.where(ativo).toList()
+      ..sort((a, b) => (_original[b['id']] ?? 0).compareTo(_original[a['id']] ?? 0));
+    final reservas = ref.watch(envelopesViseisProvider).where((e) => ehReserva(e) && !ehEnvelopeVa(e)).toList();
     final inativos = todos.where((e) => !ativo(e)).toList();
     final total = envelopes.fold(0.0, (s, e) => s + parseMoeda(_ctrl(e).text));
     final limite = ref.watch(limiteMesProvider).valueOrNull;
@@ -131,6 +135,21 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
 
     final filhos = <Widget>[
       if (limite != null) TopoOrcamento(limite: limite, totalOrcado: total),
+      if (limite != null && medias.isNotEmpty) ...[
+        const SizedBox(height: NBSpacing.m),
+        PlanejadoXRealCard(
+          planejado: total,
+          mediaReal: envelopes.fold(0.0, (s, e) => s + (medias[e['id']] ?? 0)),
+          faltaNoMesSeguinte: limite.comprometido + total - limite.salario - limite.eventuaisNoCiclo,
+          proximoMes: nomeMes(somarMeses(limite.mes, 1)),
+          onAjustar: () => setState(() {
+            for (final e in envelopes) {
+              final m = medias[e['id']] ?? 0;
+              if (m > 0) _ctrl(e).text = _fmt.format((m / 10).round() * 10.0).trim();
+            }
+          }),
+        ),
+      ],
       const SizedBox(height: NBSpacing.l),
       Row(children: [
         Expanded(child: Text('ENVELOPES ATIVOS', style: NBText.eyebrow)),
@@ -147,8 +166,10 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(env['nome_envelope'] as String? ?? '', style: NBText.corpo, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if ((medias[env['id']] ?? 0) > 0)
+                  if ((medias[env['id']] ?? 0) > 0) ...[
                     Text('Média 3 meses: ${brl(medias[env['id']]!)}', style: NBText.legenda.copyWith(fontSize: 12)),
+                    ChipMedia(planejado: parseMoeda(_ctrl(env).text), media: medias[env['id']]!),
+                  ],
                 ]),
               ),
               SizedBox(
@@ -188,6 +209,8 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
             Text(brl(limite.limiteVa), style: NBText.valorCartao.copyWith(fontSize: 18)),
           ]),
         ),
+      const SizedBox(height: NBSpacing.m),
+      ReservasMensaisCard(reservas: reservas),
     ];
     final botao = BotaoPrincipal(rotulo: 'Salvar orçamento', carregando: _salvando, onPressed: _salvar);
     if (widget.emFolha) {
@@ -217,18 +240,4 @@ class SheetPlanejarMes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const OrcamentoMensal(emFolha: true);
-}
-
-/// Média gasta por envelope nos 3 meses anteriores a [mes] (só despesas).
-Map<String, double> mediaUltimosMeses(List<Map<String, dynamic>> transacoes, String mes) {
-  final meses = {for (var k = 1; k <= 3; k++) somarMeses(mes, -k)};
-  final soma = <String, double>{};
-  for (final t in transacoes) {
-    if (t['deleted_at'] != null || t['tipo'] != 'despesa' || t['envelope_id'] == null) continue;
-    final d = t['data']?.toString() ?? '';
-    if (d.length < 7 || !meses.contains(d.substring(0, 7))) continue;
-    final id = t['envelope_id'] as String;
-    soma[id] = (soma[id] ?? 0) + ((t['valor'] as num?)?.toDouble() ?? 0);
-  }
-  return {for (final e in soma.entries) e.key: e.value / 3};
 }

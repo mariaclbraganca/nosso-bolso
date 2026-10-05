@@ -62,7 +62,7 @@ class _SheetRemanejarState extends ConsumerState<SheetRemanejar> {
 
   @override
   Widget build(BuildContext context) {
-    final envelopes = ref.watch(envelopesViseisProvider).where((e) => e['is_reserva'] != true && !ehEnvelopeVa(e)).toList();
+    final envelopes = ref.watch(envelopesViseisProvider).where((e) => !ehReserva(e) && !ehEnvelopeVa(e)).toList();
     final gastos = ref.watch(gastosPorEnvelopeNoMesProvider);
     double disp(Map<String, dynamic> e) => ((e['valor_planejado'] as num?)?.toDouble() ?? 0) - (gastos[e['id']] ?? 0);
     Map<String, dynamic>? achar(String? id) => envelopes.where((e) => e['id'] == id).firstOrNull;

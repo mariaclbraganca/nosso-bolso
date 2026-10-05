@@ -37,15 +37,14 @@ void main() {
     );
     await t.pumpWidget(MaterialApp(
       theme: nossoBolsoTheme(),
-      home: Scaffold(body: SingleChildScrollView(child: CartaoDisponivel(limite: l, saldoConta: 0))),
+      home: Scaffold(body: SingleChildScrollView(child: CartaoDisponivel(limite: l))),
     ));
     expect(t.takeException(), isNull);
     expect(find.text('PODE GASTAR AINDA EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(2666)), findsOneWidget);
-    expect(find.text('Vai sair da reserva em outubro: ${brl(6861.33)}'), findsOneWidget);
-    expect(find.text('para terminar de pagar as contas de outubro'), findsOneWidget);
-    expect(find.text('Se Aluguel da casa cair: ${brl(5711.33)}'), findsOneWidget);
-    expect(find.text('Falta dinheiro em novembro (sai da reserva): ${brl(4744.24)}'), findsOneWidget);
+    expect(find.text('Vai sair da reserva: ${brl(6861.33)}'), findsOneWidget);
+    expect(find.text('para terminar de pagar as contas de outubro · se aluguel da casa cair: ${brl(5711.33)}'), findsOneWidget);
+    expect(find.textContaining('novembro'), findsNothing); // o Início fala só de outubro
     expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(12231.71)), findsOneWidget);
     expect(find.text(brl(6861.33)), findsOneWidget); // falta pagar no card de contas

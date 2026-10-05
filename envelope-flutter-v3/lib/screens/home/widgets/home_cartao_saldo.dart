@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/plano/plano_mes.dart';
-import '../../../core/providers/envelopes_provider.dart';
 import '../../../core/providers/mes_provider.dart';
 import '../../../core/providers/plano_provider.dart';
 import '../../../core/providers/transacoes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../ui/theme/nb_theme.dart';
-import 'home_fatura_linha.dart';
+import 'home_contas_mes.dart';
 
 /// Último dia útil do mês 'YYYY-MM' (sem feriados), como "30/10".
 String ultimoDiaUtil(String mes) {
@@ -30,7 +29,6 @@ class HomeCartaoSaldo extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesAtualProvider);
     final limite = ref.watch(limiteMesProvider);
-    final saldoConta = ref.watch(saldoGeralProvider).valueOrNull ?? 0;
     final aoVivo = _ultimoLancamento(ref);
 
     return limite.when(
@@ -50,7 +48,7 @@ class HomeCartaoSaldo extends ConsumerWidget {
           Text('Não consegui calcular agora. Puxe a tela para atualizar.', style: NBText.corpo.copyWith(color: Colors.white)),
         ],
       ),
-      data: (l) => CartaoDisponivel(limite: l, saldoConta: saldoConta, aoVivo: aoVivo),
+      data: (l) => CartaoDisponivel(limite: l, aoVivo: aoVivo),
     );
   }
 
@@ -88,12 +86,11 @@ class _Casca extends StatelessWidget {
       );
 }
 
-/// Pode gastar ainda (orçado − gasto), com o selo calculado do mês; logo
-/// abaixo as contas que vencem no mês (caixa) e o VA.
+/// Pode gastar ainda (orçado − gasto); logo abaixo o aviso da reserva do mês,
+/// as contas do mês com a fatura em formação e o VA.
 class CartaoDisponivel extends StatelessWidget {
-  const CartaoDisponivel({super.key, required this.limite, required this.saldoConta, this.aoVivo});
+  const CartaoDisponivel({super.key, required this.limite, this.aoVivo});
   final LimiteMes limite;
-  final double saldoConta;
   final String? aoVivo;
 
   @override
@@ -102,6 +99,7 @@ class CartaoDisponivel extends StatelessWidget {
     final gasto = l.comprasDoMes + l.pendenteDeEnvelope;
     final usado = l.totalOrcado > 0 ? (gasto / l.totalOrcado).clamp(0.0, 1.0) : 1.0;
     const branco = Colors.white;
+    final legenda = NBText.legenda.copyWith(color: const Color(0xE6FFFFFF));
 
     return Column(
       children: [
@@ -116,121 +114,32 @@ class CartaoDisponivel extends StatelessWidget {
               child: Text(brl(l.podeGastar), style: NBText.saldo.copyWith(color: branco)),
             ),
             Text(
-              'do orçamento de ${brl(l.totalOrcado)} · já gastou ${brl(gasto)}'
-              '${l.pendenteDeEnvelope > 0 ? ' (${brl(l.pendenteDeEnvelope)} pendente de envelope)' : ''}',
-              style: NBText.legenda.copyWith(color: const Color(0xE6FFFFFF)),
+              l.podeGastar < 0
+                  ? 'Acima do orçamento de ${brl(l.totalOrcado)} · já gastou ${brl(gasto)}'
+                  : 'do orçamento de ${brl(l.totalOrcado)} · já gastou ${brl(gasto)}'
+                      '${l.pendenteDeEnvelope > 0 ? ' (${brl(l.pendenteDeEnvelope)} pendente de envelope)' : ''}',
+              style: legenda,
             ),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(value: usado, minHeight: 8, color: branco, backgroundColor: const Color(0x38FFFFFF)),
             ),
-            const SizedBox(height: 12),
-            SeloDoMes(limite: l),
-            const SizedBox(height: 10),
-            Text(
-              'Saldo em conta ${brl(saldoConta)}${aoVivo == null ? '' : ' · $aoVivo'}',
-              style: NBText.legenda.copyWith(color: const Color(0xD9FFFFFF)),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            if (aoVivo != null) ...[
+              const SizedBox(height: 8),
+              Text(aoVivo!, style: legenda, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
           ],
         ),
         const SizedBox(height: NBSpacing.m),
+        AvisoReservaDoMes(limite: l),
+        if (l.caixa.aindaSaiNoMes > 0) const SizedBox(height: NBSpacing.m),
         ContasDoMesCard(limite: l),
-        const SizedBox(height: NBSpacing.s),
-        LinhaFaturaEmFormacao(limite: l),
         if (l.limiteVa > 0) ...[
           const SizedBox(height: NBSpacing.m),
           _CartaoVa(limite: l),
         ],
       ],
-    );
-  }
-}
-
-/// Selo calculado: verde (salário cobre), amarelo (depende da reserva) ou
-/// vermelho (gastos acima do orçamento).
-class SeloDoMes extends StatelessWidget {
-  const SeloDoMes({super.key, required this.limite});
-  final LimiteMes limite;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = limite;
-    final (texto, fundo, cor) = switch (l.selo) {
-      SeloMes.acimaDoOrcamento => (
-          'Acima do orçamento em ${brl(-l.podeGastar)}',
-          NBColors.estouroClaro,
-          NBColors.estouro,
-        ),
-      SeloMes.dependeDaReserva => ('', NBColors.ambarClaro, NBColors.ambarTexto),
-      SeloMes.cobertoPeloSalario => (
-          'Coberto pelo salário · sobra ${brl(l.resultadoProjetado)}',
-          NBColors.verdeClaro,
-          NBColors.verdeProfundo,
-        ),
-    };
-    final forte = NBText.corpo.copyWith(color: cor, fontSize: 13, fontWeight: FontWeight.w700);
-    final leve = NBText.corpo.copyWith(color: cor, fontSize: 13);
-    final mes = nomeMes(l.mes), proximo = nomeMes(somarMeses(l.mes, 1));
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(10)),
-      child: l.selo != SeloMes.dependeDaReserva
-          ? Text(texto, style: forte)
-          // Um mês de cada vez: o que sai para fechar este mês e o que o próximo já começa devendo.
-          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (l.caixa.aindaSaiNoMes > 0) ...[
-                Text('Vai sair da reserva em $mes: ${brl(l.caixa.aindaSaiNoMes)}', style: forte),
-                Text('para terminar de pagar as contas de $mes', style: leve),
-                if (l.eventuaisAReceber.isNotEmpty)
-                  Text(
-                    'Se ${l.eventuaisAReceber.map((r) => (r['nome'] as String?) ?? 'a receita').join(' e ')} cair: '
-                    '${brl((l.caixa.aindaSaiNoMes - l.eventuaisAReceber.fold(0.0, (s, r) => s + ((r['valor'] as num?) ?? 0))).clamp(0, double.infinity))}',
-                    style: leve,
-                  ),
-              ],
-              if (l.caixa.aindaSaiNoMes > 0 && l.faltaNoCiclo > 0) const SizedBox(height: 4),
-              if (l.faltaNoCiclo > 0) Text('Falta dinheiro em $proximo (sai da reserva): ${brl(l.faltaNoCiclo)}', style: forte),
-            ]),
-    );
-  }
-}
-
-/// Contas que vencem no mês: total, pago, falta e o que a reserva já cobriu.
-class ContasDoMesCard extends StatelessWidget {
-  const ContasDoMesCard({super.key, required this.limite});
-  final LimiteMes limite;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = limite;
-    Widget linha(String r, double v, {bool forte = false, Color? cor}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(children: [
-            Expanded(child: Text(r, style: forte ? NBText.rotulo : NBText.corpo.copyWith(fontSize: 14))),
-            const SizedBox(width: 8),
-            Text(brl(v), style: (forte ? NBText.rotulo : NBText.corpo.copyWith(fontSize: 14)).copyWith(color: cor)),
-          ]),
-        );
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(NBSpacing.l),
-      decoration: BoxDecoration(
-        color: NBColors.cartao,
-        borderRadius: BorderRadius.circular(NBRadius.cartao),
-        border: Border.all(color: NBColors.linha),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('CONTAS QUE VENCEM EM ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
-        const SizedBox(height: 6),
-        linha('Total', l.caixa.totalContas),
-        linha('Pago', l.caixa.totalPago, cor: NBColors.verde),
-        linha('Falta pagar', l.caixa.faltaPagar, forte: true, cor: l.caixa.faltaPagar > 0 ? NBColors.estouro : NBColors.verde),
-        linha('Coberto pela reserva até agora', l.caixa.cobertoPelaReserva),
-      ]),
     );
   }
 }

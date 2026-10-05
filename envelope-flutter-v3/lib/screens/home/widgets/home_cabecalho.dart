@@ -31,29 +31,27 @@ class HomeCabecalho extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final perfil = ref.watch(perfilUsuarioLogadoProvider).valueOrNull;
     final membros = ref.watch(listaUsuariosProvider).valueOrNull ?? [];
     final pendentes = ref.watch(comprasPendentesProvider).valueOrNull?.length ?? 0;
-    final mes = mesLabelLongo(ref.watch(mesAtualProvider)).split(' ').first.toLowerCase();
-    final familia = (perfil?['familias'] as Map?)?['nome'] as String?;
+    final mes = mesLabelLongo(ref.watch(mesAtualProvider));
 
+    // Título curto: não quebra mesmo com a fonte do celular aumentada.
     return Row(
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                familia == null ? mes : 'Família $familia · $mes',
-                style: NBText.rotulo.copyWith(
-                  color: NBColors.tintaSuave,
-                  fontWeight: FontWeight.w600,
-                ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text('Início', style: NBText.tituloTela.copyWith(fontSize: 24)),
               ),
-              const SizedBox(height: 2),
               Text(
-                'Início',
-                style: NBText.tituloTela.copyWith(fontSize: 24),
+                mes,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NBText.legenda.copyWith(color: NBColors.tintaSuave),
               ),
             ],
           ),

@@ -29,6 +29,10 @@ final compromissosCartaoProvider = FutureProvider.autoDispose<List<Map<String, d
   return lista.cast<Map<String, dynamic>>();
 });
 
+/// Envelope que guarda dinheiro (reserva ou objetivo): acumula, não é gasto do mês.
+bool ehReserva(Map<String, dynamic> env) =>
+    env['is_reserva'] == true || env['natureza'] == 'reserva' || env['natureza'] == 'objetivo';
+
 /// Envelope do vale-alimentação (conta própria, fora do limite do salário).
 bool ehEnvelopeVa(Map<String, dynamic> env) =>
     (env['nome_envelope'] as String? ?? '').toLowerCase().replaceAll('ã', 'a').contains('vale alimenta');
@@ -88,7 +92,7 @@ final limiteMesProvider = Provider.autoDispose<AsyncValue<LimiteMes>>((ref) {
     receitas: receitas.value!,
     contasDoMes: [...ref.watch(fixosMesAtualProvider), ...boletos],
     compromissos: compromissos.value!,
-    envelopes: todosEnvelopes.where((e) => e['is_reserva'] != true && !idsVa.contains(e['id'])).toList(),
+    envelopes: todosEnvelopes.where((e) => !ehReserva(e) && !idsVa.contains(e['id'])).toList(),
     compras: comprasDoMes(
       ref.watch(transacoesComDetalhesProvider),
       ref.watch(comprasPendentesProvider).valueOrNull ?? const [],

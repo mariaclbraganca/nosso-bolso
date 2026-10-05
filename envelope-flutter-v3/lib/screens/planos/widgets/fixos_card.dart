@@ -99,6 +99,12 @@ class FixosCard extends StatelessWidget {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           if (diaVenc != null) Text('Vence dia $diaVenc', style: NBText.legenda),
+                          // Sem dia de vencimento: não entra nos avisos; convida a definir.
+                          if (diaVenc == null && !pago)
+                            GestureDetector(
+                              onTap: onEditar,
+                              child: const SeloNB('SEM DATA · DEFINIR O DIA', cor: NBColors.tintaSuave, fundo: NBColors.afundado),
+                            ),
                           if (atrasado) ...[
                             const SeloNB('ATRASADO', cor: NBColors.estouro, fundo: NBColors.estouroClaro),
                           ] else if (venceHoje) ...[
