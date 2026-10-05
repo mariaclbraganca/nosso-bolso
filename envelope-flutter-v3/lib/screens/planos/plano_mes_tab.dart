@@ -37,8 +37,6 @@ class PlanoMesTab extends ConsumerWidget {
                 const SizedBox(height: NBSpacing.l),
                 _Receitas(limite: l),
                 const SizedBox(height: NBSpacing.l),
-                _DeOndeVem(limite: l),
-                const SizedBox(height: NBSpacing.l),
                 _OrcamentoPorEnvelope(limite: l),
                 if (l.mes == '2026-10') ...[
                   const SizedBox(height: NBSpacing.l),
@@ -53,8 +51,8 @@ class PlanoMesTab extends ConsumerWidget {
 
 Color _cor(double v) => v < 0 ? NBColors.estouro : NBColors.verde;
 
-/// Previsto (gastando o orçado), projetado (com o que já aconteceu) e o
-/// déficit coberto pela reserva.
+/// Projeção final do ciclo: quanto falta (sai da reserva) ou sobra, se o
+/// orçado for todo usado (ou mais, onde já passou).
 class ResultadoCiclo extends StatelessWidget {
   const ResultadoCiclo({super.key, required this.limite});
   final LimiteMes limite;
@@ -67,14 +65,14 @@ class ResultadoCiclo extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('RESULTADO DO CICLO · SALÁRIO DE ${ultimoDiaUtil(l.mes)}', style: NBText.eyebrow),
         const SizedBox(height: 4),
-        LinhaValorNB('Previsto (gastando o orçado)', l.resultadoPrevisto, cor: _cor(l.resultadoPrevisto)),
-        LinhaValorNB('Projetado (com o que já aconteceu)', proj, cor: _cor(proj)),
+        LinhaValorNB(proj < 0 ? 'FALTA DINHEIRO (projeção final)' : 'SOBRA (projeção final)', proj.abs(),
+            forte: true, cor: _cor(proj)),
         const Divider(height: 8),
-        LinhaValorNB(
-          proj < 0 ? 'Déficit coberto pela reserva' : 'Superávit (sem uso da reserva)',
-          proj.abs(),
-          forte: true,
-          cor: _cor(proj),
+        Text(
+          proj < 0
+              ? 'Este valor sairá da sua reserva se você utilizar todo o saldo planejado nos envelopes.'
+              : 'Mesmo usando todo o saldo planejado nos envelopes, o salário cobre o mês.',
+          style: NBText.legenda,
         ),
       ]),
     );
@@ -94,18 +92,38 @@ class _Receitas extends ConsumerWidget {
     }
   }
 
-  static String _tipo(Map<String, dynamic> e) => switch (e['tipo']) {
-        'vale' => 'vale-alimentação',
-        'eventual' => e['destino'] == 'reserva' ? 'eventual · para a reserva' : 'eventual',
-        _ => 'garantida',
+  static String _tipo(Map<String, dynamic> e, String mes) => switch (e['tipo']) {
+        'vale' => 'saldo em cartão benefício',
+        'eventual' => e['destino'] == 'reserva'
+            ? 'eventual · para a reserva'
+            : 'eventual${e['dia'] != null ? ' · dia ${e['dia']}' : ''} (prioridade: contas de ${nomeMes(mes)})',
+        _ => 'garantida${e['dia'] != null ? ' · dia ${e['dia']}' : ''}',
       };
+
+  /// Receita eventual ainda fora da conta: tocar no cadeado marca como recebida.
+  Future<void> _confirmarRecebida(BuildContext context, WidgetRef ref, Map<String, dynamic> e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NBColors.cartao,
+        title: Text('${e['nome'] ?? 'Receita'} caiu?', style: NBText.secao),
+        content: Text('Ao marcar como recebida, ela passa a pagar as contas do mês e reduz o que sai da reserva.',
+            style: NBText.corpo),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ainda não')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Marcar como recebida')),
+        ],
+      ),
+    );
+    if (ok == true) await _marcar(ref, e, true);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final receitas = limite.receitas;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [
-        Expanded(child: Text('Receitas do mês', style: NBText.secao)),
+        Expanded(child: Text('RECEITAS DO MÊS (+)', style: NBText.eyebrow)),
         IconButton(
           tooltip: 'Nova receita prevista',
           onPressed: () => abrirSheet(context, SheetEntrada(mes: limite.mes)),
@@ -114,58 +132,37 @@ class _Receitas extends ConsumerWidget {
       ]),
       if (receitas.isEmpty) Text('Cadastre as receitas previstas: salário e vale-alimentação.', style: NBText.legenda),
       for (final e in receitas)
-        CartaoNB(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          onTap: () => abrirSheet(context, SheetEntrada(mes: limite.mes, entrada: e)),
-          child: CheckboxListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-            controlAffinity: ListTileControlAffinity.leading,
-            value: e['recebido'] == true,
-            onChanged: (v) => _marcar(ref, e, v ?? false),
-            title: Text(e['nome'] as String? ?? '', style: NBText.corpo),
-            subtitle: Text(
-              [
-                _tipo(e),
-                if (e['quem'] != null) e['quem'] as String,
-                if (e['dia'] != null) 'dia ${e['dia']}',
-              ].join(' · '),
-              style: NBText.legenda,
+        if (e['tipo'] == 'eventual' && e['recebido'] != true)
+          CartaoNB(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            onTap: () => abrirSheet(context, SheetEntrada(mes: limite.mes, entrada: e)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              leading: IconButton(
+                tooltip: 'Marcar como recebida',
+                icon: const Icon(Icons.lock_outline_rounded, color: NBColors.tintaSuave),
+                onPressed: () => _confirmarRecebida(context, ref, e),
+              ),
+              title: Text(e['nome'] as String? ?? '', style: NBText.corpo),
+              subtitle: Text(_tipo(e, limite.mes), style: NBText.legenda),
+              trailing: Text(brl((e['valor'] as num?) ?? 0), style: NBText.rotulo.copyWith(color: NBColors.tintaSuave)),
             ),
-            secondary: Text(brl((e['valor'] as num?) ?? 0), style: NBText.rotulo),
+          )
+        else
+          CartaoNB(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            onTap: () => abrirSheet(context, SheetEntrada(mes: limite.mes, entrada: e)),
+            child: CheckboxListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              controlAffinity: ListTileControlAffinity.leading,
+              value: e['recebido'] == true,
+              onChanged: (v) => _marcar(ref, e, v ?? false),
+              title: Text(e['nome'] as String? ?? '', style: NBText.corpo),
+              subtitle: Text(_tipo(e, limite.mes), style: NBText.legenda),
+              secondary: Text(brl((e['valor'] as num?) ?? 0), style: NBText.rotulo),
+            ),
           ),
-        ),
     ]);
-  }
-}
-
-class _DeOndeVem extends StatelessWidget {
-  const _DeOndeVem({required this.limite});
-  final LimiteMes limite;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = limite;
-    final pix = l.comprasDoMes + l.pendenteDeEnvelope - l.comprasNoCredito;
-    return CartaoNB(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('DE ONDE VEM E PARA ONDE VAI', style: NBText.eyebrow),
-        const SizedBox(height: 4),
-        LinhaValorNB(l.nomeSalario, l.salario, cor: NBColors.verde),
-        LinhaValorNB(
-          '(−) Fatura Nubank · vence 7/${l.mesFatura.substring(5)}',
-          -l.faturaEmFormacao,
-          detalhe: [('Lançamentos futuros', l.lancamentosFuturos), ('Compras no crédito do mês', l.comprasNoCredito)],
-        ),
-        LinhaValorNB('(−) Compras no Pix/Débito do mês', -(pix > 0 ? pix : 0.0)),
-        LinhaValorNB('(−) Contas de ${nomeMes(somarMeses(l.mes, 1))}', -l.provisaoContas),
-        const Divider(height: 8),
-        LinhaValorNB('Resultado até agora', l.disponivel, forte: true, cor: _cor(l.disponivel)),
-        Text(
-          'O "até agora" considera só as compras já feitas. O projetado também conta o que ainda falta gastar do orçado.',
-          style: NBText.legenda,
-        ),
-      ]),
-    );
   }
 }
 
@@ -177,9 +174,15 @@ class _OrcamentoPorEnvelope extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = limite;
     final envs = [...l.envelopes]..sort((a, b) => l.orcadoDe(b).compareTo(l.orcadoDe(a)));
+    final gasto = l.comprasDoMes + l.pendenteDeEnvelope;
     return CartaoNB(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ORÇAMENTO POR ENVELOPE', style: NBText.eyebrow),
+        Text('PROGRESSO DOS ENVELOPES', style: NBText.eyebrow),
+        const SizedBox(height: 4),
+        Row(children: [
+          Expanded(child: Text('Planejado: ${brl(l.totalOrcado)}', style: NBText.legenda)),
+          Text('Já gasto: ${brl(gasto)}', style: NBText.legenda),
+        ]),
         const SizedBox(height: 6),
         for (final e in envs)
           if (l.orcadoDe(e) > 0 || l.realizadoDe(e) > 0)
@@ -187,10 +190,14 @@ class _OrcamentoPorEnvelope extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Column(children: [
                 Row(children: [
-                  Expanded(child: Text(e['nome_envelope'] as String? ?? '', style: NBText.corpo.copyWith(fontSize: 14))),
+                  Expanded(
+                    child: Text('${e['emoji'] ?? '📦'} ${e['nome_envelope'] ?? ''}',
+                        style: NBText.corpo.copyWith(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
                   Text(
                     '${brl(l.realizadoDe(e))} de ${brl(l.orcadoDe(e))}',
-                    style: NBText.legenda.copyWith(color: l.disponivelDe(e) < 0 ? NBColors.estouro : NBColors.tintaSuave),
+                    style:
+                        NBText.legenda.copyWith(color: l.disponivelDe(e) < 0 ? NBColors.estouro : NBColors.tintaSuave),
                   ),
                 ]),
                 const SizedBox(height: 4),
@@ -201,28 +208,33 @@ class _OrcamentoPorEnvelope extends StatelessWidget {
               ]),
             ),
         const Divider(height: 16),
-        LinhaValorNB('Economia em envelopes (se o mês fechasse hoje)', l.economiaEmEnvelopes, forte: true, cor: NBColors.verde),
+        LinhaValorNB('Saldo disponível para gastar hoje', l.podeGastar, forte: true, cor: _cor(l.podeGastar)),
       ]),
     );
   }
 }
 
-/// Outubro/2026: as contas que vencem no mês não têm salário de setembro.
+/// Outubro/2026: o mês da virada para o modelo novo.
 class _Transicao extends StatelessWidget {
   const _Transicao({required this.limite});
   final LimiteMes limite;
 
   @override
   Widget build(BuildContext context) {
-    final total = limite.contasDoMes.fold(0.0, (s, c) => s + ((c['valor'] as num?) ?? 0));
+    final l = limite;
     return Container(
       padding: const EdgeInsets.all(NBSpacing.m),
       decoration: BoxDecoration(color: NBColors.ambarClaro, borderRadius: BorderRadius.circular(12)),
-      child: Text(
-        'Transição de outubro: as contas que vencem em outubro (${brl(total)}) não têm salário de setembro para pagar. '
-        'Elas saem da reserva agora, fora deste ciclo.',
-        style: NBText.corpo.copyWith(fontSize: 13.5, color: NBColors.ambarTexto),
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('AVISO: TRANSIÇÃO DE OUTUBRO', style: NBText.eyebrow.copyWith(color: NBColors.ambarTexto)),
+        const SizedBox(height: 4),
+        Text(
+          '${l.dinheiroAnterior > 0 ? 'Parte do salário de setembro (${brl(l.dinheiroAnterior)}) já pagou a fatura atual. ' : ''}'
+          'O restante das contas de outubro sairá da reserva'
+          '${l.eventuaisAReceber.isNotEmpty ? ' (ajudado pelo aluguel, quando ele cair)' : ''}.',
+          style: NBText.corpo.copyWith(fontSize: 13.5, color: NBColors.ambarTexto),
+        ),
+      ]),
     );
   }
 }

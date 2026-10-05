@@ -39,11 +39,15 @@ void main() {
     await t.pump(const Duration(milliseconds: 300));
     expect(t.takeException(), isNull);
     expect(find.textContaining('RESULTADO DO CICLO · SALÁRIO DE 30/10'), findsOneWidget);
-    // limite 5491 − 4706,47 − 506,95 = 277,58 (eventual vai para o caixa); orçado 1300 → previsto −1.022,42
-    expect(find.text(brl(-1022.42)), findsWidgets);
-    expect(find.text('Déficit coberto pela reserva'), findsOneWidget);
-    expect(find.textContaining('eventual · Ana'), findsOneWidget);
-    expect(find.textContaining('Transição de outubro'), findsOneWidget);
-    expect(find.text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES'), findsNothing); // fica no Futuro
+    // limite 5491 − 4706,47 − 506,95 = 277,58; planejado 1300 → falta 1.022,42
+    expect(find.text('FALTA DINHEIRO (projeção final)'), findsOneWidget);
+    expect(find.text(brl(1022.42)), findsOneWidget);
+    expect(find.text('RECEITAS DO MÊS (+)'), findsOneWidget);
+    expect(find.textContaining('Pintura'), findsOneWidget);
+    expect(find.text('PROGRESSO DOS ENVELOPES'), findsOneWidget);
+    expect(find.text('Saldo disponível para gastar hoje'), findsOneWidget);
+    expect(find.text(brl(1200)), findsOneWidget); // 1300 − 100
+    expect(find.text('AVISO: TRANSIÇÃO DE OUTUBRO'), findsOneWidget);
+    expect(find.text('DE ONDE VEM E PARA ONDE VAI'), findsNothing); // fica no "Ver a conta"
   });
 }

@@ -13,6 +13,7 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../planos/widgets/limite_resumo_card.dart';
 import 'comum.dart';
+import 'sheet_envelope.dart';
 
 /// Orçamento mensal: quanto vai para cada envelope, comparado ao limite de
 /// compras do mês. Usado como aba (Orçamento) e como folha (botão da Início).
@@ -28,7 +29,38 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
   static final _fmt = NumberFormat.currency(locale: 'pt_BR', symbol: '', decimalDigits: 2);
   final Map<String, TextEditingController> _ctrls = {};
   final Map<String, double> _original = {};
+  final Set<String> _ativados = {}; // envelopes zerados que a pessoa trouxe para a lista
   bool _salvando = false;
+
+  /// Envelopes sem valor planejado: escolher um para dar valor, ou criar um novo.
+  Future<void> _adicionar(List<Map<String, dynamic>> inativos) async {
+    final escolha = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(16), children: [
+          const TopoSheet(titulo: 'Adicionar envelope', subtitulo: 'Envelopes sem valor planejado neste mês.'),
+          const SizedBox(height: 8),
+          for (final e in inativos)
+            ListTile(
+              leading: Text(e['emoji'] as String? ?? '📦', style: const TextStyle(fontSize: 22)),
+              title: Text(e['nome_envelope'] as String? ?? ''),
+              onTap: () => Navigator.pop(ctx, e['id'] as String),
+            ),
+          ListTile(
+            leading: const Icon(Icons.add_rounded, color: NBColors.verde),
+            title: const Text('Criar envelope novo', style: TextStyle(color: NBColors.verde)),
+            onTap: () => Navigator.pop(ctx, '_novo'),
+          ),
+        ]),
+      ),
+    );
+    if (escolha == null || !mounted) return;
+    if (escolha == '_novo') {
+      await abrirSheet(context, const SheetEnvelope());
+    } else {
+      setState(() => _ativados.add(escolha));
+    }
+  }
 
   @override
   void dispose() {
@@ -83,10 +115,13 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
   @override
   Widget build(BuildContext context) {
     // Reserva e vale-alimentação ficam fora: o VA tem limite próprio.
-    final envelopes = ref.watch(envelopesViseisProvider).where((e) => e['is_reserva'] != true && !ehEnvelopeVa(e)).toList();
-    for (final env in envelopes) {
+    final todos = ref.watch(envelopesViseisProvider).where((e) => e['is_reserva'] != true && !ehEnvelopeVa(e)).toList();
+    for (final env in todos) {
       _ctrl(env); // cria os campos antes de somar, senão o 1º frame mostra total zero
     }
+    bool ativo(Map<String, dynamic> e) => (_original[e['id']] ?? 0) > 0 || _ativados.contains(e['id']);
+    final envelopes = todos.where(ativo).toList();
+    final inativos = todos.where((e) => !ativo(e)).toList();
     final total = envelopes.fold(0.0, (s, e) => s + parseMoeda(_ctrl(e).text));
     final limite = ref.watch(limiteMesProvider).valueOrNull;
     final medias = mediaUltimosMeses(
@@ -98,11 +133,9 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
       if (limite != null) TopoOrcamento(limite: limite, totalOrcado: total),
       const SizedBox(height: NBSpacing.l),
       Row(children: [
-        Expanded(child: Text('Envelopes', style: NBText.secao)),
+        Expanded(child: Text('ENVELOPES ATIVOS', style: NBText.eyebrow)),
         Text(brl(total), style: NBText.secao),
       ]),
-      Text('Compras no cartão ou Pix. Embaixo de cada um, a média dos últimos 3 meses, como referência.',
-          style: NBText.legenda),
       const SizedBox(height: NBSpacing.s),
       for (final env in envelopes)
         Padding(
@@ -132,9 +165,20 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
             ],
           ),
         ),
+      if (inativos.isNotEmpty || todos.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: NBSpacing.m),
+          child: OutlinedButton.icon(
+            onPressed: () => _adicionar(inativos),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Adicionar outro envelope'),
+          ),
+        ),
       if (limite != null && limite.limiteVa > 0)
         CartaoNB(
           child: Row(children: [
+            const Text('💳', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: NBSpacing.s),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Vale-alimentação', style: NBText.rotulo),
