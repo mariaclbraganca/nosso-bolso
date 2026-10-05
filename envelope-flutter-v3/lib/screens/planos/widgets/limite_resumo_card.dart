@@ -157,10 +157,10 @@ class FolhaContaOrcamento extends StatelessWidget {
                 valor: ((r['valor'] as num?) ?? 0).toDouble(),
                 texto: 'Quando cair, paga primeiro as contas de $mes (reduz o que sai da reserva em $mes).',
               ),
-            if (l.eventuaisNasContas > 0)
+            if (l.caixa.receitasUsadas > 0)
               _ForaDaConta(
                 titulo: '${recebidas.map(_nomeReceita).join(', ')} · recebido',
-                valor: l.eventuaisNasContas,
+                valor: l.caixa.receitasUsadas,
                 texto: 'Usado nas contas de $mes.',
               ),
             if (l.limiteVa > 0)

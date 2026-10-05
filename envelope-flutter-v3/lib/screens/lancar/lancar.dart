@@ -530,8 +530,8 @@ class _SheetReceitaState extends ConsumerState<SheetReceita> {
                   linhas: [
                     (
                       rotulo: 'Vai sair da reserva até o salário',
-                      agora: l.vaiSairDaReserva,
-                      depois: l.vaiSairDaReserva - (_v < l.faltaCaixa ? _v : l.faltaCaixa),
+                      agora: l.saiDaReservaAteOSalario,
+                      depois: l.saiDaReservaAteOSalario - (_v < l.caixa.faltaNoMes ? _v : l.caixa.faltaNoMes),
                     ),
                   ],
                   nota: 'Entra no caixa do mês: ajuda a pagar as contas e reduz o que sai da reserva.',

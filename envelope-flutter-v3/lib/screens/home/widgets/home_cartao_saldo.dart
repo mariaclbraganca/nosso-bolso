@@ -179,18 +179,18 @@ class SeloDoMes extends StatelessWidget {
           ? Text(texto, style: forte)
           // Um mês de cada vez: o que sai para fechar este mês e o que o próximo já começa devendo.
           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (l.faltaSairNoMes > 0) ...[
-                Text('Vai sair da reserva em $mes: ${brl(l.faltaSairNoMes)}', style: forte),
+              if (l.caixa.aindaSaiNoMes > 0) ...[
+                Text('Vai sair da reserva em $mes: ${brl(l.caixa.aindaSaiNoMes)}', style: forte),
                 Text('para terminar de pagar as contas de $mes', style: leve),
                 if (l.eventuaisAReceber.isNotEmpty)
                   Text(
                     'Se ${l.eventuaisAReceber.map((r) => (r['nome'] as String?) ?? 'a receita').join(' e ')} cair: '
-                    '${brl((l.faltaSairNoMes - l.eventuaisAReceber.fold(0.0, (s, r) => s + ((r['valor'] as num?) ?? 0))).clamp(0, double.infinity))}',
+                    '${brl((l.caixa.aindaSaiNoMes - l.eventuaisAReceber.fold(0.0, (s, r) => s + ((r['valor'] as num?) ?? 0))).clamp(0, double.infinity))}',
                     style: leve,
                   ),
               ],
-              if (l.faltaSairNoMes > 0 && l.deficitReserva > 0) const SizedBox(height: 4),
-              if (l.deficitReserva > 0) Text('Falta dinheiro em $proximo (sai da reserva): ${brl(l.deficitReserva)}', style: forte),
+              if (l.caixa.aindaSaiNoMes > 0 && l.faltaNoCiclo > 0) const SizedBox(height: 4),
+              if (l.faltaNoCiclo > 0) Text('Falta dinheiro em $proximo (sai da reserva): ${brl(l.faltaNoCiclo)}', style: forte),
             ]),
     );
   }
@@ -223,10 +223,10 @@ class ContasDoMesCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('CONTAS QUE VENCEM EM ${nomeMes(l.mes).toUpperCase()}', style: NBText.eyebrow),
         const SizedBox(height: 6),
-        linha('Total', l.totalContas),
-        linha('Pago', l.totalPago, cor: NBColors.verde),
-        linha('Falta pagar', l.faltaPagar, forte: true, cor: l.faltaPagar > 0 ? NBColors.estouro : NBColors.verde),
-        linha('Coberto pela reserva até agora', l.cobertoPelaReserva),
+        linha('Total', l.caixa.totalContas),
+        linha('Pago', l.caixa.totalPago, cor: NBColors.verde),
+        linha('Falta pagar', l.caixa.faltaPagar, forte: true, cor: l.caixa.faltaPagar > 0 ? NBColors.estouro : NBColors.verde),
+        linha('Coberto pela reserva até agora', l.caixa.cobertoPelaReserva),
       ]),
     );
   }

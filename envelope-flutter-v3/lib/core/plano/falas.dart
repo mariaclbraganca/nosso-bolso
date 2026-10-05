@@ -57,7 +57,7 @@ Fala? falaDoInicio({
 
   // 2. Geronimo: conta que vence em até 2 dias
   if (ehMesAtual) {
-    double falta(Map<String, dynamic> c) => ((c['valor'] as num?)?.toDouble() ?? 0) - LimiteMes.pagoDe(c);
+    double falta(Map<String, dynamic> c) => ((c['valor'] as num?)?.toDouble() ?? 0) - CaixaDoMes.pagoDe(c);
     final vencendo = [
       for (final c in contas)
         if (c['pago'] != true && c['dia_vencimento'] is int && falta(c) > 0.005)
@@ -96,7 +96,7 @@ Fala? falaDoInicio({
   }
 
   // 5. Sweet: conquistas
-  if (l.totalContas > 0 && l.faltaPagar <= 0.005) {
+  if (l.caixa.totalContas > 0 && l.caixa.faltaPagar <= 0.005) {
     return _f(UnicornType.sweet, UnicornMood.celebrate,
         'Todas as contas de ${_meses[int.parse(l.mes.substring(5, 7)) - 1]} estão pagas. Que orgulho!');
   }

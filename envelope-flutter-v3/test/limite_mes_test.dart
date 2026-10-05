@@ -68,10 +68,10 @@ void main() {
     final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
     final noMes = outubro(rec: [...receitas.take(2), aluguel]);
     expect(noMes.limite, closeTo(-1555.46, 0.001));
-    expect(noMes.dinheiroDoMes, 1150);
+    expect(noMes.caixa.dinheiroDoMes, 1150);
     final l = outubro(rec: [...receitas.take(2), {...aluguel, 'destino': 'reserva'}]);
     expect(l.limite, closeTo(-1555.46, 0.001));
-    expect(l.dinheiroDoMes, 0);
+    expect(l.caixa.dinheiroDoMes, 0);
     expect(l.guardadoNaReserva, 1150);
   });
 
@@ -108,12 +108,12 @@ void main() {
 
     test('contas de outubro: fatura cheia com pagamento parcial', () {
       final l = real();
-      expect(l.totalContas, closeTo(12231.71, 0.001));
-      expect(l.totalPago, closeTo(5370.38, 0.001));
-      expect(l.faltaPagar, closeTo(6861.33, 0.001));
-      expect(l.cobertoPelaReserva, 0);
-      expect(l.faltaCaixa, closeTo(6861.33, 0.001));
-      expect(l.vaiSairDaReserva, closeTo(6861.33 + 4744.24, 0.001));
+      expect(l.caixa.totalContas, closeTo(12231.71, 0.001));
+      expect(l.caixa.totalPago, closeTo(5370.38, 0.001));
+      expect(l.caixa.faltaPagar, closeTo(6861.33, 0.001));
+      expect(l.caixa.cobertoPelaReserva, 0);
+      expect(l.caixa.faltaNoMes, closeTo(6861.33, 0.001));
+      expect(l.saiDaReservaAteOSalario, closeTo(6861.33 + 4744.24, 0.001));
     });
 
     test('a fatura em duas linhas (como está hoje) dá o mesmo total', () {
@@ -123,8 +123,8 @@ void main() {
         ...contasReais.skip(1),
       ];
       final l = real(contas: dividida);
-      expect(l.totalContas, closeTo(12231.71, 0.001));
-      expect(l.totalPago, closeTo(5370.38, 0.001));
+      expect(l.caixa.totalContas, closeTo(12231.71, 0.001));
+      expect(l.caixa.totalPago, closeTo(5370.38, 0.001));
     });
 
     test('pagar o aluguel do apartamento: sai da reserva o que passou do salário', () {
@@ -132,35 +132,35 @@ void main() {
         for (final c in contasReais) c['nome'] == 'Aluguel apartamento' ? {...c, 'pago': true} : c,
       ];
       final l = real(contas: contas);
-      expect(l.cobertoPelaReserva, closeTo(2148.43, 0.001));
-      expect(l.aindaFaltaSair, closeTo(6861.33 + 4744.24 - 2148.43, 0.001));
+      expect(l.caixa.cobertoPelaReserva, closeTo(2148.43, 0.001));
+      expect(l.saiDaReservaAteOSalario - l.caixa.cobertoPelaReserva, closeTo(6861.33 + 4744.24 - 2148.43, 0.001));
     });
 
     test('aluguel da casa recebido reduz o que sai da reserva', () {
       final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
       final l = real(rec: [...receitas.take(2), aluguel]);
       expect(l.limite, closeTo(-2022.24, 0.001));
-      expect(l.faltaCaixa, closeTo(5711.33, 0.001));
+      expect(l.caixa.faltaNoMes, closeTo(5711.33, 0.001));
     });
 
     test('receita eventual paga primeiro as contas do mês; só a sobra entra no orçamento', () {
       final aluguel = {'nome': 'Aluguel da casa', 'valor': 1150.0, 'tipo': 'eventual', 'recebido': true, 'destino': 'mes'};
       final l = real(rec: [...receitas.take(2), aluguel]);
-      expect(l.eventuaisNasContas, 1150); // outubro ainda precisa de 6.861,33
+      expect(l.caixa.receitasUsadas, 1150); // outubro ainda precisa de 6.861,33
       expect(l.eventuaisNoCiclo, 0);
       expect(l.limite, closeTo(-2022.24, 0.001));
       // Contas do mês de R$ 6.000: faltam 629,62 além do salário; o resto do aluguel vai para o orçamento
       final s = real(rec: [...receitas.take(2), aluguel], contas: [{'nome': 'Contas', 'valor': 6000.0}]);
-      expect(s.eventuaisNasContas, closeTo(629.62, 0.001));
+      expect(s.caixa.receitasUsadas, closeTo(629.62, 0.001));
       expect(s.eventuaisNoCiclo, closeTo(520.38, 0.001));
       expect(s.limite, closeTo(5491 - 0 - 2339.99 + 520.38, 0.001)); // sem contas recorrentes
-      expect(s.faltaCaixa, 0);
+      expect(s.caixa.faltaNoMes, 0);
     });
 
     test('Pix sai do caixa na hora; crédito não', () {
       final l = real(compras: [...comprasOut, (valor: 30, envelopeId: 'lazer', forma: 'pix')]);
-      expect(l.comprasAVista, 30);
-      expect(l.faltaCaixa, closeTo(6891.33, 0.001));
+      expect(l.caixa.comprasAVista, 30);
+      expect(l.caixa.faltaNoMes, closeTo(6891.33, 0.001));
       expect(l.podeGastar, closeTo(2636, 0.001));
     });
 
@@ -213,6 +213,6 @@ void main() {
     expect(l.proximosMeses(1).single.limite, closeTo(-580.18, 0.001)); // novembro
     expect(l.economiaEmEnvelopes, closeTo(2722 - 56, 0.001));
     expect(l.resultadoProjetado, closeTo(-4277.46, 0.001));
-    expect(l.deficitReserva, closeTo(4277.46, 0.001));
+    expect(l.faltaNoCiclo, closeTo(4277.46, 0.001));
   });
 }

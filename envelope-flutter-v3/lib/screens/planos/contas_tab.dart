@@ -113,7 +113,7 @@ class ContasTab extends ConsumerWidget {
 
   /// Paga só uma parte da conta (ex.: fatura paga em etapas).
   Future<void> _pagarParte(BuildContext context, Map<String, dynamic> c) async {
-    final falta = ((c['valor'] as num?)?.toDouble() ?? 0) - LimiteMes.pagoDe(c);
+    final falta = ((c['valor'] as num?)?.toDouble() ?? 0) - CaixaDoMes.pagoDe(c);
     final ctrl = TextEditingController();
     final valor = await showDialog<double>(
       context: context,
@@ -233,7 +233,7 @@ class ContasTab extends ConsumerWidget {
     final boletos = ref.watch(contasMesProvider(mes));
     final contas = juntarContas(ref.watch(fixosMesAtualProvider), boletos.valueOrNull ?? const []);
     final total = contas.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
-    final pendente = total - contas.fold(0.0, (s, c) => s + LimiteMes.pagoDe(c));
+    final pendente = total - contas.fold(0.0, (s, c) => s + CaixaDoMes.pagoDe(c));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
@@ -267,7 +267,7 @@ class ContasTab extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Pago ${brl(total - pendente)} · coberto pela reserva até agora ${brl(l.cobertoPelaReserva)}',
+              'Pago ${brl(total - pendente)} · coberto pela reserva até agora ${brl(l.caixa.cobertoPelaReserva)}',
               style: NBText.legenda,
             ),
           ),
