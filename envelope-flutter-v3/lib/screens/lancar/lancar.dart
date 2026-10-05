@@ -308,7 +308,6 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
           erro: true);
     }
     final p = perfilOuErro(ref);
-    final mes = ref.read(mesAtualProvider);
     final desc = _descricao.text.trim();
     final fala = falaDaCompra(
       l: ref.read(limiteMesProvider).valueOrNull,
@@ -336,16 +335,10 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
           'familia_id': p['familia_id'],
           'descricao': _n > 1 ? '${desc.isEmpty ? 'Compra parcelada' : desc} · 1/$_n' : (desc.isEmpty ? null : desc),
           'forma_pagamento': _forma,
+          // Parcelada: o servidor grava as parcelas 2..n junto (tudo ou nada).
+          if (_n > 1) 'parcelas': _n,
+          if (_n > 1) 'descricao_parcelada': desc.isEmpty ? 'Compra parcelada' : desc,
         });
-        if (_n > 1) {
-          await ApiService.post('/plano/cartao', compromissoDaParcelada(
-            familiaId: p['familia_id'] as String,
-            descricao: desc.isEmpty ? 'Compra parcelada' : desc,
-            valorTotal: _total,
-            parcelas: _n,
-            mes: mes,
-          ));
-        }
       }
       if (_n > 1) ref.invalidate(compromissosCartaoProvider);
       ref.invalidate(transacoesStreamProvider);

@@ -13,6 +13,10 @@ class TransacaoCreate(BaseModel):
     familia_id: UUID
     comprovante_url: Optional[str] = None
     forma_pagamento: Optional[str] = None  # credito|debito|pix|dinheiro|va
+    # Compra parcelada no crédito: `valor` é a 1ª parcela; o servidor grava as
+    # parcelas 2..n junto (tudo ou nada).
+    parcelas: Optional[int] = None
+    descricao_parcelada: Optional[str] = None
 
     @model_validator(mode='after')
     def validar_envelope_id(self):

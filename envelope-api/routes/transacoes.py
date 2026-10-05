@@ -7,6 +7,7 @@ from datetime import datetime
 import io
 import csv
 
+from parcelas_cartao import compromisso_da_parcelada, gravar_parcelas_ou_desfazer
 router = APIRouter()
 
 
@@ -55,7 +56,12 @@ def registrar_transacao(
         "forma_pagamento": payload.forma_pagamento,
     }
     result = db.table("transacoes").insert(data).execute()
-    return result.data[0]
+    criada = result.data[0]
+    if payload.parcelas and payload.parcelas > 1 and payload.tipo == "despesa":
+        gravar_parcelas_ou_desfazer(db, criada["id"], compromisso_da_parcelada(
+            fam, payload.descricao_parcelada or payload.descricao or "Compra parcelada",
+            payload.valor, payload.parcelas, str(payload.data)[:7]))
+    return criada
 
 @router.post("/receita")
 def registrar_receita(
