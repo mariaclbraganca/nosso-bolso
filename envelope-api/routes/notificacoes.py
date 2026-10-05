@@ -1,4 +1,5 @@
-from fastapi import APIRouter, BackgroundTasks
+import os
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from database import get_supabase
 from datetime import date, timedelta
 import calendar
@@ -6,11 +7,16 @@ import calendar
 router = APIRouter()
 
 @router.post("/processar-alertas")
-def processar_alertas(background_tasks: BackgroundTasks):
+def processar_alertas(background_tasks: BackgroundTasks, x_cron_secret: str = Header(default="")):
     """
     Roda em background para verificar quem precisa de notificação (SPEC-06).
     Em produção, isso seria chamado por um CRON job (ex: GitHub Actions ou Render Cron).
     """
+    # Só o agendador chama: exige a senha interna CRON_SECRET (sem ela, recusa).
+    segredo = os.getenv("CRON_SECRET", "")
+    if not segredo or x_cron_secret != segredo:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     db = get_supabase()
     hoje = date.today()
     amanha = hoje + timedelta(days=1)

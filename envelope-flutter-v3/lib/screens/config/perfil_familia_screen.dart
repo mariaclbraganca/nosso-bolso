@@ -78,7 +78,7 @@ class _PerfilFamiliaScreenState extends ConsumerState<PerfilFamiliaScreen> {
     );
     if (ok != true) return;
     try {
-      await supabase.from('usuarios').update({'familia_id': null}).eq('id', id);
+      await supabase.rpc('sair_da_familia');
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
       await ref.read(perfilUsuarioLogadoProvider.notifier).recarregar();
     } catch (e) {

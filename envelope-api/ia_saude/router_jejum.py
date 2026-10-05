@@ -642,7 +642,7 @@ async def processar_motivacoes(x_cron_secret: str | None = Header(default=None))
     Só eventos POSITIVOS são propagados. Máx 2 notifs/dia por par.
     """
     _secret = os.getenv("CRON_SECRET", "")
-    if _secret and x_cron_secret != _secret:
+    if not _secret or x_cron_secret != _secret:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     db = get_supabase()

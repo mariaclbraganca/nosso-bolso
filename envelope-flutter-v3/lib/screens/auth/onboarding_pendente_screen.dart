@@ -43,21 +43,9 @@ class _OnboardingPendenteScreenState
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception('Usuário não autenticado');
 
-      final familyRes = await supabase
-          .from('familias')
-          .insert({'nome': nome})
-          .select('id, codigo_acesso')
-          .single();
-
-      final familyId = familyRes['id'] as String;
-
-      await supabase.from('usuarios').upsert({
-        'id': user.id,
-        'email': user.email,
-        'nome': user.userMetadata?['nome'] ?? user.email?.split('@')[0] ?? 'Eu',
-        'familia_id': familyId,
-        'role': 'admin',
-      });
+      // Função segura do banco: cria a família e torna quem criou o administrador.
+      final criada = await supabase.rpc('criar_familia', params: {'p_nome': nome}) as List;
+      final familyId = (criada.first as Map)['id'] as String;
 
       await supabase.from('envelopes').insert([
         {'familia_id': familyId, 'nome_envelope': 'Alimentação & Mercado', 'valor_planejado': 1200.0, 'natureza': 'consumo'},
@@ -87,24 +75,8 @@ class _OnboardingPendenteScreenState
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception('Usuário não autenticado');
 
-      final familyRes = await supabase
-          .from('familias')
-          .select('id')
-          .eq('codigo_acesso', code)
-          .maybeSingle();
-
-      if (familyRes == null) {
-        throw Exception('Código de família não encontrado.');
-      }
-
-      final familyId = familyRes['id'] as String;
-
-      await supabase.from('usuarios').upsert({
-        'id': user.id,
-        'email': user.email,
-        'nome': user.userMetadata?['nome'] ?? user.email?.split('@')[0] ?? 'Eu',
-        'familia_id': familyId,
-      });
+      // Função segura do banco: confere o código e entra (o código nunca é listado).
+      await supabase.rpc('entrar_na_familia', params: {'p_codigo': code});
 
       ref.read(perfilUsuarioLogadoProvider.notifier).recarregar();
       avisar('Você entrou na família com sucesso! 🎉');
