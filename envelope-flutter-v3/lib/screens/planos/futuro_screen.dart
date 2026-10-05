@@ -5,7 +5,7 @@ import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
 import '../config/simulador_gastos_screen.dart';
-import 'plano_mes_tab.dart';
+import 'widgets/proximos_meses.dart';
 import 'widgets/plano_sheets.dart';
 
 enum _AbaFuturo { meses, parcelas, simulacoes }

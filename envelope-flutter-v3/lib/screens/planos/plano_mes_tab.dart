@@ -238,31 +238,3 @@ class _Transicao extends StatelessWidget {
     );
   }
 }
-
-/// Disponível para planejar nos próximos meses (sem receitas eventuais).
-class ProximosMeses extends StatelessWidget {
-  const ProximosMeses({super.key, required this.limite});
-  final LimiteMes limite;
-
-  @override
-  Widget build(BuildContext context) {
-    final meses = limite.proximosMeses(5);
-    final virada = meses.where((m) => m.limite >= 0).firstOrNull;
-    return CartaoNB(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES', style: NBText.eyebrow),
-        Text('Salário − contas do mês seguinte − parcelas que ainda faltam (sem receitas eventuais)', style: NBText.legenda),
-        const SizedBox(height: 6),
-        for (final m in meses)
-          LinhaValorNB('${nomeMes(m.mes)[0].toUpperCase()}${nomeMes(m.mes).substring(1)}', m.limite, cor: _cor(m.limite)),
-        const Divider(height: 12),
-        Text(
-          virada == null
-              ? 'Nos próximos 5 meses continua negativo. Vale rever as contas fixas.'
-              : 'Volta a ficar positivo em ${nomeMes(virada.mes)}.',
-          style: NBText.rotulo.copyWith(color: virada == null ? NBColors.estouro : NBColors.verde),
-        ),
-      ]),
-    );
-  }
-}

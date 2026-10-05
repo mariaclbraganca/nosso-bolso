@@ -7,6 +7,7 @@ import '../../../core/providers/plano_provider.dart';
 import '../../../core/providers/transacoes_provider.dart';
 import '../../../core/providers/usuarios_provider.dart';
 import '../../../ui/theme/nb_theme.dart';
+import 'home_fatura_linha.dart';
 
 /// Último dia útil do mês 'YYYY-MM' (sem feriados), como "30/10".
 String ultimoDiaUtil(String mes) {
@@ -137,6 +138,8 @@ class CartaoDisponivel extends StatelessWidget {
         ),
         const SizedBox(height: NBSpacing.m),
         ContasDoMesCard(limite: l),
+        const SizedBox(height: NBSpacing.s),
+        LinhaFaturaEmFormacao(limite: l),
         if (l.limiteVa > 0) ...[
           const SizedBox(height: NBSpacing.m),
           _CartaoVa(limite: l),

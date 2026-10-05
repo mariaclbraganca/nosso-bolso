@@ -88,7 +88,8 @@ void main() {
     await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const FuturoScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
-    expect(find.text('VALOR DISPONÍVEL PARA OS ENVELOPES NOS PRÓXIMOS MESES'), findsOneWidget);
+    expect(find.text('PRÓXIMOS MESES'), findsOneWidget);
+    expect(find.text('Depois dos envelopes'), findsOneWidget);
     await abrirAbas(t, ['Parcelas', 'Simulações']);
     expect(find.text('Simular um cenário'), findsOneWidget);
   });

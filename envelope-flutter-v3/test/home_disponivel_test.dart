@@ -49,6 +49,8 @@ void main() {
     expect(find.text('CONTAS QUE VENCEM EM OUTUBRO'), findsOneWidget);
     expect(find.text(brl(12231.71)), findsOneWidget);
     expect(find.text(brl(6861.33)), findsOneWidget); // falta pagar no card de contas
+    expect(find.text('Fatura Nubank 7/11 em formação'), findsOneWidget);
+    expect(find.text(brl(2395.99)), findsOneWidget); // 2.339,99 + 56 no crédito
     expect(find.text('Vale-alimentação'), findsOneWidget);
     expect(find.text(brl(720)), findsOneWidget);
   });
