@@ -83,7 +83,8 @@ def achar_candidatos(col, familia_id: str, estabelecimento: str, valor: float,
         # capturas feitas por apps antigos (sem horário): pela data próxima
         d0 = (t.date() - timedelta(days=LEGADO_DIAS_ANTES)).isoformat() + "T00:00:00"
         d1 = (t.date() + timedelta(days=LEGADO_DIAS_DEPOIS)).isoformat() + "T23:59:59"
-        achados += list(col.find({**_base(familia_id, valor), "notificado_em": {"$exists": False},
+        # (None casa com campo ausente E com campo nulo: apps antigos gravam os dois jeitos)
+        achados += list(col.find({**_base(familia_id, valor), "notificado_em": None,
                                   "data_compra": {"$gte": d0, "$lte": d1}}))
     else:
         achados += list(col.find({**_base(familia_id, valor), "created_at": {"$gte": limite}}))

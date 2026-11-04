@@ -17,6 +17,7 @@ class ColecaoFalsa:
 
     @staticmethod
     def _bate(valor, cond):
+        # Como o MongoDB: igualdade a None casa com campo ausente e com campo nulo
         if not isinstance(cond, dict):
             return valor == cond
         for op, alvo in cond.items():
@@ -112,6 +113,16 @@ def test_transicao_captura_antiga_sem_horario_nao_gera_outra():
     assert capturar(col, "Pet Colosso", 190.0, "2026-10-19T10:30:00", criado="2026-11-05T09:00:00") == "duplicata"
     # uma compra igual muito depois da antiga continua sendo outra
     assert capturar(col, "Pet Colosso", 190.0, "2026-10-28T10:30:00") == "nova"
+
+
+def test_transicao_captura_antiga_com_horario_nulo():
+    """Apps antigos, depois do 1º deploy, gravam notificado_em = null (campo presente e vazio)."""
+    col = ColecaoFalsa()
+    col.insert_one({"compra_id": "velha", "familia_id": FAM, "supermercado": "Morita", "valor_total": 37.25,
+                    "fonte": "nubank", "notificado_em": None, "data_compra": "2026-10-19T00:00:00",
+                    "created_at": "2026-10-19T12:05:00"})
+    assert capturar(col, "Morita", 37.25, "2026-10-19T12:00:00", criado="2026-11-04T09:00:00") == "duplicata"
+    assert len(col.docs) == 1 and col.docs[0]["notificado_em"] == "2026-10-19T12:00:00"
 
 
 def test_valor_diferente_nao_e_duplicata():
