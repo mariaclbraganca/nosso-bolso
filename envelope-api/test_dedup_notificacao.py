@@ -3,6 +3,7 @@ from datetime import datetime
 
 from ia_compras.dedup_notificacao import (
     achar_duplicata, ficar_com_a_mais_antiga, mesma_loja, normalizar, para_iso, registrar_origem,
+    registrar_repeticao,
 )
 
 FAM = "fam-1"
@@ -34,6 +35,7 @@ class ColecaoFalsa:
     def update_one(self, f, mudanca):
         for d in self.docs:
             if d["compra_id"] == f["compra_id"]:
+                d.update(mudanca.get("$set", {}))
                 for campo, v in mudanca.get("$addToSet", {}).items():
                     d.setdefault(campo, [])
                     if v not in d[campo]: d[campo].append(v)
@@ -44,10 +46,11 @@ def capturar(col, loja, valor, notificado, quem="eu", status="pendente", criado=
     iso = para_iso(notificado)
     achada = achar_duplicata(col, FAM, loja, valor, iso, agora=datetime.fromisoformat(criado))
     if achada:
-        registrar_origem(col, achada, quem)
+        registrar_repeticao(col, achada, quem, iso, (notificado or "")[:10] or None)
         return "duplicata"
     doc = {"compra_id": f"c{len(col.docs)}", "familia_id": FAM, "supermercado": loja, "valor_total": valor,
-           "fonte": fonte, "notificado_em": iso, "origens": [quem], "status_integracao": status, "created_at": criado}
+           "fonte": fonte, "notificado_em": iso, "origens": [quem], "status_integracao": status, "created_at": criado,
+           "data_compra": f"{(iso or criado)[:10]}T00:00:00"}
     if iso is None:
         del doc["notificado_em"]
     col.insert_one(doc)
@@ -93,6 +96,22 @@ def test_loja_cortada_pelo_android_e_a_mesma():
     assert not mesma_loja("Posto Da Mata", "Posto Leste I")
     assert not mesma_loja("Lenda", "Le")           # nome curto demais para tratar como cortado
     assert normalizar("Açaí do Zé!") == "acaidoze"
+
+
+def test_transicao_captura_antiga_sem_horario_nao_gera_outra():
+    """App novo relê a bandeja: a captura antiga (data da leitura, sem horário) é a mesma compra."""
+    col = ColecaoFalsa()
+    col.insert_one({"compra_id": "velha", "familia_id": FAM, "supermercado": "Pet Colosso", "valor_total": 190.0,
+                    "fonte": "nubank", "data_compra": "2026-10-20T00:00:00", "status_integracao": "confirmado",
+                    "created_at": "2026-10-20T21:00:00"})       # a notificação era de 19/10, lida no dia 20
+    assert capturar(col, "Pet Colosso", 190.0, "2026-10-19T10:30:00", criado="2026-11-04T09:00:00") == "duplicata"
+    assert len(col.docs) == 1
+    assert col.docs[0]["notificado_em"] == "2026-10-19T10:30:00"        # adotou o horário real
+    assert col.docs[0]["data_compra"] == "2026-10-19T00:00:00"          # e a data real da compra
+    # a próxima leitura da mesma notificação bate pelo caminho exato
+    assert capturar(col, "Pet Colosso", 190.0, "2026-10-19T10:30:00", criado="2026-11-05T09:00:00") == "duplicata"
+    # uma compra igual muito depois da antiga continua sendo outra
+    assert capturar(col, "Pet Colosso", 190.0, "2026-10-28T10:30:00") == "nova"
 
 
 def test_valor_diferente_nao_e_duplicata():

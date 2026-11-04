@@ -11,7 +11,9 @@ até JANELA_MIN minutos de diferença, são a mesma compra, em qualquer estado
 lanches de R$ 4,00 no mesmo dia) têm horários diferentes e ficam separadas.
 
 Apps antigos não mandam o horário da notificação: para eles vale a regra antiga
-(criada há até JANELA_LEGADO_MIN minutos).
+(criada há até JANELA_LEGADO_MIN minutos). Quando o app novo relê a bandeja pela
+primeira vez, as capturas antigas (sem horário) são reconhecidas pela data
+próxima e passam a guardar o horário (adotar_horario), sem criar outra.
 """
 import re
 import unicodedata
@@ -21,6 +23,9 @@ from zoneinfo import ZoneInfo
 
 JANELA_MIN = 3
 JANELA_LEGADO_MIN = 10
+# Captura antiga guardava a data da LEITURA: fica até alguns dias depois da compra.
+LEGADO_DIAS_ANTES = 1
+LEGADO_DIAS_DEPOIS = 4
 FONTES = ["nubank", "ifood"]
 _FUSO = ZoneInfo("America/Sao_Paulo")
 
@@ -75,9 +80,11 @@ def achar_candidatos(col, familia_id: str, estabelecimento: str, valor: float,
             "$lte": (t + timedelta(minutes=JANELA_MIN)).isoformat(timespec="seconds"),
         }
         achados += list(col.find({**_base(familia_id, valor), "notificado_em": janela}))
-        # capturas feitas por apps antigos (sem horário) nos últimos minutos
+        # capturas feitas por apps antigos (sem horário): pela data próxima
+        d0 = (t.date() - timedelta(days=LEGADO_DIAS_ANTES)).isoformat() + "T00:00:00"
+        d1 = (t.date() + timedelta(days=LEGADO_DIAS_DEPOIS)).isoformat() + "T23:59:59"
         achados += list(col.find({**_base(familia_id, valor), "notificado_em": {"$exists": False},
-                                  "created_at": {"$gte": limite}}))
+                                  "data_compra": {"$gte": d0, "$lte": d1}}))
     else:
         achados += list(col.find({**_base(familia_id, valor), "created_at": {"$gte": limite}}))
     return [c for c in achados if mesma_loja(c.get("supermercado"), estabelecimento)]
@@ -93,6 +100,18 @@ def registrar_origem(col, existente: dict, usuario_id: Optional[str]) -> None:
     """Guarda quem mais notificou a mesma compra (ex.: titular e cartão adicional)."""
     if usuario_id:
         col.update_one({"compra_id": existente["compra_id"]}, {"$addToSet": {"origens": str(usuario_id)}})
+
+
+def registrar_repeticao(col, existente: dict, usuario_id: Optional[str],
+                        notificado_em: Optional[str], data_compra: Optional[str]) -> None:
+    """Uma captura nova caiu numa já existente: soma a origem e, se a antiga não
+    tinha o horário da notificação (app antigo), adota o horário e a data reais."""
+    registrar_origem(col, existente, usuario_id)
+    if notificado_em and not existente.get("notificado_em"):
+        campos = {"notificado_em": notificado_em}
+        if data_compra:
+            campos["data_compra"] = f"{data_compra}T00:00:00"
+        col.update_one({"compra_id": existente["compra_id"]}, {"$set": campos})
 
 
 def ficar_com_a_mais_antiga(col, doc: dict, notificado_em: Optional[str]) -> Optional[dict]:

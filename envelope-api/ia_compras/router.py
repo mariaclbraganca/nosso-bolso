@@ -9,7 +9,9 @@ from ia_compras.mongo_client import get_compras_collection, get_dicionario_colle
 from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from datetime import datetime
 from database import get_supabase
-from ia_compras.dedup_notificacao import achar_duplicata, ficar_com_a_mais_antiga, para_iso, registrar_origem
+from ia_compras.dedup_notificacao import (
+    achar_duplicata, ficar_com_a_mais_antiga, para_iso, registrar_origem, registrar_repeticao,
+)
 import logging
 
 from parcelas_cartao import compromisso_da_parcelada, gravar_parcelas_ou_desfazer
@@ -556,7 +558,7 @@ def registrar_notificacao_ifood(
     col = get_compras_collection()
     existente = achar_duplicata(col, fam, payload.estabelecimento, payload.valor, notificado)
     if existente:
-        registrar_origem(col, existente, quem)
+        registrar_repeticao(col, existente, quem, notificado, data_compra)
         logger.info("ifood: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
         return {"status": "duplicata_ignorada"}
 
@@ -637,7 +639,7 @@ def registrar_notificacao_nubank(
     quem = str(payload.usuario_id) if payload.usuario_id else user.id
     existente = achar_duplicata(col, fam, payload.estabelecimento, payload.valor, notificado)
     if existente:
-        registrar_origem(col, existente, quem)
+        registrar_repeticao(col, existente, quem, notificado, data_compra)
         logger.info("nubank: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
         return {"status": "duplicata_ignorada", "tipo": "compra"}
 
