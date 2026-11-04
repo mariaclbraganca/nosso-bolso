@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'api_service.dart';
 import 'gemini_key_service.dart';
 import 'notificacao_fila_service.dart';
+import 'notificacao_vista_service.dart';
 import '../utils/moeda.dart';
 
 /// Processa notificações do Nubank capturadas pelo listener central (IfoodNotificationService).
@@ -49,7 +50,11 @@ class NubankNotificationService {
     final texto = ticker.isNotEmpty ? ticker
         : '$titulo $corpo'.trim().isNotEmpty ? '$titulo $corpo'.trim()
         : titulo;
-    await processarTexto(texto);
+    // Horário em que o Android postou a notificação (identidade da compra).
+    final postado = evt.timestamp != null && evt.timestamp! > 0
+        ? DateTime.fromMillisecondsSinceEpoch(evt.timestamp!)
+        : DateTime.now();
+    await processarTexto(texto, postado: postado);
   }
 
   // Textos processados recentemente (evita listener + bandeja processarem 2x).
@@ -64,11 +69,20 @@ class NubankNotificationService {
   }
 
   /// Processa texto de notificação diretamente (usado pelo ActiveNotificationsService).
-  static Future<void> processarTexto(String texto) async {
-    if (texto.isNotEmpty && _jaProcessado(texto)) {
-      debugPrint('[Nubank] Texto repetido ignorado (dedup local)');
-      return;
+  /// [postado] = quando o Android postou a notificação (a compra aconteceu ali).
+  static Future<void> processarTexto(String texto, {DateTime? postado}) async {
+    if (texto.isNotEmpty) {
+      // Memória permanente: a mesma notificação relida (app aberto de novo,
+      // bandeja) não vira outra compra. Sem horário, só a memória curta.
+      final repetida = postado != null
+          ? await NotificacaoVistaService.jaVista(NotificacaoVistaService.chave(texto, postado))
+          : _jaProcessado(texto);
+      if (repetida) {
+        debugPrint('[Nubank] Notificação já enviada, ignorada');
+        return;
+      }
     }
+    final quando = postado ?? DateTime.now();
     debugPrint('[Nubank] Notificação recebida: $texto');
 
     if (texto.isEmpty) {
@@ -160,7 +174,8 @@ class NubankNotificationService {
       return;
     }
 
-    final hoje = DateTime.now().toIso8601String().substring(0, 10);
+    // A data é a da notificação (quando a compra aconteceu), não a da leitura.
+    final hoje = quando.toIso8601String().substring(0, 10);
     debugPrint('[Nubank] Capturado ($origem): $estabelecimento R\$$valor em $hoje');
     // Mapeia origem → tipo que o backend entende (roteia receita vs gasto)
     final tipo = switch (origem) {
@@ -168,7 +183,7 @@ class NubankNotificationService {
       'nubank_pix_enviado' => 'pix_enviado',
       _ => 'compra',
     };
-    await _criarCompraPendente(estabelecimento, valor, hoje, origem, tipo);
+    await _criarCompraPendente(estabelecimento, valor, hoje, origem, tipo, quando);
   }
 
   /// Usa Gemini para extrair valor e estabelecimento de textos que o regex não capturou.
@@ -229,13 +244,17 @@ Regras:
     String data,
     String origem,
     String tipo,
+    DateTime notificadoEm,
   ) async {
     const endpoint = '/api/v1/compras/notificacao-nubank';
+    // notificado_em: horário local da notificação; o servidor junta as capturas
+    // da mesma compra (celular do titular e do cartão adicional).
     final bodyBase = {
       'estabelecimento': estabelecimento,
       'valor': valor,
       'data': data,
       'tipo': tipo,
+      'notificado_em': notificadoEm.toIso8601String().split('.').first,
     };
     try {
       // Em background o Supabase pode não existir neste isolate — acessar
@@ -268,21 +287,13 @@ Regras:
 
       if (familiaId.isEmpty) {
         // Sem família resolvida agora → enfileira em vez de descartar.
-        await NotificacaoFilaService.enfileirar(endpoint, {
-          'estabelecimento': estabelecimento,
-          'valor': valor,
-          'data': data,
-          'tipo': tipo,
-        });
+        await NotificacaoFilaService.enfileirar(endpoint, bodyBase);
         return;
       }
 
       final body = {
+        ...bodyBase,
         'familia_id': familiaId,
-        'estabelecimento': estabelecimento,
-        'valor': valor,
-        'data': data,
-        'tipo': tipo,
         'usuario_id': session.user.id,
       };
       final resp = await http
@@ -311,15 +322,7 @@ Regras:
     } catch (e, st) {
       // Rede caiu no meio → enfileira p/ reenviar quando reconectar.
       debugPrint('[Nubank] Erro ao criar compra pendente, enfileirando: $e');
-      await NotificacaoFilaService.enfileirar(
-        '/api/v1/compras/notificacao-nubank',
-        {
-          'estabelecimento': estabelecimento,
-          'valor': valor,
-          'data': data,
-          'tipo': tipo,
-        },
-      );
+      await NotificacaoFilaService.enfileirar('/api/v1/compras/notificacao-nubank', bodyBase);
       await Sentry.captureException(e, stackTrace: st);
     }
   }

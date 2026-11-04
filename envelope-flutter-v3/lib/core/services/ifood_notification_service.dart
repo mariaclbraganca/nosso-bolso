@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import 'active_notifications_service.dart';
 import 'nubank_notification_service.dart';
 import 'notificacao_fila_service.dart';
+import 'notificacao_vista_service.dart';
 import '../utils/moeda.dart';
 
 /// Ponto central de escuta de notificações.
@@ -121,22 +122,33 @@ class IfoodNotificationService {
     if (valor <= 0) return;
 
     final estabelecimento = match.group(2)!.trim();
-    final hoje = DateTime.now().toIso8601String().substring(0, 10);
+    // Horário em que o Android postou a notificação: a data da compra e a
+    // identidade dela (a mesma notificação não vira duas compras).
+    final postado = evt.timestamp != null && evt.timestamp! > 0
+        ? DateTime.fromMillisecondsSinceEpoch(evt.timestamp!)
+        : DateTime.now();
+    if (await NotificacaoVistaService.jaVista(NotificacaoVistaService.chave(texto, postado))) {
+      debugPrint('[iFood] Notificação já enviada, ignorada');
+      return;
+    }
+    final hoje = postado.toIso8601String().substring(0, 10);
 
     debugPrint('[iFood] Capturado: $estabelecimento R\$$valor');
-    await _enviarBackend(estabelecimento, valor, hoje);
+    await _enviarBackend(estabelecimento, valor, hoje, postado);
   }
 
   static Future<void> _enviarBackend(
     String estabelecimento,
     double valor,
     String data,
+    DateTime notificadoEm,
   ) async {
     const endpoint = '/api/v1/compras/notificacao-ifood';
     final bodyBase = {
       'estabelecimento': estabelecimento,
       'valor': valor,
       'data': data,
+      'notificado_em': notificadoEm.toIso8601String().split('.').first,
     };
 
     // Em background (app fechado) o Supabase não existe neste isolate —

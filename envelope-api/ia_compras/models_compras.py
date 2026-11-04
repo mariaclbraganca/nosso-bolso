@@ -136,6 +136,11 @@ class NotificacaoIfoodRequest(BaseModel):
     # os demais viram compra pendente de envelope (gasto). Default = compra.
     tipo: Optional[str] = "compra"
     usuario_id: Optional[UUID] = None  # necessário para lançar receita
+    # Horário em que o Android postou a notificação (ISO, horário local). Dá a
+    # identidade da compra: mesma loja + valor + horário = a mesma compra, venha
+    # de qual celular vier. Ausente em apps antigos.
+    notificado_em: Optional[str] = None
+    dispositivo: Optional[str] = None  # qual celular enviou (diagnóstico)
 
 
 # --- Responses ---

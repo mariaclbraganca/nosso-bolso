@@ -9,6 +9,7 @@ from ia_compras.mongo_client import get_compras_collection, get_dicionario_colle
 from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from datetime import datetime
 from database import get_supabase
+from ia_compras.dedup_notificacao import achar_duplicata, ficar_com_a_mais_antiga, para_iso, registrar_origem
 import logging
 
 from parcelas_cartao import compromisso_da_parcelada, gravar_parcelas_ou_desfazer
@@ -549,9 +550,13 @@ def registrar_notificacao_ifood(
 
     fam = assert_mesma_familia(user, str(payload.familia_id))
     data_compra = payload.data or datetime.now().strftime("%Y-%m-%d")
+    notificado = para_iso(payload.notificado_em)
+    quem = str(payload.usuario_id) if payload.usuario_id else user.id
 
     col = get_compras_collection()
-    if _eh_duplicata(col, fam, payload.estabelecimento, payload.valor, data_compra):
+    existente = achar_duplicata(col, fam, payload.estabelecimento, payload.valor, notificado)
+    if existente:
+        registrar_origem(col, existente, quem)
         logger.info("ifood: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
         return {"status": "duplicata_ignorada"}
 
@@ -563,32 +568,22 @@ def registrar_notificacao_ifood(
         "supermercado": payload.estabelecimento,
         "valor_total": payload.valor,
         "fonte": "ifood",
-        "usuario_id": str(payload.usuario_id) if payload.usuario_id else user.id,  # quem gastou
+        "usuario_id": quem,  # quem gastou
         "status_integracao": "pendente",
         "transacao_supabase_id": None,
         "itens": [],
+        "notificado_em": notificado,
+        "origens": [quem],
+        "dispositivo": payload.dispositivo,
         "created_at": datetime.now().isoformat(),
     }
     col.insert_one(doc)
+    anterior = ficar_com_a_mais_antiga(col, doc, notificado)
+    if anterior:
+        registrar_origem(col, anterior, quem)
+        return {"status": "duplicata_ignorada"}
     logger.info("ifood: compra_id=%s familia=%s valor=%.2f", compra_id, fam, payload.valor)
     return {"compra_id": compra_id, "status": "pendente"}
-
-
-def _eh_duplicata(col, familia_id: str, estabelecimento: str, valor: float,
-                  data_compra: str, janela_min: int = 10) -> bool:
-    """True se já existe compra idêntica (mesma família/estab/valor/dia) criada
-    nos últimos `janela_min` minutos — evita a inserção dupla do listener +
-    leitura da bandeja para a mesma notificação."""
-    from datetime import timedelta
-    limite = (datetime.now() - timedelta(minutes=janela_min)).isoformat()
-    existente = col.find_one({
-        "familia_id": familia_id,
-        "supermercado": estabelecimento,
-        "valor_total": valor,
-        "data_compra": f"{data_compra}T00:00:00",
-        "created_at": {"$gte": limite},
-    })
-    return existente is not None
 
 
 @router.post("/notificacao-nubank", status_code=201)
@@ -638,7 +633,11 @@ def registrar_notificacao_nubank(
 
     # compra ou pix_enviado → compra pendente de envelope (gasto)
     col = get_compras_collection()
-    if _eh_duplicata(col, fam, payload.estabelecimento, payload.valor, data_compra):
+    notificado = para_iso(payload.notificado_em)
+    quem = str(payload.usuario_id) if payload.usuario_id else user.id
+    existente = achar_duplicata(col, fam, payload.estabelecimento, payload.valor, notificado)
+    if existente:
+        registrar_origem(col, existente, quem)
         logger.info("nubank: duplicata ignorada familia=%s valor=%.2f", fam, payload.valor)
         return {"status": "duplicata_ignorada", "tipo": "compra"}
 
@@ -655,9 +654,16 @@ def registrar_notificacao_nubank(
         "status_integracao": "pendente",
         "transacao_supabase_id": None,
         "itens": [],
+        "notificado_em": notificado,
+        "origens": [quem],  # quem notificou (titular e cartão adicional, se os dois)
+        "dispositivo": payload.dispositivo,
         "created_at": datetime.now().isoformat(),
     }
     col.insert_one(doc)
+    anterior = ficar_com_a_mais_antiga(col, doc, notificado)
+    if anterior:
+        registrar_origem(col, anterior, quem)
+        return {"status": "duplicata_ignorada", "tipo": "compra"}
     logger.info("nubank: compra_id=%s familia=%s valor=%.2f tipo=%s", compra_id, fam, payload.valor, tipo)
     return {"compra_id": compra_id, "status": "pendente"}
 

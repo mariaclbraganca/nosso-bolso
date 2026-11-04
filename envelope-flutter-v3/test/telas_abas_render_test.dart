@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nosso_bolso_v3/core/providers/plano_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/compras_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/contas_provider.dart';
+import 'package:nosso_bolso_v3/core/providers/mes_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/metas_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/patrimonio_provider.dart';
 import 'package:nosso_bolso_v3/core/providers/usuarios_provider.dart';
@@ -94,7 +95,8 @@ void main() {
     expect(find.text('Simular um cenário'), findsOneWidget);
   });
   testWidgets('Contas: fixos e boletos na mesma lista', (t) async {
-    await t.pumpWidget(ProviderScope(overrides: planos, child: MaterialApp(theme: nossoBolsoTheme(), home: const ContasScreen())));
+    // As contas do teste são de outubro: fixa o mês para o teste não depender da data de hoje.
+    await t.pumpWidget(ProviderScope(overrides: [...planos, mesAtualProvider.overrideWith((ref) => '2026-10')], child: MaterialApp(theme: nossoBolsoTheme(), home: const ContasScreen())));
     await t.pump(const Duration(milliseconds: 500));
     expect(t.takeException(), isNull);
     expect(find.textContaining('Aluguel'), findsWidgets);

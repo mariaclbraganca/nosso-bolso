@@ -27,7 +27,9 @@ class ActiveNotificationsService {
         final texto = ticker.isNotEmpty ? ticker : '$title $text'.trim();
         if (texto.isEmpty) continue;
 
-        await NubankNotificationService.processarTexto(texto);
+        final postado = DateTime.fromMillisecondsSinceEpoch(
+            int.tryParse(notif['postTime'] as String? ?? '') ?? DateTime.now().millisecondsSinceEpoch);
+        await NubankNotificationService.processarTexto(texto, postado: postado);
         processadas++;
       }
 

@@ -38,6 +38,9 @@ class MainActivity : FlutterActivity() {
                 mapOf(
                     "packageName" to sbn.packageName,
                     "id" to sbn.id.toString(),
+                    // Horário em que o Android postou a notificação: dá a identidade
+                    // da compra (a mesma notificação relida tem o mesmo horário).
+                    "postTime" to sbn.postTime.toString(),
                     "title" to extras.getString(Notification.EXTRA_TITLE),
                     "text" to extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
                     "bigText" to extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
