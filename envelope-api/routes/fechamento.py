@@ -11,6 +11,7 @@ Depende de: migration 03 (fn_fechar_mes + historico_envelopes + natureza).
 from fastapi import APIRouter, Depends, HTTPException
 from database import get_supabase
 from models import FecharMesPayload
+from fechamento_calculo import apurar, ciclo_fatura, intervalo_mes, somar_meses
 from auth import AuthUser, get_current_user, assert_mesma_familia
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -33,36 +34,46 @@ def fechar_mes(
     fam = assert_mesma_familia(user, payload.familia_id)
     db = get_supabase()
 
-    # Chama a função SQL fn_fechar_mes (faz snapshot + zera consumo atomicamente)
-    result = db.rpc("fn_fechar_mes", {
-        "p_familia_id": fam,
-        "p_mes": payload.mes,
-    }).execute()
+    # Apuração no backend (regras da família): não usa fn_fechar_ciclo, que
+    # zerava o saldo geral. O fechamento só grava o retrato; saldo nunca muda.
+    ini, fim = intervalo_mes(payload.mes)
+    ini_ciclo, _ = ciclo_fatura(payload.mes)
+    prox = somar_meses(payload.mes, 1)
+    cols = "tipo, valor, data, forma_pagamento, descricao, envelope_id"
+    mes_tx = (db.table("transacoes").select(cols).eq("familia_id", fam).is_("deleted_at", "null")
+              .gte("data", ini).lte("data", fim).execute().data)
+    ciclo_tx = (db.table("transacoes").select(cols).eq("familia_id", fam).is_("deleted_at", "null")
+                .gte("data", ini_ciclo).lte("data", fim).execute().data)
+    envs = (db.table("envelopes").select("id, nome_envelope, valor_planejado, natureza")
+            .eq("familia_id", fam).is_("deleted_at", "null").execute().data)
+    comps = (db.table("cartao_compromissos").select("valor, mes_fatura")
+             .eq("familia_id", fam).is_("deleted_at", "null").gte("mes_fatura", prox).execute().data)
+    fixos = (db.table("gastos_fixos").select("valor, valor_pago, pago")
+             .eq("familia_id", fam).eq("mes", prox).execute().data)
+    saldo = (db.table("saldo_geral").select("valor_total_disponivel").eq("familia_id", fam).execute().data)
+    apurado = apurar(payload.mes, mes_tx, envs, comps, fixos,
+                     float(saldo[0]["valor_total_disponivel"]) if saldo else 0.0, ciclo_tx)
 
-    envelopes_fechados = result.data or []
-    zerados = [e for e in envelopes_fechados if e.get("out_zerado")]
+    db.table("historico_envelopes").delete().eq("familia_id", fam).eq("mes", payload.mes).execute()
+    if apurado["envelopes"]:
+        db.table("historico_envelopes").insert([{**l, "familia_id": fam} for l in apurado["envelopes"]]).execute()
+    linha = {**apurado["mensal"], "familia_id": fam, "fechado_em": datetime.now(ZoneInfo("UTC")).isoformat()}
+    ja = db.table("historico_mensal").select("id").eq("familia_id", fam).eq("mes", payload.mes).execute().data
+    if ja:
+        db.table("historico_mensal").update(linha).eq("id", ja[0]["id"]).execute()
+    else:
+        db.table("historico_mensal").insert(linha).execute()
 
-    # Fecha o CICLO: apura resultado do mês (receita - despesas - fixos),
-    # grava a memória (resultado_mes / coberto_por_fora) e zera o saldo_geral.
-    ciclo = db.rpc("fn_fechar_ciclo", {
-        "p_familia_id": fam,
-        "p_mes": payload.mes,
-    }).execute()
-    ciclo_dados = (ciclo.data or [{}])[0]
-
+    m = apurado["mensal"]
     return {
         "status": "success",
         "mes": payload.mes,
-        "envelopes_processados": len(envelopes_fechados),
-        "envelopes_zerados": len(zerados),
-        "detalhe": envelopes_fechados,
-        # A retrospectiva do ciclo — a consciência do mês
+        "envelopes_processados": len(apurado["envelopes"]),
         "ciclo": {
-            "receita": ciclo_dados.get("receita", 0),
-            "saidas": ciclo_dados.get("saidas", 0),
-            "resultado": ciclo_dados.get("resultado", 0),
-            "coberto_por_fora": ciclo_dados.get("coberto", 0),
+            "receita": m["receita_total"], "saidas": round(m["total_consumo"] + m["total_compromisso"], 2),
+            "resultado": m["resultado_mes"], "coberto_por_fora": m["coberto_por_fora"],
         },
+        "a_pagar_mes_seguinte": m["extras"],
     }
 
 
