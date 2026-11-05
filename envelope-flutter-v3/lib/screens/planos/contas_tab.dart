@@ -11,6 +11,11 @@ import '../../../ui/theme/nb_theme.dart';
 import '../../../ui/unicorn/unicorn.dart';
 import '../sheets/comum.dart';
 import 'widgets/contas_card.dart';
+import 'widgets/contas_resumo.dart';
+import '../../core/providers/usuarios_provider.dart';
+import '../../core/providers/compras_provider.dart';
+import '../../core/providers/envelopes_provider.dart';
+import '../../core/providers/transacoes_provider.dart';
 import 'widgets/fixos_card.dart';
 import 'widgets/form_conta_sheet.dart';
 import 'widgets/form_fixo_sheet.dart';
@@ -98,6 +103,7 @@ class ContasTab extends ConsumerWidget {
 
   /// Pagar um fixo gera a despesa no backend, que recusa se o saldo geral não cobre.
   Future<void> _pagarFixo(WidgetRef ref, String id, bool pago) async {
+    if (!_emAndamento.add('fixo-$id')) return;
     try {
       await ApiService.patch('/fixos/$id', {'pago': pago});
       if (pago) NotificationService.cancelarAlertasFixo(id);
@@ -108,8 +114,34 @@ class ContasTab extends ConsumerWidget {
       } else {
         avisar(msg, erro: true);
       }
+    } finally {
+      _emAndamento.remove('fixo-$id');
     }
   }
+
+  /// Cria a conta "Fatura Aruã" do mês com o valor calculado e abre o pagamento.
+  Future<void> _pagarFatura(BuildContext context, WidgetRef ref, String mes, double valor) async {
+    if (!_emAndamento.add('fatura-$mes')) return;
+    try {
+      final fam = ref.read(perfilUsuarioLogadoProvider).valueOrNull?['familia_id'] as String?;
+      final criada = await ApiService.post('/fixos/', {
+        'nome': 'Fatura Aruã',
+        'valor': double.parse(valor.toStringAsFixed(2)),
+        'mes': mes,
+        'familia_id': fam,
+        'dia_vencimento': 7,
+        'recorrente': false,
+      });
+      if (context.mounted) await _pagarParte(context, criada);
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    } finally {
+      _emAndamento.remove('fatura-$mes');
+    }
+  }
+
+  /// Pagamentos em andamento: o segundo toque enquanto o primeiro não terminou é ignorado.
+  static final _emAndamento = <String>{};
 
   /// Paga só uma parte da conta (ex.: fatura paga em etapas).
   Future<void> _pagarParte(BuildContext context, Map<String, dynamic> c) async {
@@ -145,11 +177,15 @@ class ContasTab extends ConsumerWidget {
       avisar('O valor passa do que falta pagar (${brl(falta)}).', erro: true);
       return;
     }
+    final chave = 'parte-${c['id']}';
+    if (!_emAndamento.add(chave)) return;
     try {
       await pagarParteDaConta(c['id'] as String, valor);
       avisar('Pagamento de ${brl(valor)} registrado.');
     } catch (e) {
       avisar(mensagemErro(e), erro: true);
+    } finally {
+      _emAndamento.remove(chave);
     }
   }
 
@@ -227,50 +263,42 @@ class ContasTab extends ConsumerWidget {
     await _abrir(context, ref, tipo == 'fixo' ? const FormFixoSheet() : const FormContaSheet());
   }
 
+  /// Compras no crédito (confirmadas e capturadas ainda sem envelope), de todos os meses.
+  List<CompraCredito> _comprasNoCredito(WidgetRef ref) {
+    final idsVa = {
+      for (final e in ref.watch(envelopesProvider).valueOrNull ?? const <Map<String, dynamic>>[])
+        if (ehEnvelopeVa(e)) e['id'] as String
+    };
+    return [
+      for (final t in ref.watch(transacoesStreamProvider).valueOrNull ?? const <Map<String, dynamic>>[])
+        if (t['deleted_at'] == null && t['tipo'] == 'despesa' && formaDaDespesa(t, idsVa) == 'credito')
+          (data: (t['data'] ?? '').toString().substring(0, 10), valor: (t['valor'] as num).toDouble()),
+      for (final p in ref.watch(comprasPendentesProvider).valueOrNull ?? const <Map<String, dynamic>>[])
+        if (p['tipo_notificacao'] != 'pix_enviado' && p['fonte'] != 'ifood' && (p['data_compra'] ?? '').toString().length >= 10)
+          (data: p['data_compra'].toString().substring(0, 10), valor: ((p['valor_total'] ?? p['valor']) as num).toDouble()),
+    ];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesAtualProvider);
     final boletos = ref.watch(contasMesProvider(mes));
     final contas = juntarContas(ref.watch(fixosMesAtualProvider), boletos.valueOrNull ?? const []);
-    final total = contas.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
-    final pendente = total - contas.fold(0.0, (s, c) => s + CaixaDoMes.pagoDe(c));
+    final totalContas = contas.fold(0.0, (s, c) => s + ((c['valor'] as num?)?.toDouble() ?? 0));
+    final pagoContas = contas.fold(0.0, (s, c) => s + CaixaDoMes.pagoDe(c));
+    // A fatura vira conta paga quando existe um fixo "Fatura…" no mês; senão é o valor calculado.
+    final temFaturaLancada = contas.any((c) => ((c['nome'] as String?) ?? '').toLowerCase().startsWith('fatura'));
+    final fatura = faturaQueVenceEm(mes, _comprasNoCredito(ref), ref.watch(compromissosCartaoProvider).valueOrNull ?? const []);
+    final total = totalContas + (temFaturaLancada ? 0 : fatura);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(NBSpacing.margemTela, 12, NBSpacing.margemTela, 120),
       children: [
-        CartaoNB(
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('CONTAS A PAGAR', style: NBText.eyebrow),
-                    const SizedBox(height: 4),
-                    Text(brl(total), style: NBText.valorCartao),
-                    Text('${contas.where((c) => c['pago'] == true).length} de ${contas.length} pagas', style: NBText.legenda),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Falta pagar', style: NBText.legenda),
-                  Text(brl(pendente),
-                      style: NBText.valorCartao.copyWith(color: pendente > 0 ? NBColors.estouro : NBColors.verde, fontSize: 18)),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (ref.watch(limiteMesProvider).valueOrNull case final l?)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Pago ${brl(total - pendente)} · coberto pela reserva até agora ${brl(l.caixa.cobertoPelaReserva)}',
-              style: NBText.legenda,
-            ),
-          ),
+        ResumoAPagar(mes: mes, total: total, pago: pagoContas, saldo: ref.watch(saldoGeralProvider).valueOrNull ?? 0),
+        if (!temFaturaLancada && fatura > 0) ...[
+          const SizedBox(height: NBSpacing.m),
+          CartaoFaturaDoMes(mes: mes, valor: fatura, onPagar: () => _pagarFatura(context, ref, mes, fatura)),
+        ],
         if (boletos.hasError)
           Padding(
             padding: const EdgeInsets.only(top: 8),

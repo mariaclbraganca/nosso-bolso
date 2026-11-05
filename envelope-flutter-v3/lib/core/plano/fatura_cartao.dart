@@ -61,3 +61,28 @@ Map<String, dynamic> compromissoDaParcelada({
     };
 
 double valorParcela(double total, int parcelas) => (total / parcelas * 100).roundToDouble() / 100;
+
+/// O ciclo da fatura vai do dia 30 do mês anterior ao dia 30 do mês das compras.
+const diaFechaFatura = 30;
+
+({String ini, String fim}) cicloDaFatura(String mesCompras) {
+  String dia(String mes) {
+    final ultimo = DateTime(int.parse(mes.substring(0, 4)), int.parse(mes.substring(5, 7)) + 1, 0).day;
+    return '$mes-${(diaFechaFatura < ultimo ? diaFechaFatura : ultimo).toString().padLeft(2, '0')}';
+  }
+
+  return (ini: dia(somarMeses(mesCompras, -1)), fim: dia(mesCompras));
+}
+
+/// Compra no crédito já normalizada: data 'yyyy-MM-dd' e valor.
+typedef CompraCredito = ({String data, double valor});
+
+/// Fatura que vence (dia 7) em [mesVenc]: as compras no crédito do ciclo mais
+/// as parcelas e assinaturas que caem nela. É o mesmo cálculo do fechamento.
+double faturaQueVenceEm(String mesVenc, List<CompraCredito> compras, List<Map<String, dynamic>> compromissos) {
+  final c = cicloDaFatura(somarMeses(mesVenc, -1));
+  final doCiclo = compras
+      .where((x) => x.data.compareTo(c.ini) >= 0 && x.data.compareTo(c.fim) <= 0)
+      .fold(0.0, (s, x) => s + x.valor);
+  return doCiclo + comprometidoNaFatura(compromissos, mesVenc);
+}

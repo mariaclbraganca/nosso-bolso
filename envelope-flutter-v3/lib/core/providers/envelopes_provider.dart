@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants.dart';
 import 'usuarios_provider.dart';
+import 'mes_provider.dart';
+import 'orcamento_mes_provider.dart';
 
 /// Todos os envelopes da família (sem filtro — usado internamente e por admins)
 final envelopesProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
@@ -34,7 +36,8 @@ final saldoGeralProvider = StreamProvider<double>((ref) {
 final envelopesViseisProvider = Provider<List<Map<String, dynamic>>>((ref) {
   final perfil = ref.watch(perfilUsuarioLogadoProvider).asData?.value;
   final isAdmin = perfil?['role'] == 'admin';
-  final todos = ref.watch(envelopesProvider).valueOrNull ?? [];
+  final orcado = ref.watch(orcamentoMesProvider(ref.watch(mesAtualProvider))).valueOrNull ?? const <String, double>{};
+  final todos = aplicarOrcadoDoMes(ref.watch(envelopesProvider).valueOrNull ?? [], orcado);
   if (isAdmin) return todos;
   return todos.where((e) => e['visivel_apenas_admin'] != true).toList();
 });

@@ -16,6 +16,7 @@ import '../compras/nfce_fluxo.dart';
 import '../compras/widgets/compras_pendente_card.dart';
 import '../compras/widgets/inserir_url_dialog.dart';
 import '../compras/widgets/qr_scanner_sheet.dart';
+import '../home/widgets/home_cartao_saldo.dart' show nomeMes;
 import '../sheets/comum.dart';
 
 /// Botão "+ Lançar": compra (digitada ou pela nota fiscal), compras
@@ -367,8 +368,25 @@ class _SheetCompraState extends ConsumerState<SheetCompra> {
     }
   }
 
+  /// Mês (yyyy-MM) em que a compra capturada aconteceu.
+  String? get _mesDaCaptura {
+    final d = widget.captura?['data_compra']?.toString() ?? '';
+    return d.length >= 7 ? d.substring(0, 7) : null;
+  }
+
   Widget? _previa(LimiteMes? l, List<Map<String, dynamic>> envs) {
     if (l == null || _total <= 0) return null;
+    // Captura de outro mês: não mexe no mês atual nem na fatura em aberto.
+    final mesCaptura = _mesDaCaptura;
+    if (mesCaptura != null && mesCaptura != l.mes) {
+      return CartaoNB(
+        child: Text(
+          'Esta compra é de ${nomeMes(mesCaptura)}: entra em ${nomeMes(mesCaptura)} '
+          '(fatura de 7/${abvMes(somarMeses(mesCaptura, 1))}) e não conta no mês atual.',
+          style: NBText.corpo.copyWith(fontSize: 13.5),
+        ),
+      );
+    }
     final v = _valorMes;
     if (_forma == 'va') {
       final d = l.disponivelVa;

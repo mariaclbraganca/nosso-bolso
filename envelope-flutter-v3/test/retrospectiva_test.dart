@@ -34,7 +34,7 @@ void main() {
     expect(find.textContaining('Passou'), findsOneWidget);
   });
 
-  testWidgets('Mês não fechado (404) explica e oferece o mês anterior', (t) async {
+  testWidgets('Mês não fechado (404) oferece fechar o mês e deixa navegar para o anterior', (t) async {
     await t.pumpWidget(app([
       retrospectivaProvider('2026-09').overrideWith((ref) async => throw const ApiException('Mês ainda não foi fechado.', 404)),
       visaoMesProvider('2026-09').overrideWith((ref) async => {}),
@@ -43,7 +43,8 @@ void main() {
     ]));
     await t.pump(const Duration(seconds: 1));
     expect(find.text('Este mês ainda não foi fechado'), findsOneWidget);
-    await t.tap(find.text('Ver o mês anterior'));
+    expect(find.text('Fechar Setembro'), findsOneWidget);
+    await t.tap(find.byTooltip('Mês anterior'));
     await t.pump(const Duration(seconds: 1));
     await t.pump();
     expect(find.textContaining('fechou no azul'), findsOneWidget);

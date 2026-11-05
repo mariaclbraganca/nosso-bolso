@@ -7,8 +7,6 @@ import '../../core/providers/fixos_provider.dart';
 import '../../core/providers/plano_provider.dart';
 import '../../core/providers/saude_provider.dart';
 import '../../core/providers/usuarios_provider.dart';
-import '../../core/providers/mes_provider.dart';
-import '../../core/services/api_service.dart';
 import '../../core/services/app_navigator.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
@@ -44,26 +42,6 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   void initState() {
     super.initState();
     registrarDestinos(_abrir);
-    ref.listenManual(perfilUsuarioLogadoProvider, (_, perfil) {
-      final fam = perfil.valueOrNull?['familia_id'] as String?;
-      if (fam != null) _fecharMesAnterior(fam);
-    }, fireImmediately: true);
-  }
-
-  static bool _fechamentoConferido = false;
-
-  /// O mês fecha sozinho: na primeira abertura do mês, o backend fecha o
-  /// anterior (se ainda não foi). Falha de rede não atrapalha o uso.
-  Future<void> _fecharMesAnterior(String familiaId) async {
-    if (_fechamentoConferido) return;
-    _fechamentoConferido = true;
-    try {
-      final r = await ApiService.post('/fechamento/automatico', {'familia_id': familiaId});
-      if (r['fechado'] == true) avisar('O mês de ${mesLabelLongo(r['mes'] as String).toLowerCase()} foi fechado.');
-    } catch (e) {
-      _fechamentoConferido = false;
-      debugPrint('[Fechamento] automático não rodou: $e');
-    }
   }
 
   @override

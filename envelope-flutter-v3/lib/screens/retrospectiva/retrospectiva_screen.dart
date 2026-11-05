@@ -6,6 +6,9 @@ import '../../core/services/api_service.dart';
 import '../../ui/components/nb_components.dart';
 import '../../ui/theme/nb_theme.dart';
 import '../../ui/unicorn/unicorn.dart';
+import '../../core/plano/fechamento_mes.dart';
+import '../../core/providers/transacoes_provider.dart';
+import 'fechar_mes_widgets.dart';
 
 /// Retrospectiva de um mês fechado: o que entrou, o que saiu, o resultado e,
 /// se o mês fechou no negativo, quanto foi coberto por fora.
@@ -52,10 +55,10 @@ class _RetrospectivaScreenState extends ConsumerState<RetrospectivaScreen> {
         error: (e, _) => UnicornVazio(
           titulo: _naoFechado(e) ? 'Este mês ainda não foi fechado' : 'Não consegui carregar',
           texto: _naoFechado(e)
-              ? 'A retrospectiva aparece depois de "Fechar mês" em Planos.'
+              ? 'Feche o mês quando os lançamentos de ${mesLabelLongo(_mes)} estiverem completos.'
               : 'Verifique a internet e tente de novo.',
-          acao: () => setState(() => _mes = mesAnterior(_mes)),
-          rotuloAcao: 'Ver o mês anterior',
+          acao: _naoFechado(e) ? () => fecharMes(context, ref, _mes) : () => setState(() => _mes = mesAnterior(_mes)),
+          rotuloAcao: _naoFechado(e) ? 'Fechar ${mesLabelLongo(_mes).split(' ').first}' : 'Ver o mês anterior',
         ),
         data: (d) {
           final receita = _n(d, 'receita_total');
@@ -95,13 +98,21 @@ class _RetrospectivaScreenState extends ConsumerState<RetrospectivaScreen> {
                   ],
                 ),
               ),
+              if (lancamentosDepoisDoFechamento(_mes, d['fechado_em']?.toString(), ref.watch(transacoesStreamProvider).valueOrNull ?? const []) case final novos when novos > 0) ...[
+                const SizedBox(height: NBSpacing.l),
+                AvisoFechamentoDesatualizado(mes: _mes, novos: novos),
+              ],
+              if (d['extras'] is Map<String, dynamic> && (d['extras'] as Map)['a_pagar_mes_seguinte'] != null) ...[
+                const SizedBox(height: NBSpacing.l),
+                CartaoAPagarProximoMes(mes: _mes, extras: d['extras'] as Map<String, dynamic>),
+              ],
               const SizedBox(height: NBSpacing.l),
               CartaoNB(
                 child: Column(
                   children: [
                     LinhaPrevia(rotulo: 'Receitas', valor: receita, corValor: NBColors.verde),
                     LinhaPrevia(rotulo: 'Despesas por envelope', valor: -consumo),
-                    LinhaPrevia(rotulo: 'Contas fixas e parcelas', valor: -compromisso),
+                    LinhaPrevia(rotulo: 'Contas fixas pagas', valor: -compromisso),
                     const Divider(height: 16),
                     LinhaPrevia(rotulo: 'Resultado do mês', valor: resultado, corValor: NBColors.verde),
                     if (parcelasRestantes > 0)

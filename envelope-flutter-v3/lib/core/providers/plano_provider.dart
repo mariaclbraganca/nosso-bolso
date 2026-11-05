@@ -6,6 +6,7 @@ import 'contas_provider.dart';
 import 'envelopes_provider.dart';
 import 'fixos_provider.dart';
 import 'mes_provider.dart';
+import 'orcamento_mes_provider.dart';
 import 'transacoes_provider.dart';
 import 'usuarios_provider.dart';
 
@@ -37,24 +38,34 @@ bool ehReserva(Map<String, dynamic> env) =>
 bool ehEnvelopeVa(Map<String, dynamic> env) =>
     (env['nome_envelope'] as String? ?? '').toLowerCase().replaceAll('ã', 'a').contains('vale alimenta');
 
+/// A captura é do mês [mes]? (sem data, vale no mês atual, como antes.)
+bool _doMes(Map<String, dynamic> p, String mes) {
+  final d = (p['data_compra'] ?? p['data'])?.toString() ?? '';
+  return d.length < 7 || d.substring(0, 7) == mes;
+}
+
 /// Forma de pagamento de uma despesa. Lançamentos antigos sem forma vieram da
 /// captura do cartão; no envelope de VA, a forma é sempre VA.
 String formaDaDespesa(Map<String, dynamic> t, Set<String> idsVa) =>
     idsVa.contains(t['envelope_id']) ? 'va' : (t['forma_pagamento'] as String?) ?? 'credito';
 
 /// Compras do mês para o limite: despesas confirmadas + capturas do Nubank
-/// ainda sem envelope (já descontam do disponível).
+/// ainda sem envelope (já descontam do disponível). A captura vale no mês da
+/// data da COMPRA: uma pendência de outubro não entra no mês nem na fatura de
+/// novembro, mesmo que ainda esteja sem envelope.
 List<CompraMes> comprasDoMes(
   List<Map<String, dynamic>> transacoes,
   List<Map<String, dynamic>> pendentes,
-  Set<String> idsVa,
-) =>
+  Set<String> idsVa, {
+  String? mes,
+}) =>
     [
       for (final t in transacoes)
         if (t['tipo'] == 'despesa')
           (valor: (t['valor'] as num).toDouble(), envelopeId: t['envelope_id'] as String?, forma: formaDaDespesa(t, idsVa)),
       for (final p in pendentes)
-        (
+        if (mes == null || _doMes(p, mes))
+          (
           valor: ((p['valor_total'] ?? p['valor']) as num? ?? 0).toDouble(),
           envelopeId: null,
           forma: p['tipo_notificacao'] == 'pix_enviado' ? 'pix' : 'credito',
@@ -71,7 +82,8 @@ final limiteMesProvider = Provider.autoDispose<AsyncValue<LimiteMes>>((ref) {
   if (compromissos.hasError) return AsyncValue.error(compromissos.error!, compromissos.stackTrace!);
   if (!receitas.hasValue || !compromissos.hasValue) return const AsyncValue.loading();
 
-  final todosEnvelopes = (ref.watch(envelopesProvider).valueOrNull ?? const <Map<String, dynamic>>[])
+  final orcado = ref.watch(orcamentoMesProvider(mes)).valueOrNull ?? const <String, double>{};
+  final todosEnvelopes = aplicarOrcadoDoMes(ref.watch(envelopesProvider).valueOrNull ?? const <Map<String, dynamic>>[], orcado)
       .where((e) => e['deleted_at'] == null)
       .toList();
   final idsVa = {for (final e in todosEnvelopes) if (ehEnvelopeVa(e)) e['id'] as String};
@@ -97,6 +109,7 @@ final limiteMesProvider = Provider.autoDispose<AsyncValue<LimiteMes>>((ref) {
       ref.watch(transacoesComDetalhesProvider),
       ref.watch(comprasPendentesProvider).valueOrNull ?? const [],
       idsVa,
+      mes: mes,
     ),
     vaSobraAnterior: sobraVa,
     dinheiroAnterior: salarioAnterior(receitasAnteriores),

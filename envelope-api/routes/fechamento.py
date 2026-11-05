@@ -125,7 +125,8 @@ def retrospectiva_mes(
     db = get_supabase()
     r = (db.table("historico_mensal")
          .select("mes, receita_total, total_consumo, total_compromisso, "
-                 "resultado_mes, coberto_por_fora, parcelas_restantes_valor, parcelas_restantes_qtd")
+                 "resultado_mes, coberto_por_fora, parcelas_restantes_valor, parcelas_restantes_qtd, "
+                 "saldo_final, extras, fechado_em")
          .eq("familia_id", fam).eq("mes", mes).limit(1).execute())
     if not r.data:
         raise HTTPException(status_code=404, detail="Mês ainda não foi fechado.")

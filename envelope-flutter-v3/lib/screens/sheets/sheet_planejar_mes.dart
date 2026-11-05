@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/envelopes_provider.dart';
 import '../../core/plano/plano_mes.dart';
 import '../../core/providers/mes_provider.dart';
+import '../../core/providers/orcamento_mes_provider.dart';
 import '../../core/providers/plano_provider.dart';
 import '../../core/providers/transacoes_provider.dart';
 import '../../core/services/api_service.dart';
@@ -64,6 +65,26 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     }
   }
 
+  /// Copia o orçado do mês anterior para este mês (sem sobrescrever o que já foi ajustado).
+  Future<void> _montarDoAnterior() async {
+    final mes = ref.read(mesAtualProvider);
+    try {
+      final r = await ApiService.post('/orcamento/$mes/montar', {});
+      ref.invalidate(orcamentoMesProvider(mes));
+      for (final c in _ctrls.values) {
+        c.dispose();
+      }
+      _ctrls.clear();
+      _original.clear();
+      if (mounted) setState(() {});
+      avisar(r['criados'] == 0
+          ? 'O orçado de ${nomeMes(mes)} já estava montado.'
+          : 'Orçado de ${nomeMes(mes)} montado a partir de ${nomeMes(somarMeses(mes, -1))}.');
+    } catch (e) {
+      avisar(mensagemErro(e), erro: true);
+    }
+  }
+
   @override
   void dispose() {
     for (final c in _ctrls.values) {
@@ -94,20 +115,25 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     final p = perfilOuErro(ref);
     final nomes = {for (final e in ref.read(envelopesProvider).valueOrNull ?? const <Map<String, dynamic>>[]) e['id']: e['nome_envelope']};
     final falhas = <String>[];
-    for (final m in mudados) {
-      try {
-        await ApiService.put('/envelopes/${m.key}?familia_id=${p['familia_id']}', {'valor_planejado': parseMoeda(m.value.text)});
+    final mes = ref.read(mesAtualProvider);
+    try {
+      // O orçado vale só para este mês; os outros meses não mudam.
+      await ApiService.put('/orcamento/$mes', {
+        'itens': [for (final m in mudados) {'envelope_id': m.key, 'valor_planejado': parseMoeda(m.value.text)}],
+      });
+      for (final m in mudados) {
         _original[m.key] = parseMoeda(m.value.text);
-      } catch (e) {
-        debugPrint('[Orçamento] ${nomes[m.key]}: $e');
-        falhas.add('${nomes[m.key] ?? 'Envelope'}: ${mensagemErro(e)}');
       }
+    } catch (e) {
+      debugPrint('[Orçamento] ${p['familia_id']} ${nomes.length} envelopes: $e');
+      falhas.add(mensagemErro(e));
     }
+    ref.invalidate(orcamentoMesProvider(mes));
     ref.invalidate(envelopesProvider);
     if (!mounted) return;
     setState(() => _salvando = false);
     if (falhas.isEmpty) {
-      avisar('Orçamento salvo (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
+      avisar('Orçado de ${nomeMes(mes)} salvo (${mudados.length} ${mudados.length == 1 ? 'envelope' : 'envelopes'}).');
       if (widget.emFolha) Navigator.pop(context, true);
     } else {
       avisar('Não salvou — ${falhas.join(' · ')}', erro: true);
@@ -134,6 +160,12 @@ class _OrcamentoMensalState extends ConsumerState<OrcamentoMensal> {
     );
 
     final filhos = <Widget>[
+      OutlinedButton.icon(
+        onPressed: _montarDoAnterior,
+        icon: const Icon(Icons.content_copy_rounded, size: 18),
+        label: Text('Montar ${nomeMes(ref.watch(mesAtualProvider))} a partir de ${nomeMes(somarMeses(ref.watch(mesAtualProvider), -1))}'),
+      ),
+      const SizedBox(height: NBSpacing.m),
       if (limite != null) TopoOrcamento(limite: limite, totalOrcado: total),
       if (limite != null && medias.isNotEmpty) ...[
         const SizedBox(height: NBSpacing.m),
