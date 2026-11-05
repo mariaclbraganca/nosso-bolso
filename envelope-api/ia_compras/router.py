@@ -9,6 +9,7 @@ from ia_compras.mongo_client import get_compras_collection, get_dicionario_colle
 from auth import AuthUser, get_current_user, assert_mesma_familia, assert_mesmo_usuario
 from datetime import datetime
 from database import get_supabase
+from receita_pix import lancar_pix_recebido
 from ia_compras.dedup_notificacao import (
     achar_duplicata, ficar_com_a_mais_antiga, para_iso, registrar_origem, registrar_repeticao,
 )
@@ -609,16 +610,6 @@ def registrar_notificacao_nubank(
     # Pix recebido = receita: lança direto no Supabase, não vira compra pendente
     if tipo == "pix_recebido":
         db = get_supabase()
-        # Evita receita duplicada na janela curta
-        try:
-            recentes = db.table("transacoes").select("id") \
-                .eq("familia_id", fam).eq("tipo", "receita") \
-                .eq("valor", payload.valor).eq("data", str(data_compra)) \
-                .ilike("descricao", f"%{payload.estabelecimento}%").execute()
-            if recentes.data:
-                return {"status": "duplicata_ignorada", "tipo": "receita"}
-        except Exception:
-            pass
         data = {
             "valor": payload.valor,
             "tipo": "receita",
@@ -629,9 +620,11 @@ def registrar_notificacao_nubank(
             "familia_id": fam,
             "forma_pagamento": "pix",
         }
-        res = db.table("transacoes").insert(data).execute()
+        criada = lancar_pix_recebido(db, data, payload.estabelecimento)
+        if criada is None:
+            return {"status": "duplicata_ignorada", "tipo": "receita"}
         logger.info("nubank: receita (pix recebido) familia=%s valor=%.2f", fam, payload.valor)
-        return {"status": "receita_lancada", "transacao": res.data[0] if res.data else None}
+        return {"status": "receita_lancada", "transacao": criada}
 
     # compra ou pix_enviado → compra pendente de envelope (gasto)
     col = get_compras_collection()
