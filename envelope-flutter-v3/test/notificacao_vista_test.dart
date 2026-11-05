@@ -16,6 +16,12 @@ void main() {
     expect(await NotificacaoVistaService.jaVista(NotificacaoVistaService.chave(texto, postado)), isTrue);
   });
 
+  test('duas leituras ao mesmo tempo da mesma notificação: só uma passa como nova', () async {
+    final k = NotificacaoVistaService.chave(texto, postado);
+    final r = await Future.wait([for (var i = 0; i < 6; i++) NotificacaoVistaService.jaVista(k)]);
+    expect(r.where((jaVista) => !jaVista).length, 1);
+  });
+
   test('duas compras iguais de verdade (horários diferentes) não se confundem', () async {
     final a = NotificacaoVistaService.chave('Compra de R\$ 4,00 aprovada em Sabor Prime Lanches', postado);
     final b = NotificacaoVistaService.chave(

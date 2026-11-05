@@ -615,7 +615,8 @@ def registrar_notificacao_nubank(
             "tipo": "receita",
             "usuario_id": str(payload.usuario_id) if payload.usuario_id else user.id,
             "envelope_id": None,
-            "descricao": f"Pix recebido de {payload.estabelecimento}",
+            "descricao": ("Pix recebido" if payload.estabelecimento.strip().lower() == "pix recebido"
+                          else f"Pix recebido de {payload.estabelecimento}"),
             "data": str(data_compra),
             "familia_id": fam,
             "forma_pagamento": "pix",

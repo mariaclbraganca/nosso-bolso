@@ -17,8 +17,19 @@ class NotificacaoVistaService {
   static String chave(String texto, DateTime postado) =>
       '${postado.millisecondsSinceEpoch ~/ 1000}|${_hash(_normalizar(texto))}';
 
+  /// Uma consulta por vez: sem isso, duas leituras da mesma notificação ao mesmo
+  /// tempo (o ouvinte e a leitura da bandeja) leem a memória antes de qualquer
+  /// uma gravar, e as duas passam como "nova".
+  static Future<void> _fila = Future.value();
+
   /// true se a notificação já foi vista; se não, registra e devolve false.
-  static Future<bool> jaVista(String chave, {DateTime? agora}) async {
+  static Future<bool> jaVista(String chave, {DateTime? agora}) {
+    final resultado = _fila.then((_) => _verificar(chave, agora: agora));
+    _fila = resultado.then((_) {}, onError: (_) {});
+    return resultado;
+  }
+
+  static Future<bool> _verificar(String chave, {DateTime? agora}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       // O isolate de background e o app guardam cópias separadas: relê do disco.
