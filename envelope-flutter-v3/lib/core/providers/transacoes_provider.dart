@@ -82,6 +82,7 @@ final statsPorMesProvider = Provider.family<MesStats, String>((ref, mes) {
   double rec = 0;
   double desp = 0;
   double abast = 0;
+  double contas = 0; // contas fixas pagas no mês (a fatura do cartão não entra: o gasto dela já está nos envelopes)
 
   for (var t in transacoes) {
     if (t['deleted_at'] != null) continue;
@@ -91,10 +92,14 @@ final statsPorMesProvider = Provider.family<MesStats, String>((ref, mes) {
       if (t['tipo'] == 'receita') rec += val;
       if (t['tipo'] == 'despesa') desp += val;
       if (t['tipo'] == 'abastecimento') abast += val;
+      if (t['tipo'] == 'despesa_fixa' && !(t['descricao']?.toString().trim().toLowerCase().startsWith('fatura') ?? false)) {
+        contas += val;
+      }
     }
   }
 
-  return MesStats(totalReceita: rec, totalDespesa: desp, totalAbastecido: abast, saldo: rec - desp);
+  // Mesmo resultado do fechamento: receitas − gastos nos envelopes − contas pagas.
+  return MesStats(totalReceita: rec, totalDespesa: desp + contas, totalAbastecido: abast, saldo: rec - desp - contas);
 });
 
 /// Provedor para Paginação Infinita via API FastAPI (SPEC-12)
